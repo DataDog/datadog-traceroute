@@ -8,11 +8,12 @@ on:
       - 'v*'
   pull_request:
 
+permissions:
+      packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
     steps:
       - uses: actions/checkout@v2
         with:
