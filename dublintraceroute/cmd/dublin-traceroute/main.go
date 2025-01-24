@@ -194,8 +194,8 @@ func main() {
 	switch Args.outputFormat {
 	case "json":
 		output, err = results.ToJSON(true, "  ")
-	case "dot":
-		output, err = results.ToDOT()
+	//case "dot":
+	//	output, err = results.ToDOT()
 	default:
 		log.Fatalf("Unknown output format \"%s\"", Args.outputFormat)
 	}
