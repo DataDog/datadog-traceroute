@@ -35,7 +35,7 @@ func (w *winrawsocket) close() {
 
 func (t *TCPv4) sendRawPacket(w *winrawsocket, payload []byte) error {
 
-	dst := t.Target.To4()
+	dst := t.TargetIP.To4()
 	sa := &windows.SockaddrInet4{
 		Port: int(t.DestPort),
 		Addr: [4]byte{dst[0], dst[1], dst[2], dst[3]},
@@ -75,7 +75,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	//
 	// TODO: do this once for the probe and hang on to the
 	// listener until we decide to close the probe
-	addr, err := common.LocalAddrForHost(t.Target, t.DestPort)
+	addr, err := common.LocalAddrForHost(t.TargetIP, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)
 	}
@@ -108,14 +108,14 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	return &common.Results{
 		Source:     t.srcIP,
 		SourcePort: t.srcPort,
-		Target:     t.Target,
+		Target:     t.TargetIP,
 		DstPort:    t.DestPort,
 		Hops:       hops,
 	}, nil
 }
 
 func (t *TCPv4) sendAndReceive(rs *winrawsocket, ttl int, seqNum uint32, timeout time.Duration) (*common.Hop, error) {
-	_, buffer, _, err := createRawTCPSynBuffer(t.srcIP, t.srcPort, t.Target, t.DestPort, seqNum, ttl)
+	_, buffer, _, err := createRawTCPSynBuffer(t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum, ttl)
 	if err != nil {
 		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
 		return nil, err
@@ -128,7 +128,7 @@ func (t *TCPv4) sendAndReceive(rs *winrawsocket, ttl int, seqNum uint32, timeout
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
-	hopIP, hopPort, icmpType, end, err := rs.listenPackets(timeout, t.srcIP, t.srcPort, t.Target, t.DestPort, seqNum)
+	hopIP, hopPort, icmpType, end, err := rs.listenPackets(timeout, t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum)
 	if err != nil {
 		log.Errorf("failed to listen for packets: %s", err.Error())
 		return nil, err
@@ -144,6 +144,6 @@ func (t *TCPv4) sendAndReceive(rs *winrawsocket, ttl int, seqNum uint32, timeout
 		Port:     hopPort,
 		ICMPType: icmpType,
 		RTT:      rtt,
-		IsDest:   hopIP.Equal(t.Target),
+		IsDest:   hopIP.Equal(t.TargetIP),
 	}, nil
 }

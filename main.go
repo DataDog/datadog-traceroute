@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/build"
@@ -12,6 +13,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/tcp/tcp"
 	flag "github.com/spf13/pflag"
 
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute"
@@ -33,12 +35,14 @@ const (
 	DefaultDelay        = 50 //msec
 	DefaultReadTimeout  = 3 * time.Second
 	DefaultOutputFormat = "json"
+	DefaultProtocol     = "udp"
 )
 
 // used to hold flags
 type args struct {
 	version      bool
 	target       string
+	protocol     string
 	sport        int
 	useSrcport   bool
 	dport        int
@@ -105,6 +109,7 @@ func init() {
 		flag.PrintDefaults()
 	}
 	// Args holds the program's arguments as parsed by `flag`
+	flag.StringVarP(&Args.protocol, "protocol", "p", DefaultProtocol, "the protocol (udp, tcp)")
 	flag.BoolVarP(&Args.version, "version", "v", false, "print the version of Dublin Traceroute")
 	flag.IntVarP(&Args.sport, "sport", "s", DefaultSourcePort, "the source port to send packets from")
 	flag.IntVarP(&Args.dport, "dport", "d", DefaultDestPort, "the base destination port to send packets to")
@@ -145,7 +150,7 @@ func main() {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
 	}
 	fmt.Fprintf(os.Stderr, "Traceroute configuration:\n")
-	fmt.Fprintf(os.Stderr, "Target                : %v\n", target)
+	fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", target)
 	fmt.Fprintf(os.Stderr, "Base source port      : %v\n", Args.sport)
 	fmt.Fprintf(os.Stderr, "Base destination port : %v\n", Args.dport)
 	fmt.Fprintf(os.Stderr, "Use srcport for paths : %v\n", Args.useSrcport)
@@ -157,33 +162,52 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Treat as broken NAT   : %v\n", Args.brokenNAT)
 
 	var dt dublintraceroute.DublinTraceroute
-	if Args.v4 {
-		dt = &probev4.UDPv4{
-			Target:     target,
-			SrcPort:    uint16(Args.sport),
-			DstPort:    uint16(Args.dport),
-			UseSrcPort: Args.useSrcport,
-			NumPaths:   uint16(Args.npaths),
-			MinTTL:     uint8(Args.minTTL),
-			MaxTTL:     uint8(Args.maxTTL),
-			Delay:      time.Duration(Args.delay) * time.Millisecond,
-			Timeout:    DefaultReadTimeout,
-			BrokenNAT:  Args.brokenNAT,
+	if Args.protocol == "udp" {
+		if Args.v4 {
+			dt = &probev4.UDPv4{
+				Target:     target,
+				SrcPort:    uint16(Args.sport),
+				DstPort:    uint16(Args.dport),
+				UseSrcPort: Args.useSrcport,
+				NumPaths:   uint16(Args.npaths),
+				MinTTL:     uint8(Args.minTTL),
+				MaxTTL:     uint8(Args.maxTTL),
+				Delay:      time.Duration(Args.delay) * time.Millisecond,
+				Timeout:    DefaultReadTimeout,
+				BrokenNAT:  Args.brokenNAT,
+			}
+		} else {
+			dt = &probev6.UDPv6{
+				Target:      target,
+				SrcPort:     uint16(Args.sport),
+				DstPort:     uint16(Args.dport),
+				UseSrcPort:  Args.useSrcport,
+				NumPaths:    uint16(Args.npaths),
+				MinHopLimit: uint8(Args.minTTL),
+				MaxHopLimit: uint8(Args.maxTTL),
+				Delay:       time.Duration(Args.delay) * time.Millisecond,
+				Timeout:     DefaultReadTimeout,
+				BrokenNAT:   Args.brokenNAT,
+			}
 		}
-	} else {
-		dt = &probev6.UDPv6{
-			Target:      target,
-			SrcPort:     uint16(Args.sport),
-			DstPort:     uint16(Args.dport),
-			UseSrcPort:  Args.useSrcport,
-			NumPaths:    uint16(Args.npaths),
-			MinHopLimit: uint8(Args.minTTL),
-			MaxHopLimit: uint8(Args.maxTTL),
-			Delay:       time.Duration(Args.delay) * time.Millisecond,
-			Timeout:     DefaultReadTimeout,
-			BrokenNAT:   Args.brokenNAT,
+	} else if Args.protocol == "tcp" {
+		if Args.v4 {
+			dt = &tcp.TCPv4{
+				TargetHostname: Args.target,
+				TargetIP:       target,
+				//srcPort:    uint16(Args.sport),
+				DestPort: uint16(Args.dport),
+				//UseSrcPort: Args.useSrcport,
+				NumPaths: uint16(Args.npaths),
+				MinTTL:   uint8(Args.minTTL),
+				MaxTTL:   uint8(Args.maxTTL),
+				Delay:    time.Duration(Args.delay) * time.Millisecond,
+				Timeout:  DefaultReadTimeout,
+				//BrokenNAT: Args.brokenNAT,
+			}
 		}
 	}
+
 	results, err := dt.Traceroute()
 	if err != nil {
 		log.Fatalf("Traceroute() failed: %v", err)
@@ -193,7 +217,12 @@ func main() {
 	)
 	switch Args.outputFormat {
 	case "json":
-		output, err = results.ToJSON(true, "  ")
+		jsonStr, marshallErr := json.MarshalIndent(results, "", "  ")
+		//if err != nil {
+		//	return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		//}
+		output = string(jsonStr)
+		err = marshallErr
 	//case "dot":
 	//	output, err = results.ToDOT()
 	default:

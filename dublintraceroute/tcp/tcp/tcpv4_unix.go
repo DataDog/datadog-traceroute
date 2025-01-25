@@ -23,7 +23,7 @@ import (
 func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	// Get local address for the interface that connects to this
 	// host and store in in the probe
-	addr, err := common.LocalAddrForHost(t.Target, t.DestPort)
+	addr, err := common.LocalAddrForHost(t.TargetIP, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)
 	}
@@ -90,14 +90,14 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	return &common.Results{
 		Source:     t.srcIP,
 		SourcePort: t.srcPort,
-		Target:     t.Target,
+		Target:     t.TargetIP,
 		DstPort:    t.DestPort,
 		Hops:       hops,
 	}, nil
 }
 
 func (t *TCPv4) sendAndReceive(rawIcmpConn *ipv4.RawConn, rawTCPConn *ipv4.RawConn, ttl int, seqNum uint32, timeout time.Duration) (*common.Hop, error) {
-	tcpHeader, tcpPacket, err := createRawTCPSyn(t.srcIP, t.srcPort, t.Target, t.DestPort, seqNum, ttl)
+	tcpHeader, tcpPacket, err := createRawTCPSyn(t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum, ttl)
 	if err != nil {
 		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
 		return nil, err
@@ -110,7 +110,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn *ipv4.RawConn, rawTCPConn *ipv4.RawCo
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
-	hopIP, hopPort, icmpType, end, err := listenPackets(rawIcmpConn, rawTCPConn, timeout, t.srcIP, t.srcPort, t.Target, t.DestPort, seqNum)
+	hopIP, hopPort, icmpType, end, err := listenPackets(rawIcmpConn, rawTCPConn, timeout, t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum)
 	if err != nil {
 		log.Errorf("failed to listen for packets: %s", err.Error())
 		return nil, err
@@ -126,6 +126,6 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn *ipv4.RawConn, rawTCPConn *ipv4.RawCo
 		Port:     hopPort,
 		ICMPType: icmpType,
 		RTT:      rtt,
-		IsDest:   hopIP.Equal(t.Target),
+		IsDest:   hopIP.Equal(t.TargetIP),
 	}, nil
 }

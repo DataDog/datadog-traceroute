@@ -145,7 +145,7 @@ func main() {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
 	}
 	fmt.Fprintf(os.Stderr, "Traceroute configuration:\n")
-	fmt.Fprintf(os.Stderr, "Target                : %v\n", target)
+	fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", target)
 	fmt.Fprintf(os.Stderr, "Base source port      : %v\n", Args.sport)
 	fmt.Fprintf(os.Stderr, "Base destination port : %v\n", Args.dport)
 	fmt.Fprintf(os.Stderr, "Use srcport for paths : %v\n", Args.useSrcport)

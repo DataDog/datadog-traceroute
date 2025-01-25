@@ -5,7 +5,7 @@ package dublintraceroute
 import (
 	"time"
 
-	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/results"
+	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
 )
 
 // default values and constants
@@ -17,5 +17,5 @@ const (
 // probe type has to implement
 type DublinTraceroute interface {
 	Validate() error
-	Traceroute() (*results.Results, error)
+	Traceroute() (*payload.NetworkPath, error)
 }

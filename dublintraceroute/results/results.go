@@ -25,6 +25,12 @@ type UDP struct {
 	DstPort uint16 `json:"dport"`
 }
 
+// TCP represents some information from the TCP header.
+type TCP struct {
+	SrcPort uint16 `json:"sport"`
+	DstPort uint16 `json:"dport"`
+}
+
 // ICMP represents some information from the ICMP header.
 type ICMP struct {
 	Code        uint8           `json:"code"`
@@ -188,7 +194,7 @@ func (r *Results) ToJSON(compress bool, indent string) (string, error) {
 //		}
 //		var nodes []node
 //		// add first hop
-//		firstNodeName := hops[0].Sent.IP.SrcIP.String()
+//		firstNodeName := hops[0].Sent.IP.srcIP.String()
 //		firstHop, err := graph.CreateNode(firstNodeName)
 //		if err != nil {
 //			return "", fmt.Errorf("failed to create first node: %w", err)
@@ -203,7 +209,7 @@ func (r *Results) ToJSON(compress bool, indent string) (string, error) {
 //			label := "*"
 //			hostname := ""
 //			if hop.Received != nil {
-//				nodename = hop.Received.IP.SrcIP.String()
+//				nodename = hop.Received.IP.srcIP.String()
 //				if hop.Name != nodename {
 //					hostname = "\n" + hop.Name
 //				}
@@ -250,7 +256,7 @@ func (r *Results) ToJSON(compress bool, indent string) (string, error) {
 //			if idx == 1 {
 //				edgeLabel += fmt.Sprintf(
 //					"srcport %d\ndstport %d",
-//					cur.probe.Sent.UDP.SrcPort,
+//					cur.probe.Sent.UDP.srcPort,
 //					cur.probe.Sent.UDP.DstPort,
 //				)
 //			}

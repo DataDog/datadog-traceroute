@@ -12,6 +12,7 @@ import (
 	"time"
 
 	inet "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/net"
+	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/probes"
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/results"
 	"golang.org/x/net/ipv4"
@@ -356,7 +357,7 @@ func (d UDPv4) Match(sent []probes.Probe, received []probes.ProbeResponse) resul
 }
 
 // Traceroute sends the probes and returns a Results structure or an error
-func (d UDPv4) Traceroute() (*results.Results, error) {
+func (d UDPv4) Traceroute() (*payload.NetworkPath, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}

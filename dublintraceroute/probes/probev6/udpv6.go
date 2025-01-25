@@ -10,6 +10,7 @@ import (
 	"net"
 	"time"
 
+	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
 	"golang.org/x/net/ipv6"
 
 	inet "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/net"
@@ -339,7 +340,7 @@ func (d UDPv6) Match(sent []probes.Probe, received []probes.ProbeResponse) resul
 }
 
 // Traceroute sends the probes and returns a Results structure or an error
-func (d UDPv6) Traceroute() (*results.Results, error) {
+func (d UDPv6) Traceroute() (*payload.NetworkPath, error) {
 	if err := d.Validate(); err != nil {
 		return nil, err
 	}
