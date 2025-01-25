@@ -355,7 +355,7 @@ func (d UDPv6) Traceroute() (*payload.NetworkPath, error) {
 	traceroutePath := &payload.NetworkPath{
 		//AgentVersion: version.AgentVersion,
 		PathtraceID: payload.NewPathtraceID(),
-		Protocol:    payload.ProtocolTCP,
+		Protocol:    payload.ProtocolUDP,
 		Timestamp:   time.Now().UnixMilli(),
 		Source: payload.NetworkPathSource{
 			Hostname: utils.GetHostname(),
