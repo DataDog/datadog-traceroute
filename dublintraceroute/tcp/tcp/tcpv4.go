@@ -61,13 +61,15 @@ func (t *TCPv4) Traceroute() (*payload.NetworkPath, error) {
 
 	for idx, hop := range tcpRes.Hops {
 		ttl := idx + 1
+		ipAddress := ""
 		isReachable := false
 		if !hop.IP.Equal(net.IP{}) {
 			isReachable = true
+			ipAddress = hop.IP.String()
 		}
 		traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
 			TTL:       ttl,
-			IPAddress: hop.IP.String(),
+			IPAddress: ipAddress,
 			RTT:       float64(hop.RTT),
 			Reachable: isReachable,
 		})
