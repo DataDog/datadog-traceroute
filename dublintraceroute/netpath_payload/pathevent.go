@@ -13,9 +13,9 @@ type Protocol string
 
 const (
 	// ProtocolTCP is the TCP protocol.
-	ProtocolTCP Protocol = "tcp"
+	ProtocolTCP Protocol = "TCP"
 	// ProtocolUDP is the UDP protocol.
-	ProtocolUDP Protocol = "udp"
+	ProtocolUDP Protocol = "UDP"
 )
 
 // PathOrigin origin of the path e.g. network_traffic, network_path_integration
