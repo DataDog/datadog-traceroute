@@ -120,7 +120,7 @@ func init() {
 	flag.BoolVarP(&Args.useSrcport, "use-srcport", "i", false, "generate paths using source port instead of destination port")
 	flag.StringVarP(&Args.outputFile, "output-file", "o", "", "the output file name. If unspecified, or \"-\", print to stdout")
 	flag.StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "the output file format, either \"json\" or \"dot\"")
-	flag.BoolVarP(&Args.v4, "force-ipv4", "4", false, "Force the use of the legacy IPv4 protocol")
+	flag.BoolVarP(&Args.v4, "force-ipv4", "4", true, "Force the use of the legacy IPv4 protocol")
 	flag.CommandLine.SortFlags = false
 }
 
@@ -206,6 +206,8 @@ func main() {
 				Timeout:  DefaultReadTimeout,
 				//BrokenNAT: Args.brokenNAT,
 			}
+		} else {
+			log.Fatal("TCP IPv6 not supported")
 		}
 	}
 
