@@ -129,7 +129,7 @@ func handlePackets(ctx context.Context, conn rawConnWrapper, listener string, lo
 		if listener == "icmp" {
 			icmpResponse, err := common.ParseICMP(header, packet)
 			if err != nil {
-				log.Tracef("failed to parse ICMP packet: %s", err)
+				//log.Printf("failed to parse ICMP packet: %s", err)
 				continue
 			}
 			if common.ICMPMatch(localIP, localPort, remoteIP, remotePort, seqNum, icmpResponse) {
@@ -138,7 +138,7 @@ func handlePackets(ctx context.Context, conn rawConnWrapper, listener string, lo
 		} else if listener == "tcp" {
 			tcpResp, err := tp.parseTCP(header, packet)
 			if err != nil {
-				log.Tracef("failed to parse TCP packet: %s", err)
+				//log.Printf("failed to parse TCP packet: %s", err)
 				continue
 			}
 			if tcpMatch(localIP, localPort, remoteIP, remotePort, seqNum, tcpResp) {
