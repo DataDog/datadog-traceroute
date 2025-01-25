@@ -141,16 +141,16 @@ func main() {
 	}
 
 	if len(flag.Args()) != 1 {
-		log.Fatal("Exactly one target is required")
+		log.Fatal("Exactly one targetIP is required")
 	}
 
 	Args.target = flag.Arg(0)
-	target, err := resolve(Args.target, !Args.v4)
+	targetIP, err := resolve(Args.target, !Args.v4)
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
 	}
 	fmt.Fprintf(os.Stderr, "Traceroute configuration:\n")
-	fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", target)
+	fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", targetIP)
 	fmt.Fprintf(os.Stderr, "Base source port      : %v\n", Args.sport)
 	fmt.Fprintf(os.Stderr, "Base destination port : %v\n", Args.dport)
 	fmt.Fprintf(os.Stderr, "Use srcport for paths : %v\n", Args.useSrcport)
@@ -165,36 +165,38 @@ func main() {
 	if Args.protocol == "udp" {
 		if Args.v4 {
 			dt = &probev4.UDPv4{
-				Target:     target,
-				SrcPort:    uint16(Args.sport),
-				DstPort:    uint16(Args.dport),
-				UseSrcPort: Args.useSrcport,
-				NumPaths:   uint16(Args.npaths),
-				MinTTL:     uint8(Args.minTTL),
-				MaxTTL:     uint8(Args.maxTTL),
-				Delay:      time.Duration(Args.delay) * time.Millisecond,
-				Timeout:    DefaultReadTimeout,
-				BrokenNAT:  Args.brokenNAT,
+				TargetHostname: Args.target,
+				TargetIP:       targetIP,
+				SrcPort:        uint16(Args.sport),
+				DstPort:        uint16(Args.dport),
+				UseSrcPort:     Args.useSrcport,
+				NumPaths:       uint16(Args.npaths),
+				MinTTL:         uint8(Args.minTTL),
+				MaxTTL:         uint8(Args.maxTTL),
+				Delay:          time.Duration(Args.delay) * time.Millisecond,
+				Timeout:        DefaultReadTimeout,
+				BrokenNAT:      Args.brokenNAT,
 			}
 		} else {
 			dt = &probev6.UDPv6{
-				Target:      target,
-				SrcPort:     uint16(Args.sport),
-				DstPort:     uint16(Args.dport),
-				UseSrcPort:  Args.useSrcport,
-				NumPaths:    uint16(Args.npaths),
-				MinHopLimit: uint8(Args.minTTL),
-				MaxHopLimit: uint8(Args.maxTTL),
-				Delay:       time.Duration(Args.delay) * time.Millisecond,
-				Timeout:     DefaultReadTimeout,
-				BrokenNAT:   Args.brokenNAT,
+				TargetHostname: Args.target,
+				TargetIP:       targetIP,
+				SrcPort:        uint16(Args.sport),
+				DstPort:        uint16(Args.dport),
+				UseSrcPort:     Args.useSrcport,
+				NumPaths:       uint16(Args.npaths),
+				MinHopLimit:    uint8(Args.minTTL),
+				MaxHopLimit:    uint8(Args.maxTTL),
+				Delay:          time.Duration(Args.delay) * time.Millisecond,
+				Timeout:        DefaultReadTimeout,
+				BrokenNAT:      Args.brokenNAT,
 			}
 		}
 	} else if Args.protocol == "tcp" {
 		if Args.v4 {
 			dt = &tcp.TCPv4{
 				TargetHostname: Args.target,
-				TargetIP:       target,
+				TargetIP:       targetIP,
 				//srcPort:    uint16(Args.sport),
 				DestPort: uint16(Args.dport),
 				//UseSrcPort: Args.useSrcport,

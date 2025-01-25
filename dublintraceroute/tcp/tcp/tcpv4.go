@@ -11,6 +11,7 @@ import (
 	"time"
 
 	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
+	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/utils"
 )
 
 type (
@@ -48,7 +49,7 @@ func (t *TCPv4) Traceroute() (*payload.NetworkPath, error) {
 		Protocol:    payload.ProtocolTCP,
 		Timestamp:   time.Now().UnixMilli(),
 		Source: payload.NetworkPathSource{
-			Hostname: tcpRes.Source.String(),
+			Hostname: utils.GetHostname(),
 			//NetworkID: r.networkID,
 		},
 		Destination: payload.NetworkPathDestination{

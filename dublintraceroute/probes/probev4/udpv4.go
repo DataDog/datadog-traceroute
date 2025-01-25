@@ -15,20 +15,22 @@ import (
 	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/probes"
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/results"
+	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/utils"
 	"golang.org/x/net/ipv4"
 )
 
 // UDPv4 is a probe type based on IPv4 and UDP
 type UDPv4 struct {
-	Target     net.IP
-	SrcPort    uint16
-	DstPort    uint16
-	UseSrcPort bool
-	NumPaths   uint16
-	MinTTL     uint8
-	MaxTTL     uint8
-	Delay      time.Duration
-	Timeout    time.Duration
+	TargetHostname string
+	TargetIP       net.IP
+	SrcPort        uint16
+	DstPort        uint16
+	UseSrcPort     bool
+	NumPaths       uint16
+	MinTTL         uint8
+	MaxTTL         uint8
+	Delay          time.Duration
+	Timeout        time.Duration
 	// TODO implement broken nat detection
 	BrokenNAT bool
 }
@@ -48,7 +50,7 @@ func computeFlowhash(p *ProbeResponseUDPv4) (uint16, error) {
 // Validate checks that the probe is configured correctly and it is safe to
 // subsequently run the Traceroute() method
 func (d *UDPv4) Validate() error {
-	if d.Target.To4() == nil {
+	if d.TargetIP.To4() == nil {
 		return errors.New("Invalid IPv4 address")
 	}
 	if d.NumPaths == 0 {
@@ -168,9 +170,9 @@ func (d UDPv4) packets(src, dst net.IP) <-chan pkt {
 // SendReceive sends all the packets to the target address, respecting the configured
 // inter-packet delay
 func (d UDPv4) SendReceive() ([]probes.Probe, []probes.ProbeResponse, error) {
-	localAddr, err := inet.GetLocalAddr("udp4", d.Target)
+	localAddr, err := inet.GetLocalAddr("udp4", d.TargetIP)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get local address for target %s with network type 'udp4': %w", d.Target, err)
+		return nil, nil, fmt.Errorf("failed to get local address for target %s with network type 'udp4': %w", d.TargetIP, err)
 	}
 	localUDPAddr, ok := localAddr.(*net.UDPAddr)
 	if !ok {
@@ -203,7 +205,7 @@ func (d UDPv4) SendReceive() ([]probes.Probe, []probes.ProbeResponse, error) {
 
 	// send the packets
 	sent := make([]probes.Probe, 0, numPackets)
-	for p := range d.packets(localUDPAddr.IP, d.Target) {
+	for p := range d.packets(localUDPAddr.IP, d.TargetIP) {
 		if err := rconn.WriteTo(p.Header, p.Payload, nil); err != nil {
 			return nil, nil, fmt.Errorf("failed to send IPv4 packet: %w", err)
 		}
@@ -326,7 +328,7 @@ func (d UDPv4) Match(sent []probes.Probe, received []probes.ProbeResponse) resul
 			}
 			// This is our packet, let's fill the probe data up
 			probe.Flowhash = flowhash
-			probe.IsLast = bytes.Equal(rpu.Header.Src.To4(), d.Target.To4()) || isPortUnreachable
+			probe.IsLast = bytes.Equal(rpu.Header.Src.To4(), d.TargetIP.To4()) || isPortUnreachable
 			probe.Name = rpu.Header.Src.String() // TODO compute this field
 			probe.RttUsec = uint64(rpu.Timestamp.Sub(spu.Timestamp)) / 1000
 			probe.NATID = NATID
@@ -367,5 +369,44 @@ func (d UDPv4) Traceroute() (*payload.NetworkPath, error) {
 	}
 	results := d.Match(sent, received)
 
-	return &results, nil
+	traceroutePath := &payload.NetworkPath{
+		//AgentVersion: version.AgentVersion,
+		PathtraceID: payload.NewPathtraceID(),
+		Protocol:    payload.ProtocolTCP,
+		Timestamp:   time.Now().UnixMilli(),
+		Source: payload.NetworkPathSource{
+			Hostname: utils.GetHostname(),
+			//NetworkID: r.networkID,
+		},
+		Destination: payload.NetworkPathDestination{
+			Hostname:  d.TargetHostname,
+			Port:      d.DstPort,
+			IPAddress: d.TargetIP.String(),
+		},
+	}
+
+	for _, flow := range results.Flows {
+		for idx, probe := range flow {
+			ttl := idx + 1
+			isReachable := false
+			ipAddress := ""
+			if probe.Received != nil {
+				isReachable = true
+				ipAddress = probe.Received.IP.SrcIP.String()
+			}
+			traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
+				TTL:       ttl,
+				IPAddress: ipAddress,
+				RTT:       float64(probe.RttUsec * 1000000),
+				Reachable: isReachable,
+			})
+			if ipAddress == d.TargetIP.String() {
+				// break if we reached destination hop
+				break
+			}
+		}
+		break
+	}
+
+	return traceroutePath, nil
 }

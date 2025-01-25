@@ -11,6 +11,7 @@ import (
 	"time"
 
 	payload "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/netpath_payload"
+	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/utils"
 	"golang.org/x/net/ipv6"
 
 	inet "github.com/AlexandreYang/datadog-traceroute/dublintraceroute/net"
@@ -20,22 +21,23 @@ import (
 
 // UDPv6 is a probe type based on IPv6 and UDP
 type UDPv6 struct {
-	Target      net.IP
-	SrcPort     uint16
-	DstPort     uint16
-	UseSrcPort  bool
-	NumPaths    uint16
-	MinHopLimit uint8
-	MaxHopLimit uint8
-	Delay       time.Duration
-	Timeout     time.Duration
-	BrokenNAT   bool
+	TargetHostname string
+	TargetIP       net.IP
+	SrcPort        uint16
+	DstPort        uint16
+	UseSrcPort     bool
+	NumPaths       uint16
+	MinHopLimit    uint8
+	MaxHopLimit    uint8
+	Delay          time.Duration
+	Timeout        time.Duration
+	BrokenNAT      bool
 }
 
 // Validate checks that the probe is configured correctly and it is safe to
 // subsequently run the Traceroute() method
 func (d *UDPv6) Validate() error {
-	if d.Target.To16() == nil {
+	if d.TargetIP.To16() == nil {
 		return errors.New("Invalid IPv6 address")
 	}
 	if d.UseSrcPort {
@@ -137,9 +139,9 @@ func (d UDPv6) packets(src, dst net.IP) <-chan pkt {
 // SendReceive sends all the packets to the target address, respecting the
 // configured inter-packet delay
 func (d UDPv6) SendReceive() ([]probes.Probe, []probes.ProbeResponse, error) {
-	localAddr, err := inet.GetLocalAddr("udp6", d.Target)
+	localAddr, err := inet.GetLocalAddr("udp6", d.TargetIP)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get local address for target %s with network type 'udp4': %w", d.Target, err)
+		return nil, nil, fmt.Errorf("failed to get local address for target %s with network type 'udp4': %w", d.TargetIP, err)
 	}
 	localUDPAddr, ok := localAddr.(*net.UDPAddr)
 	if !ok {
@@ -177,12 +179,12 @@ func (d UDPv6) SendReceive() ([]probes.Probe, []probes.ProbeResponse, error) {
 
 	// send the packets
 	sent := make([]probes.Probe, 0, numPackets)
-	for p := range d.packets(localUDPAddr.IP, d.Target) {
+	for p := range d.packets(localUDPAddr.IP, d.TargetIP) {
 		cm := ipv6.ControlMessage{
 			HopLimit: p.HopLimit,
 			Src:      localUDPAddr.IP,
 		}
-		if _, err := pconn.WriteTo(append(p.UDPHeader, p.Payload...), &cm, &net.UDPAddr{IP: d.Target, Port: p.DstPort}); err != nil {
+		if _, err := pconn.WriteTo(append(p.UDPHeader, p.Payload...), &cm, &net.UDPAddr{IP: d.TargetIP, Port: p.DstPort}); err != nil {
 			return nil, nil, fmt.Errorf("WriteTo failed: %w", err)
 		}
 		// get timestamp as soon as possible after the packet is sent
@@ -191,7 +193,7 @@ func (d UDPv6) SendReceive() ([]probes.Probe, []probes.ProbeResponse, error) {
 			Payload:    append(p.UDPHeader, p.Payload...),
 			HopLimit:   p.HopLimit,
 			LocalAddr:  p.Src,
-			RemoteAddr: d.Target,
+			RemoteAddr: d.TargetIP,
 			Timestamp:  ts,
 		}
 		if err := probe.Validate(); err != nil {
@@ -311,7 +313,7 @@ func (d UDPv6) Match(sent []probes.Probe, received []probes.ProbeResponse) resul
 			// this is our packet. Let's fill the probe data up
 			// probe.Flowhash = flowhash
 			// TODO check if To16() is the right thing to do here
-			probe.IsLast = bytes.Equal(rpu.Addr.To16(), d.Target.To16())
+			probe.IsLast = bytes.Equal(rpu.Addr.To16(), d.TargetIP.To16())
 			probe.Name = rpu.Addr.String()
 			probe.RttUsec = uint64(rpu.Timestamp.Sub(spu.Timestamp)) / 1000
 			probe.ZeroTTLForwardingBug = (rpu.InnerIPv6().HopLimit == 0)
@@ -350,5 +352,44 @@ func (d UDPv6) Traceroute() (*payload.NetworkPath, error) {
 	}
 	results := d.Match(sent, received)
 
-	return &results, nil
+	traceroutePath := &payload.NetworkPath{
+		//AgentVersion: version.AgentVersion,
+		PathtraceID: payload.NewPathtraceID(),
+		Protocol:    payload.ProtocolTCP,
+		Timestamp:   time.Now().UnixMilli(),
+		Source: payload.NetworkPathSource{
+			Hostname: utils.GetHostname(),
+			//NetworkID: r.networkID,
+		},
+		Destination: payload.NetworkPathDestination{
+			Hostname:  d.TargetHostname,
+			Port:      d.DstPort,
+			IPAddress: d.TargetIP.String(),
+		},
+	}
+
+	for _, flow := range results.Flows {
+		for idx, probe := range flow {
+			ttl := idx + 1
+			isReachable := false
+			ipAddress := ""
+			if probe.Received != nil {
+				isReachable = true
+				ipAddress = probe.Received.IP.SrcIP.String()
+			}
+			traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
+				TTL:       ttl,
+				IPAddress: ipAddress,
+				RTT:       float64(probe.RttUsec * 1000000),
+				Reachable: isReachable,
+			})
+			if ipAddress == d.TargetIP.String() {
+				// break if we reached destination hop
+				break
+			}
+		}
+		break
+	}
+
+	return traceroutePath, nil
 }
