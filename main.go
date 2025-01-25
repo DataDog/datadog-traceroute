@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/tcp/tcp"
@@ -126,13 +125,13 @@ func init() {
 }
 
 func main() {
-	SetColourPurple := "\x1b[0;35m"
-	UnsetColour := "\x1b[0m"
-	if os.Geteuid() == 0 {
-		if runtime.GOOS == "linux" {
-			fmt.Fprintf(os.Stderr, "%sWARNING: you are running this program as root. Consider setting the CAP_NET_RAW capability and running as non-root user as a more secure alternative%s\n", SetColourPurple, UnsetColour)
-		}
-	}
+	//SetColourPurple := "\x1b[0;35m"
+	//UnsetColour := "\x1b[0m"
+	//if os.Geteuid() == 0 {
+	//	if runtime.GOOS == "linux" {
+	//		fmt.Fprintf(os.Stderr, "%sWARNING: you are running this program as root. Consider setting the CAP_NET_RAW capability and running as non-root user as a more secure alternative%s\n", SetColourPurple, UnsetColour)
+	//	}
+	//}
 
 	flag.Parse()
 	if Args.version {
@@ -149,17 +148,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
 	}
-	fmt.Fprintf(os.Stderr, "Traceroute configuration:\n")
-	fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", targetIP)
-	fmt.Fprintf(os.Stderr, "Base source port      : %v\n", Args.sport)
-	fmt.Fprintf(os.Stderr, "Base destination port : %v\n", Args.dport)
-	fmt.Fprintf(os.Stderr, "Use srcport for paths : %v\n", Args.useSrcport)
-	fmt.Fprintf(os.Stderr, "Number of paths       : %v\n", Args.npaths)
-	fmt.Fprintf(os.Stderr, "Minimum TTL           : %v\n", Args.minTTL)
-	fmt.Fprintf(os.Stderr, "Maximum TTL           : %v\n", Args.maxTTL)
-	fmt.Fprintf(os.Stderr, "Inter-packet delay    : %v\n", Args.delay)
-	fmt.Fprintf(os.Stderr, "Timeout               : %v\n", time.Duration(Args.delay)*time.Millisecond)
-	fmt.Fprintf(os.Stderr, "Treat as broken NAT   : %v\n", Args.brokenNAT)
+	//fmt.Fprintf(os.Stderr, "Traceroute configuration:\n")
+	//fmt.Fprintf(os.Stderr, "TargetIP                : %v\n", targetIP)
+	//fmt.Fprintf(os.Stderr, "Base source port      : %v\n", Args.sport)
+	//fmt.Fprintf(os.Stderr, "Base destination port : %v\n", Args.dport)
+	//fmt.Fprintf(os.Stderr, "Use srcport for paths : %v\n", Args.useSrcport)
+	//fmt.Fprintf(os.Stderr, "Number of paths       : %v\n", Args.npaths)
+	//fmt.Fprintf(os.Stderr, "Minimum TTL           : %v\n", Args.minTTL)
+	//fmt.Fprintf(os.Stderr, "Maximum TTL           : %v\n", Args.maxTTL)
+	//fmt.Fprintf(os.Stderr, "Inter-packet delay    : %v\n", Args.delay)
+	//fmt.Fprintf(os.Stderr, "Timeout               : %v\n", time.Duration(Args.delay)*time.Millisecond)
+	//fmt.Fprintf(os.Stderr, "Treat as broken NAT   : %v\n", Args.brokenNAT)
 
 	var dt dublintraceroute.DublinTraceroute
 	if Args.protocol == "udp" {
