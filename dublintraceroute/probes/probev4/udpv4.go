@@ -371,7 +371,6 @@ func (d UDPv4) Traceroute() (*payload.NetworkPath, error) {
 
 	traceroutePath := &payload.NetworkPath{
 		//AgentVersion: version.AgentVersion,
-		Origin:      "datadog-traceroute",
 		PathtraceID: payload.NewPathtraceID(),
 		Protocol:    payload.ProtocolUDP,
 		Timestamp:   time.Now().UnixMilli(),
