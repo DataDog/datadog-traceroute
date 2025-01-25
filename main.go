@@ -22,13 +22,13 @@ import (
 
 // Program constants and default values
 const (
-	ProgramName         = "Dublin Traceroute"
-	ProgramVersion      = "v0.2"
-	ProgramAuthorName   = "Andrea Barberio"
-	ProgramAuthorInfo   = "https://insomniac.slackware.it"
+	ProgramName         = "Datadog Traceroute"
+	ProgramVersion      = "v0.0"
+	ProgramAuthorName   = "Unknown"
+	ProgramAuthorInfo   = "Unknown"
 	DefaultSourcePort   = 12345
 	DefaultDestPort     = 33434
-	DefaultNumPaths     = 10
+	DefaultNumPaths     = 1
 	DefaultMinTTL       = 1
 	DefaultMaxTTL       = 30
 	DefaultDelay        = 50 //msec
