@@ -45,6 +45,7 @@ func (t *TCPv4) Traceroute() (*payload.NetworkPath, error) {
 
 	traceroutePath := &payload.NetworkPath{
 		//AgentVersion: version.AgentVersion,
+		Origin:      "datadog-traceroute",
 		PathtraceID: payload.NewPathtraceID(),
 		Protocol:    payload.ProtocolTCP,
 		Timestamp:   time.Now().UnixMilli(),
