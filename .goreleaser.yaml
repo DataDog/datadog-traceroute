@@ -1,4 +1,4 @@
-project_name: example
+project_name: datadog-traceroute
 builds:
   - env: [CGO_ENABLED=0]
     goos:
@@ -21,11 +21,11 @@ builds:
 #   - --label=org.opencontainers.image.revision={{ .FullCommit }}
 #   - --label=org.opencontainers.image.licenses=MIT
 nfpms:
-- maintainer: Carlos A Becker <root@carlosbecker.dev>
-  description: Sample project.
-  homepage: https://github.com/caarlos0/tasktimer
-  license: MIT
+- maintainer: Alexandre Yang
+  description: Datadog Traceroute
+  homepage: https://github.com/AlexandreYang/datadog-traceroute
+#  license: MIT
   formats:
   - deb
-  - rpm
-  - apk
+#  - rpm
+#  - apk
