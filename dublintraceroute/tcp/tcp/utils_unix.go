@@ -8,12 +8,13 @@ package tcp
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/tcp/common"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+
 	"github.com/google/gopacket/layers"
 	"go.uber.org/multierr"
 	"golang.org/x/net/ipv4"
@@ -70,14 +71,14 @@ func listenPackets(icmpConn rawConnWrapper, tcpConn rawConnWrapper, timeout time
 		_, tcpCanceled := tcpErr.(common.CanceledError)
 		_, icmpCanceled := icmpErr.(common.CanceledError)
 		if icmpCanceled && tcpCanceled {
-			log.Trace("timed out waiting for responses")
+			//log.Trace("timed out waiting for responses")
 			return net.IP{}, 0, 0, time.Time{}, nil
 		}
 		if tcpErr != nil {
-			log.Errorf("TCP listener error: %s", tcpErr.Error())
+			log.Printf("TCP listener error: %s", tcpErr.Error())
 		}
 		if icmpErr != nil {
-			log.Errorf("ICMP listener error: %s", icmpErr.Error())
+			log.Printf("ICMP listener error: %s", icmpErr.Error())
 		}
 
 		return net.IP{}, 0, 0, time.Time{}, multierr.Append(fmt.Errorf("tcp error: %w", tcpErr), fmt.Errorf("icmp error: %w", icmpErr))

@@ -8,14 +8,13 @@ package tcp
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"time"
 
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/tcp/common"
 	"golang.org/x/net/ipv4"
-
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // TracerouteSequential runs a traceroute sequentially where a packet is
@@ -62,7 +61,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 		return nil, fmt.Errorf("failed to create TCP listener: %w", err)
 	}
 	defer tcpConn.Close()
-	log.Tracef("Listening for TCP on: %s\n", addr.IP.String()+":"+addr.AddrPort().String())
+	//log.Tracef("Listening for TCP on: %s\n", addr.IP.String()+":"+addr.AddrPort().String())
 	// RawConn is necessary to set the TTL and ID fields
 	rawTCPConn, err := ipv4.NewRawConn(tcpConn)
 	if err != nil {
@@ -79,7 +78,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 			return nil, fmt.Errorf("failed to run traceroute: %w", err)
 		}
 		hops = append(hops, hop)
-		log.Tracef("Discovered hop: %+v", hop)
+		//log.Tracef("Discovered hop: %+v", hop)
 		// if we've reached our destination,
 		// we're done
 		if hop.IsDest {
@@ -99,20 +98,20 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 func (t *TCPv4) sendAndReceive(rawIcmpConn *ipv4.RawConn, rawTCPConn *ipv4.RawConn, ttl int, seqNum uint32, timeout time.Duration) (*common.Hop, error) {
 	tcpHeader, tcpPacket, err := createRawTCPSyn(t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum, ttl)
 	if err != nil {
-		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
+		log.Printf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
 		return nil, err
 	}
 
 	err = sendPacket(rawTCPConn, tcpHeader, tcpPacket)
 	if err != nil {
-		log.Errorf("failed to send TCP SYN: %s", err.Error())
+		log.Printf("failed to send TCP SYN: %s", err.Error())
 		return nil, err
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
 	hopIP, hopPort, icmpType, end, err := listenPackets(rawIcmpConn, rawTCPConn, timeout, t.srcIP, t.srcPort, t.TargetIP, t.DestPort, seqNum)
 	if err != nil {
-		log.Errorf("failed to listen for packets: %s", err.Error())
+		log.Printf("failed to listen for packets: %s", err.Error())
 		return nil, err
 	}
 
