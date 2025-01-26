@@ -152,7 +152,7 @@ func main() {
 
 	Args.target = flag.Arg(0)
 	if ip := net.ParseIP(Args.target); ip != nil {
-		if ip.To4() != nil {
+		if ip.To4() == nil {
 			Args.wantV6 = true
 		}
 	}
