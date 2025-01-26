@@ -150,6 +150,8 @@ func main() {
 		log.Fatal("Exactly one targetIP is required")
 	}
 
+	Args.target = flag.Arg(0)
+
 	targetIP, err := resolve(Args.target, Args.wantV6)
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
