@@ -30,7 +30,7 @@ var (
 
 // Program constants and default values
 const (
-	ProgramName         = "Datadog Traceroute"
+	ProgramName         = "datadog-traceroute"
 	DefaultSourcePort   = 12345
 	DefaultDestPort     = 33434
 	DefaultNumPaths     = 1
