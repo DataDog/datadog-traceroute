@@ -139,7 +139,7 @@ func main() {
 
 	flag.Parse()
 	if Args.version {
-		if commit != "none" {
+		if len(commit) > 10 {
 			commit = commit[:10]
 		}
 		fmt.Printf("%s %s - Commit: %s - Go version: %s - Build time: %s\n", ProgramName, version, commit, runtime.Version(), date)
