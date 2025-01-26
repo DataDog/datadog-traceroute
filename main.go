@@ -150,13 +150,6 @@ func main() {
 		log.Fatal("Exactly one targetIP is required")
 	}
 
-	Args.target = flag.Arg(0)
-	if ip := net.ParseIP(Args.target); ip != nil {
-		if ip.To4() == nil {
-			Args.wantV6 = true
-		}
-	}
-
 	targetIP, err := resolve(Args.target, Args.wantV6)
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
