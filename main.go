@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/tcp/tcp"
@@ -138,7 +139,7 @@ func main() {
 
 	flag.Parse()
 	if Args.version {
-		fmt.Printf("%s %s, commit %s, built at %s", ProgramName, version, commit, date)
+		fmt.Printf("%s %s - Commit: %s - Go version: %s - Build time: %s\n", ProgramName, version, commit, runtime.Version(), date)
 		os.Exit(0)
 	}
 
