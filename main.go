@@ -57,7 +57,7 @@ type args struct {
 	brokenNAT    bool
 	outputFile   string
 	outputFormat string
-	v4           bool
+	wantV6       bool
 }
 
 // Args will hold the program arguments
@@ -124,7 +124,7 @@ func init() {
 	flag.BoolVarP(&Args.useSrcport, "use-srcport", "i", false, "generate paths using source port instead of destination port")
 	flag.StringVarP(&Args.outputFile, "output-file", "o", "", "the output file name. If unspecified, or \"-\", print to stdout")
 	flag.StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "the output file format, either \"json\" or \"dot\"")
-	flag.BoolVarP(&Args.v4, "force-ipv4", "4", false, "Force the use of the legacy IPv4 protocol")
+	flag.BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	flag.CommandLine.SortFlags = false
 }
 
@@ -153,11 +153,11 @@ func main() {
 	Args.target = flag.Arg(0)
 	if ip := net.ParseIP(Args.target); ip != nil {
 		if ip.To4() != nil {
-			Args.v4 = true
+			Args.wantV6 = true
 		}
 	}
 
-	targetIP, err := resolve(Args.target, !Args.v4)
+	targetIP, err := resolve(Args.target, Args.wantV6)
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
 	}
@@ -175,21 +175,7 @@ func main() {
 
 	var dt dublintraceroute.DublinTraceroute
 	if Args.protocol == "udp" {
-		if Args.v4 {
-			dt = &probev4.UDPv4{
-				TargetHostname: Args.target,
-				TargetIP:       targetIP,
-				SrcPort:        uint16(Args.sport),
-				DstPort:        uint16(Args.dport),
-				UseSrcPort:     Args.useSrcport,
-				NumPaths:       uint16(Args.npaths),
-				MinTTL:         uint8(Args.minTTL),
-				MaxTTL:         uint8(Args.maxTTL),
-				Delay:          time.Duration(Args.delay) * time.Millisecond,
-				Timeout:        DefaultReadTimeout,
-				BrokenNAT:      Args.brokenNAT,
-			}
-		} else {
+		if Args.wantV6 {
 			dt = &probev6.UDPv6{
 				TargetHostname: Args.target,
 				TargetIP:       targetIP,
@@ -203,9 +189,25 @@ func main() {
 				Timeout:        DefaultReadTimeout,
 				BrokenNAT:      Args.brokenNAT,
 			}
+		} else {
+			dt = &probev4.UDPv4{
+				TargetHostname: Args.target,
+				TargetIP:       targetIP,
+				SrcPort:        uint16(Args.sport),
+				DstPort:        uint16(Args.dport),
+				UseSrcPort:     Args.useSrcport,
+				NumPaths:       uint16(Args.npaths),
+				MinTTL:         uint8(Args.minTTL),
+				MaxTTL:         uint8(Args.maxTTL),
+				Delay:          time.Duration(Args.delay) * time.Millisecond,
+				Timeout:        DefaultReadTimeout,
+				BrokenNAT:      Args.brokenNAT,
+			}
 		}
 	} else if Args.protocol == "tcp" {
-		if Args.v4 {
+		if Args.wantV6 {
+			log.Fatal("TCP IPv6 not supported")
+		} else {
 			dt = &tcp.TCPv4{
 				TargetHostname: Args.target,
 				TargetIP:       targetIP,
@@ -219,8 +221,6 @@ func main() {
 				Timeout:  DefaultReadTimeout,
 				//BrokenNAT: Args.brokenNAT,
 			}
-		} else {
-			log.Fatal("TCP IPv6 not supported")
 		}
 	}
 
