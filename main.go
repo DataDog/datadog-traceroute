@@ -20,12 +20,16 @@ import (
 	"github.com/AlexandreYang/datadog-traceroute/dublintraceroute/probes/probev6"
 )
 
+// GORELEASER
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 // Program constants and default values
 const (
 	ProgramName         = "Datadog Traceroute"
-	ProgramVersion      = "v0.0"
-	ProgramAuthorName   = "Unknown"
-	ProgramAuthorInfo   = "Unknown"
 	DefaultSourcePort   = 12345
 	DefaultDestPort     = 33434
 	DefaultNumPaths     = 1
@@ -102,8 +106,7 @@ func init() {
 
 	// handle flags
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Dublin Traceroute (Go implementation) %s\n", ProgramVersion)
-		fmt.Fprintf(os.Stderr, "Written by %s - %s\n", ProgramAuthorName, ProgramAuthorInfo)
+		fmt.Fprintf(os.Stderr, "Datadog Traceroute %s\n", version)
 		fmt.Fprintf(os.Stderr, "\n")
 		flag.PrintDefaults()
 	}
@@ -135,7 +138,7 @@ func main() {
 
 	flag.Parse()
 	if Args.version {
-		fmt.Printf("%v %v\n", ProgramName, ProgramVersion)
+		fmt.Printf("%s %s, commit %s, built at %s", ProgramName, version, commit, date)
 		os.Exit(0)
 	}
 
