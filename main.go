@@ -120,7 +120,7 @@ func init() {
 	flag.BoolVarP(&Args.useSrcport, "use-srcport", "i", false, "generate paths using source port instead of destination port")
 	flag.StringVarP(&Args.outputFile, "output-file", "o", "", "the output file name. If unspecified, or \"-\", print to stdout")
 	flag.StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "the output file format, either \"json\" or \"dot\"")
-	flag.BoolVarP(&Args.v4, "force-ipv4", "4", true, "Force the use of the legacy IPv4 protocol")
+	flag.BoolVarP(&Args.v4, "force-ipv4", "4", false, "Force the use of the legacy IPv4 protocol")
 	flag.CommandLine.SortFlags = false
 }
 
@@ -144,6 +144,12 @@ func main() {
 	}
 
 	Args.target = flag.Arg(0)
+	if ip := net.ParseIP(Args.target); ip != nil {
+		if ip.To4() != nil {
+			Args.v4 = true
+		}
+	}
+
 	targetIP, err := resolve(Args.target, !Args.v4)
 	if err != nil {
 		log.Fatalf("Cannot resolve %s: %v", flag.Arg(0), err)
