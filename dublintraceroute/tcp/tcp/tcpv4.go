@@ -70,7 +70,7 @@ func (t *TCPv4) Traceroute() (*payload.NetworkPath, error) {
 		traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
 			TTL:       ttl,
 			IPAddress: ipAddress,
-			RTT:       float64(hop.RTT),
+			RTT:       float64(hop.RTT.Seconds()),
 			Reachable: isReachable,
 		})
 	}
