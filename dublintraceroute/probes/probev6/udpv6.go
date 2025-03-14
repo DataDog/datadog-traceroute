@@ -380,7 +380,7 @@ func (d UDPv6) Traceroute() (*payload.NetworkPath, error) {
 			traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
 				TTL:       ttl,
 				IPAddress: ipAddress,
-				RTT:       float64(probe.RttUsec / 1000000),
+				RTT:       float64(probe.RttUsec) / 1000000,
 				Reachable: isReachable,
 			})
 			if ipAddress == d.TargetIP.String() {

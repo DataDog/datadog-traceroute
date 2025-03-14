@@ -394,10 +394,11 @@ func (d UDPv4) Traceroute() (*payload.NetworkPath, error) {
 				isReachable = true
 				ipAddress = probe.Received.IP.SrcIP.String()
 			}
+			fmt.Printf("probe.RttUsec: %v\n", probe.RttUsec)
 			traceroutePath.Hops = append(traceroutePath.Hops, payload.NetworkPathHop{
 				TTL:       ttl,
 				IPAddress: ipAddress,
-				RTT:       float64(probe.RttUsec / 1000000),
+				RTT:       float64(probe.RttUsec) / 1000000,
 				Reachable: isReachable,
 			})
 			if ipAddress == d.TargetIP.String() {
