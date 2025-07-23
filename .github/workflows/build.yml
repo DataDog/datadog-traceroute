@@ -26,7 +26,7 @@ jobs:
           go-version: 1.24.5
           cache: true
       - run: go mod tidy
-      - run: go test -v ./...
+      - run: go test -tags=test -v ./...
       # - uses: docker/login-action@v1
       #   with:
       #     registry: ghcr.io
