@@ -19,27 +19,6 @@ import (
 )
 
 func main() {
-	loglevel := os.Getenv("LOG_LEVEL")
-	if loglevel == "" {
-		loglevel = "warn"
-	}
-	println(loglevel)
-
-	//err := pkglogsetup.SetupLogger(
-	//	pkglogsetup.LoggerName("udp"),
-	//	loglevel,
-	//	"",
-	//	"",
-	//	false,
-	//	true,
-	//	false,
-	//	pkgconfigsetup.Datadog(),
-	//)
-	//if err != nil {
-	//	fmt.Printf("SetupLogger failed: %s\n", err)
-	//	os.Exit(1)
-	//}
-	//
 	if len(os.Args) < 2 {
 		println("Usage: portable_udp <target>")
 		os.Exit(1)

@@ -21,10 +21,10 @@ builds:
 #   - --label=org.opencontainers.image.revision={{ .FullCommit }}
 #   - --label=org.opencontainers.image.licenses=MIT
 nfpms:
-- maintainer: Alexandre Yang
+- maintainer: Datadog
   description: Datadog Traceroute
   homepage: https://github.com/DataDog/datadog-traceroute
-#  license: MIT
+  license: Apache
   formats:
   - deb
 #  - rpm

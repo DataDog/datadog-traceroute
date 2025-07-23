@@ -24,21 +24,6 @@ func main() {
 		loglevel = "warn"
 	}
 
-	//err := pkglogsetup.SetupLogger(
-	//	pkglogsetup.LoggerName("tcp"),
-	//	loglevel,
-	//	"",
-	//	"",
-	//	false,
-	//	true,
-	//	false,
-	//	pkgconfigsetup.Datadog(),
-	//)
-	//if err != nil {
-	//	fmt.Printf("SetupLogger failed: %s\n", err)
-	//	os.Exit(1)
-	//}
-
 	if len(os.Args) < 2 {
 		println("Usage: portable_syn <target>")
 		os.Exit(1)
