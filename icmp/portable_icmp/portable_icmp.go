@@ -14,31 +14,30 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/icmp"
-
-	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
-	pkglogsetup "github.com/DataDog/datadog-agent/pkg/util/log/setup"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmp"
+	//pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
+	//pkglogsetup "github.com/DataDog/datadog-traceroute/log/setup"
 )
 
 func main() {
 
-	loglevel := "debug"
+	//loglevel := "debug"
 
-	err := pkglogsetup.SetupLogger(
-		pkglogsetup.LoggerName("icmp"),
-		loglevel,
-		"",
-		"",
-		false,
-		true,
-		false,
-		pkgconfigsetup.Datadog(),
-	)
-	if err != nil {
-		fmt.Printf("SetupLogger failed: %s\n", err)
-		os.Exit(1)
-	}
+	//err := pkglogsetup.SetupLogger(
+	//	pkglogsetup.LoggerName("icmp"),
+	//	loglevel,
+	//	"",
+	//	"",
+	//	false,
+	//	true,
+	//	false,
+	//	pkgconfigsetup.Datadog(),
+	//)
+	//if err != nil {
+	//	fmt.Printf("SetupLogger failed: %s\n", err)
+	//	os.Exit(1)
+	//}
 
 	if len(os.Args) < 2 {
 		println("Usage: portable_icmp <target>")

@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 // NotSupportedError means the target did not respond with the SACK Permitted

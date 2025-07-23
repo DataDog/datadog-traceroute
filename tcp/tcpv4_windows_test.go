@@ -20,8 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/winconn"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
 func TestSendAndReceive(t *testing.T) {

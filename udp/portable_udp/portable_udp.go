@@ -13,10 +13,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/udp"
-
-	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
-	pkglogsetup "github.com/DataDog/datadog-agent/pkg/util/log/setup"
+	"github.com/DataDog/datadog-traceroute/udp"
+	//pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
+	//pkglogsetup "github.com/DataDog/datadog-traceroute/log/setup"
 )
 
 func main() {
@@ -26,21 +25,21 @@ func main() {
 	}
 	println(loglevel)
 
-	err := pkglogsetup.SetupLogger(
-		pkglogsetup.LoggerName("udp"),
-		loglevel,
-		"",
-		"",
-		false,
-		true,
-		false,
-		pkgconfigsetup.Datadog(),
-	)
-	if err != nil {
-		fmt.Printf("SetupLogger failed: %s\n", err)
-		os.Exit(1)
-	}
-
+	//err := pkglogsetup.SetupLogger(
+	//	pkglogsetup.LoggerName("udp"),
+	//	loglevel,
+	//	"",
+	//	"",
+	//	false,
+	//	true,
+	//	false,
+	//	pkgconfigsetup.Datadog(),
+	//)
+	//if err != nil {
+	//	fmt.Printf("SetupLogger failed: %s\n", err)
+	//	os.Exit(1)
+	//}
+	//
 	if len(os.Args) < 2 {
 		println("Usage: portable_udp <target>")
 		os.Exit(1)
