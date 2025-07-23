@@ -10,7 +10,7 @@ package udp
 import (
 	"errors"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 // TracerouteSequential runs a traceroute

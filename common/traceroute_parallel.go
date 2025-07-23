@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 // TracerouteParallelParams are the parameters for TracerouteParallel

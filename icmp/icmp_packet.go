@@ -8,7 +8,7 @@ package icmp
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )

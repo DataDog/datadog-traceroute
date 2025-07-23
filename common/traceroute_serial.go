@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 // TracerouteSerialParams are the parameters for TracerouteSerial

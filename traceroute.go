@@ -4,4 +4,10 @@
 // Copyright 2024-present Datadog, Inc.
 
 // Package traceroute adds traceroute functionality to the agent
-package traceroute
+package main
+
+import "github.com/DataDog/datadog-traceroute/cmd"
+
+func main() {
+	cmd.Execute()
+}

@@ -8,7 +8,7 @@ package icmp
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
+	"github.com/DataDog/datadog-traceroute/common"
 	"net"
 	"net/netip"
 	"testing"
@@ -19,7 +19,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 func initTest(t *testing.T, ipv6 bool) (*icmpDriver, *packets.MockSink, *packets.MockSource) {

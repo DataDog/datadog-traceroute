@@ -18,9 +18,9 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/packets"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 var (

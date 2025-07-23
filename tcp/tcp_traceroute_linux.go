@@ -8,8 +8,8 @@ package tcp
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 func (t *TCPv4) newTracerouteDriver() (*tcpDriver, error) {

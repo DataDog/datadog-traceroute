@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 //go:generate mockgen -source=$GOFILE -package=$GOPACKAGE -destination=packet_source_mockgen.go
