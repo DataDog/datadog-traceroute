@@ -25,7 +25,7 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/testutils"
+	"github.com/DataDog/datadog-traceroute/testutils"
 )
 
 var (

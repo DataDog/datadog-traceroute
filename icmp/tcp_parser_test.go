@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/testutils"
+	"github.com/DataDog/datadog-traceroute/testutils"
 )
 
 var (

@@ -12,8 +12,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/windows"
 )

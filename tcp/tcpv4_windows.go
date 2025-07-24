@@ -13,10 +13,10 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/icmp"
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/winconn"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
 // TracerouteSequentialSocket runs a traceroute sequentially where a packet is

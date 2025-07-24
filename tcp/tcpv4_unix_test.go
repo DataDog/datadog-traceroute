@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/networkpath/traceroute/common"
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +23,6 @@ import (
 )
 
 func TestSendAndReceive(t *testing.T) {
-
 	tcpv4 := NewTCPv4(net.ParseIP("5.6.7.8"), 443, 1, 1, 1, 0, 0, false)
 	tcpv4.srcIP = net.ParseIP("1.2.3.4") // set these after constructor
 	tcpv4.srcPort = 12345
