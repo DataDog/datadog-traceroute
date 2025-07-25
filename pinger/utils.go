@@ -54,12 +54,15 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 }
 
 func computeJitter(rtts []time.Duration) time.Duration {
+	log.Tracef("rtts: %+v", rtts)
 	if len(rtts) < 2 {
 		return time.Duration(0)
 	}
 	var prevRtt time.Duration
 	var cumulativeDifference time.Duration
 	for _, rtt := range rtts {
+		log.Tracef("prevRtt: %+v , rtt: %+v", prevRtt, rtt)
+		log.Tracef("cumulativeDifference: %+v", cumulativeDifference)
 		if prevRtt != 0 {
 			cumulativeDifference += (rtt - prevRtt).Abs()
 		}
