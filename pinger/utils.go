@@ -71,5 +71,7 @@ func computeJitter(rtts []time.Duration) time.Duration {
 	log.Tracef("cumulativeDifference: %+v", cumulativeDifference)
 	log.Tracef("time.Duration(len(rtts)-1): %+v", time.Duration(len(rtts)-1))
 	log.Tracef("len(rtts): %+v", len(rtts))
-	return cumulativeDifference / time.Duration(len(rtts)-1)
+	jitter := cumulativeDifference / time.Duration(len(rtts)-1)
+	log.Tracef("jitter: %+v", jitter)
+	return jitter
 }
