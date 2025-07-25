@@ -52,6 +52,6 @@ type (
 		// PacketLoss indicates the percentage of packets lost
 		PacketLoss float64 `json:"packet_loss"`
 		// AvgRtt is the average round trip time
-		AvgRtt float64 `json:"avg_rtt_ms"`
+		AvgRtt float64 `json:"avg_rtt"`
 	}
 )
