@@ -74,15 +74,6 @@ var rootCmd = &cobra.Command{
 
 		target := args[0]
 
-		pingCfg := &pinger.Config{}
-		pingResults, err := pinger.RunPing(pingCfg, target)
-		if err != nil {
-			return fmt.Errorf("ping failed: %w", err)
-		}
-
-		log.Tracef("ping results: %#v", pingResults)
-		log.Tracef("ping results packet loss: %#v", pingResults.PacketLoss)
-
 		switch Args.protocol {
 		case "udp":
 			target, err := parseTarget(target, Args.dport, Args.wantV6)
@@ -159,6 +150,17 @@ var rootCmd = &cobra.Command{
 		// TODO: Do improved Network Test
 		//  - 50x ping
 		//  - 3x Traceroute
+
+		pingCfg := &pinger.Config{}
+		pingResults, err := pinger.RunPing(pingCfg, target)
+		if err != nil {
+			return fmt.Errorf("ping failed: %w", err)
+		}
+
+		log.Tracef("ping results: %#v", pingResults)
+		log.Tracef("ping results packet loss: %#v", pingResults.PacketLoss)
+
+		results.PingResults = pingResults
 
 		switch Args.outputFormat {
 		case "json":

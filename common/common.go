@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/pinger"
 	"golang.org/x/net/ipv4"
 )
 
@@ -21,12 +22,13 @@ type (
 	// Results encapsulates a response from the
 	// traceroute
 	Results struct {
-		Source     net.IP
-		SourcePort uint16
-		Target     net.IP
-		DstPort    uint16
-		Hops       []*Hop
-		Tags       []string
+		Source      net.IP
+		SourcePort  uint16
+		Target      net.IP
+		DstPort     uint16
+		Hops        []*Hop
+		Tags        []string
+		PingResults *pinger.Result
 	}
 
 	// Hop encapsulates information about a single
