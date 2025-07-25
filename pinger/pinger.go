@@ -51,7 +51,7 @@ type (
 		CanConnect bool `json:"can_connect"`
 		// PacketLoss indicates the percentage of packets lost
 		PacketLoss float64 `json:"packet_loss"`
-		// AvgRtt is the average round trip time
-		AvgRtt time.Duration `json:"avg_rtt"`
+		// AvgRttMs is the average round trip time
+		AvgRttMs int64 `json:"avg_rtt_ms"`
 	}
 )
