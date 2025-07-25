@@ -10,18 +10,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
-	"github.com/DataDog/datadog-traceroute/log"
-	"github.com/DataDog/datadog-traceroute/sack"
-	"github.com/DataDog/datadog-traceroute/tcp"
-	"github.com/DataDog/datadog-traceroute/udp"
 	"net"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/sack"
+	"github.com/DataDog/datadog-traceroute/tcp"
+	"github.com/DataDog/datadog-traceroute/udp"
 
 	"github.com/spf13/cobra"
 )
@@ -142,6 +143,10 @@ var rootCmd = &cobra.Command{
 		default:
 			return fmt.Errorf("unknown protocol: %q", Args.protocol)
 		}
+
+		// TODO: Do improved Network Test
+		//  - 50x ping
+		//  - 3x Traceroute
 
 		switch Args.outputFormat {
 		case "json":
