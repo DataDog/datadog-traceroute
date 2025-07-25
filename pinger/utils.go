@@ -49,7 +49,8 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 		RttMin:                    stats.MinRtt.Seconds(),
 		RttMax:                    stats.MaxRtt.Seconds(),
 		RttAvg:                    stats.AvgRtt.Seconds(),
-		RttStdDev:                 computeJitter(stats.Rtts).Seconds(),
+		RttStdDev:                 stats.StdDevRtt.Seconds(),
+		Jitter:                    computeJitter(stats.Rtts).Seconds(),
 	}, nil
 }
 
