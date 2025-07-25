@@ -29,18 +29,21 @@ import (
 )
 
 type args struct {
-	protocol     string
-	npaths       int
-	minTTL       int
-	maxTTL       int
-	delay        int
-	outputFile   string
-	outputFormat string
-	timeout      int
-	tcpmethod    string
-	dport        int
-	wantV6       bool
-	verbose      bool
+	protocol      string
+	npaths        int
+	minTTL        int
+	maxTTL        int
+	delay         int
+	outputFile    string
+	outputFormat  string
+	timeout       int
+	tcpmethod     string
+	dport         int
+	wantV6        bool
+	verbose       bool
+	pingCount     int
+	pingDelayMs   int
+	pingTimeoutMs int
 }
 
 const (
@@ -151,7 +154,11 @@ var rootCmd = &cobra.Command{
 		//  - 50x ping
 		//  - 3x Traceroute
 
-		pingCfg := &pinger.Config{}
+		pingCfg := &pinger.Config{
+			Count:   Args.pingCount,
+			Timeout: time.Duration(Args.pingTimeoutMs) * time.Millisecond,
+			Delay:   time.Duration(Args.pingDelayMs) * time.Millisecond,
+		}
 		pingResults, err := pinger.RunPing(pingCfg, target)
 		if err != nil {
 			return fmt.Errorf("ping failed: %w", err)
@@ -232,6 +239,9 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
+	rootCmd.Flags().IntVarP(&Args.pingCount, "ping-count", "", pinger.DefaultCount, "Ping - Delay between packets (ms)")
+	rootCmd.Flags().IntVarP(&Args.pingDelayMs, "ping-delay", "", pinger.DefaultIntervalMs, "Ping - Delay between packets (ms)")
+	rootCmd.Flags().IntVarP(&Args.pingTimeoutMs, "ping-timeout", "", pinger.DefaultTimeoutMs, "Ping - Timeout (ms)")
 }
 
 func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {

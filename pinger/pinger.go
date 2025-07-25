@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	defaultCount    = 50
-	defaultInterval = 20 * time.Millisecond
-	defaultTimeout  = 3 * time.Second
+	DefaultCount      = 50
+	DefaultIntervalMs = 20
+	DefaultTimeoutMs  = 3000
 )
 
 var (
@@ -33,9 +33,9 @@ type (
 		// UseRawSocket determines the socket type to use
 		// RAW or UDP
 		UseRawSocket bool
-		// Interval is the amount of time to wait between
+		// Delay is the amount of time to wait between
 		// sending ICMP packets, default is 1 second
-		Interval time.Duration
+		Delay time.Duration
 		// Timeout is the total time to wait for all pings
 		// to complete
 		Timeout time.Duration

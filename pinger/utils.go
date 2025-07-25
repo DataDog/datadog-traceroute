@@ -17,15 +17,15 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 		return &Result{}, err
 	}
 	// Default configurations
-	pinger.Timeout = defaultTimeout
-	pinger.Interval = defaultInterval
-	pinger.Count = defaultCount
+	pinger.Timeout = DefaultTimeoutMs
+	pinger.Interval = DefaultIntervalMs
+	pinger.Count = DefaultCount
 	pinger.SetPrivileged(cfg.UseRawSocket)
 	if cfg.Timeout > 0 {
 		pinger.Timeout = cfg.Timeout
 	}
-	if cfg.Interval > 0 {
-		pinger.Interval = cfg.Interval
+	if cfg.Delay > 0 {
+		pinger.Interval = cfg.Delay
 	}
 	if cfg.Count > 0 {
 		pinger.Count = cfg.Count
