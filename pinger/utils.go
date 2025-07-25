@@ -41,6 +41,6 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 	return &Result{
 		CanConnect: stats.PacketsRecv > 0,
 		PacketLoss: stats.PacketLoss,
-		AvgRttMs:   stats.AvgRtt.Milliseconds(),
+		AvgRtt:     stats.AvgRtt.Seconds(),
 	}, nil
 }
