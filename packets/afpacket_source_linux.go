@@ -13,9 +13,6 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
-
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 )
 
 // afPacketSource is a PacketSource implementation using AF_PACKET.
@@ -71,18 +68,4 @@ func (a *afPacketSource) Close() error {
 // htons converts a short (uint16) from host-to-network byte order.
 func htons(i uint16) uint16 {
 	return i<<8 | i>>8
-}
-
-// removes the preceding ethernet header from the buffer
-func stripEthernetHeader(buf []byte) ([]byte, error) {
-	var eth layers.Ethernet
-	err := (&eth).DecodeFromBytes(buf, gopacket.NilDecodeFeedback)
-	if err != nil {
-		return nil, fmt.Errorf("stripEthernetHeader failed to decode ethernet: %w", err)
-	}
-	// return zero bytes when the it's not an IP packet
-	if eth.EthernetType != layers.EthernetTypeIPv4 && eth.EthernetType != layers.EthernetTypeIPv6 {
-		return nil, nil
-	}
-	return eth.Payload, nil
 }

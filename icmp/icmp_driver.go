@@ -10,12 +10,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/icmp"
-	"golang.org/x/net/ipv4"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"

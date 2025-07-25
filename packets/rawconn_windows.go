@@ -68,29 +68,9 @@ func (r *RawConn) Close() error {
 	return err
 }
 
-func (r *RawConn) getReadTimeout() time.Duration {
-	const (
-		defaultTimeout = 1000 * time.Millisecond
-		minTimeout     = 100 * time.Millisecond
-	)
-	// always return a timeout because we don't want the syscall to block forever
-	if r.deadline.IsZero() {
-		return defaultTimeout
-	}
-
-	timeout := time.Until(r.deadline)
-	// I don't think SO_RCVTIMEO is going to be that precise, so add a min timeout
-	// to avoid making a syscall that is doomed to fail
-	if timeout < minTimeout {
-		return minTimeout
-	}
-	return timeout
-
-}
-
 // Read reads a packet (starting with the IP frame)
 func (r *RawConn) Read(buf []byte) (int, error) {
-	timeoutMs := r.getReadTimeout().Milliseconds()
+	timeoutMs := getReadTimeout(r.deadline).Milliseconds()
 
 	err := windows.SetsockoptInt(r.socket, windows.SOL_SOCKET, windows.SO_RCVTIMEO, int(timeoutMs))
 	if err != nil {
