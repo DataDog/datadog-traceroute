@@ -49,9 +49,23 @@ type (
 		// CanConnect is true if we receive a response from any
 		// of the packets on the host
 		CanConnect bool `json:"can_connect"`
+		// PacketsReceived is the number of packets received.
+		PacketsReceived int `json:"packets_received"`
+		// PacketsSent is the number of packets sent.
+		PacketsSent int `json:"packets_sent"`
+		// PacketsReceivedDuplicates is the number of duplicate responses there were to a sent packet.
+		PacketsReceivedDuplicates int `json:"packets_received_duplicates"`
 		// PacketLoss indicates the percentage of packets lost
 		PacketLoss float64 `json:"packet_loss"`
-		// AvgRtt is the average round trip time
-		AvgRtt float64 `json:"avg_rtt"`
+		// RttMin is the minimum round-trip time sent.
+		RttMin float64 `json:"rtt_min"`
+		// RttMax is the maximum round-trip time sent.
+		RttMax float64 `json:"rtt_max"`
+		// RttAvg is the average round trip time
+		RttAvg float64 `json:"rtt_avg"`
+		// RttStdDev is the standard deviation of the round-trip times sent.
+		RttStdDev float64 `json:"rtt_std_dev"`
+		// Jitter is the computed jitter.
+		Jitter float64 `json:"jitter"`
 	}
 )
