@@ -164,9 +164,6 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("ping failed: %w", err)
 		}
 
-		log.Tracef("ping results: %#v", pingResults)
-		log.Tracef("ping results packet loss: %#v", pingResults.PacketLoss)
-
 		results.PingResults = pingResults
 
 		switch Args.outputFormat {
