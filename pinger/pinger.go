@@ -46,9 +46,6 @@ type (
 	// Result encapsulates the results of a single run
 	// of ping
 	Result struct {
-		// CanConnect is true if we receive a response from any
-		// of the packets on the host
-		CanConnect bool `json:"can_connect"`
 		// PacketsReceived is the number of packets received.
 		PacketsReceived int `json:"packets_received"`
 		// PacketsSent is the number of packets sent.
