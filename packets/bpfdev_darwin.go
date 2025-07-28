@@ -80,7 +80,7 @@ func (b *BpfDevice) readPackets() error {
 	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
 	err := syscall.SetBpfTimeout(b.fd, &tv)
 	if err != nil {
-		return fmt.Errorf("readPackets failed toSetBpfTimeout: %w")
+		return fmt.Errorf("readPackets failed toSetBpfTimeout: %w", err)
 	}
 	n, err := unix.Read(b.fd, b.readBuf)
 	if err == unix.EINTR {
