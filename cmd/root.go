@@ -160,7 +160,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("ping failed: %w", err)
 		}
 
-		results.PingResults = pingResults
+		results.Ping = pingResults
 
 		switch Args.outputFormat {
 		case "json":

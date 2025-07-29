@@ -13,10 +13,10 @@ import (
 )
 
 // RunPing creates a pinger for the requested host and sends the requested number of packets to it
-func RunPing(cfg *Config, host string) (*Result, error) {
+func RunPing(cfg *Config, host string) (*PingResult, error) {
 	pinger, err := probing.NewPinger(host)
 	if err != nil {
-		return &Result{}, err
+		return &PingResult{}, err
 	}
 	// Default configurations
 	pinger.Timeout = DefaultTimeoutMs
@@ -34,13 +34,13 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 	}
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
-		return &Result{}, err
+		return &PingResult{}, err
 	}
 	stats := pinger.Statistics() // get send/receive/duplicate/rtt stats
 
 	log.Tracef("ping stats: %+v", stats)
 
-	return &Result{
+	return &PingResult{
 		PacketsReceived: stats.PacketsRecv,
 		PacketsSent:     stats.PacketsSent,
 		Rtts:            convertRttsAsFloat(stats.Rtts),

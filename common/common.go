@@ -25,13 +25,13 @@ type (
 	// Results encapsulates a response from the
 	// traceroute
 	Results struct {
-		Source      net.IP
-		SourcePort  uint16
-		Target      net.IP
-		DstPort     uint16
-		Hops        []*Hop
-		Tags        []string
-		PingResults *pinger.Result
+		Source     net.IP
+		SourcePort uint16
+		Target     net.IP
+		DstPort    uint16
+		Hops       []*Hop
+		Tags       []string
+		Ping       *pinger.PingResult
 	}
 
 	// Hop encapsulates information about a single

@@ -43,9 +43,9 @@ type (
 		Count int
 	}
 
-	// Result encapsulates the results of a single run
+	// PingResult encapsulates the results of a single run
 	// of ping
-	Result struct {
+	PingResult struct {
 		// PacketsReceived is the number of packets received.
 		PacketsReceived int `json:"packets_received"`
 		// PacketsSent is the number of packets sent.

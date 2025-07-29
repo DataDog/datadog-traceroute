@@ -7,12 +7,12 @@ package pinger
 
 // MockPinger is a pinger used for testing
 type MockPinger struct {
-	res *Result
+	res *PingResult
 	err error
 }
 
 // NewMockPinger returns a pinger that
-func NewMockPinger(res *Result, err error) *MockPinger {
+func NewMockPinger(res *PingResult, err error) *MockPinger {
 	return &MockPinger{
 		res: res,
 		err: err,
@@ -21,6 +21,6 @@ func NewMockPinger(res *Result, err error) *MockPinger {
 
 // Ping ignores the passed in host and returns the result
 // and error set in the constructor
-func (m *MockPinger) Ping(_ string) (*Result, error) {
+func (m *MockPinger) Ping(_ string) (*PingResult, error) {
 	return m.res, m.err
 }
