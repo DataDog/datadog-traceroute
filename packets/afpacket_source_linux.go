@@ -65,6 +65,23 @@ func (a *afPacketSource) Close() error {
 	return a.sock.Close()
 }
 
+// SetPacketFilter sets this Source to only return certain packets.
+func (a *afPacketSource) SetPacketFilter(spec PacketFilterSpec) error {
+	bpfProg, err := getClassicBPFFilter(spec)
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to get BPF filter program: %w", err)
+	}
+	rawConn, err := a.sock.SyscallConn()
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to get rawConn: %w", err)
+	}
+	err = SetBPFAndDrain(rawConn, bpfProg)
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to apply BPF filter: %w", err)
+	}
+	return nil
+}
+
 // htons converts a short (uint16) from host-to-network byte order.
 func htons(i uint16) uint16 {
 	return i<<8 | i>>8

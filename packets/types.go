@@ -15,3 +15,30 @@ type SourceSinkHandle struct {
 	// raw socket. This can only be addressed using a Windows driver.
 	MustClosePort bool
 }
+
+// PacketFilterType is which kind of packet filter to enable
+type PacketFilterType int
+
+const (
+	// FilterTypeNone indicates no filter (all packets).
+	FilterTypeNone PacketFilterType = iota
+	// FilterTypeICMP indicates only ICMP packets
+	FilterTypeICMP
+	// FilterTypeUDP indicates only ICMP and UDP packets
+	FilterTypeUDP
+	// FilterTypeTCP indicates only ICMP and TCP packets.
+	// This one accepts a 4-tuple for source/dest.
+	FilterTypeTCP
+	// FilterTypeSYNACK indicates only TCP SYNACK packets.
+	// Does not accept a 4-tuple like FilterTypeTCP.
+	// This is used by SACK traceroute.
+	FilterTypeSYNACK
+)
+
+// PacketFilterSpec defines how a packet Source should filter packets.
+type PacketFilterSpec struct {
+	// FilterType is which kind of packet filter to enable
+	FilterType PacketFilterType
+	// TCPFilterConfig is only read by FilterTypeTCP -- it contains the 4-tuple of source/dest
+	TCPFilterConfig TCPFilterConfig
+}

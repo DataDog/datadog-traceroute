@@ -95,6 +95,12 @@ func (r *RawConn) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
+// SetPacketFilter sets this Source to only return certain packets.
+func (r *RawConn) SetPacketFilter(_ PacketFilterSpec) error {
+	// not implemented, no-op on Windows
+	return nil
+}
+
 // WriteTo writes the given packet (buffer starts at the IP layer) to addrPort.
 // (the port is required for compatibility with Windows)
 func (r *RawConn) WriteTo(buf []byte, addrPort netip.AddrPort) error {

@@ -38,11 +38,6 @@ func SetBPF(c syscall.RawConn, filter []bpf.RawInstruction) error {
 	return nil
 }
 
-// this is a simple BPF program that drops all packets no matter what
-var dropAllFilter = []bpf.RawInstruction{
-	{Op: 0x6, Jt: 0, Jf: 0, K: 0x00000000},
-}
-
 // SetBPFAndDrain sets the filter for a raw socket and drains old data, so that
 // new packets are guaranteed to match the filter
 func SetBPFAndDrain(c syscall.RawConn, filter []bpf.RawInstruction) error {
