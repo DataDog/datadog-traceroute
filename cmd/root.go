@@ -150,10 +150,6 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unknown protocol: %q", Args.protocol)
 		}
 
-		// TODO: Do improved Network Test
-		//  - 50x ping
-		//  - 3x Traceroute
-
 		pingCfg := &pinger.Config{
 			Count:   Args.pingCount,
 			Timeout: time.Duration(Args.pingTimeoutMs) * time.Millisecond,

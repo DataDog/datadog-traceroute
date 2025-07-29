@@ -44,13 +44,16 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 		PacketsReceived:           stats.PacketsRecv,
 		PacketsSent:               stats.PacketsSent,
 		PacketsReceivedDuplicates: stats.PacketsRecvDuplicates,
-		PacketLoss:                stats.PacketLoss,
-		RttMin:                    stats.MinRtt.Seconds(),
-		RttMax:                    stats.MaxRtt.Seconds(),
-		RttAvg:                    stats.AvgRtt.Seconds(),
-		RttStdDev:                 stats.StdDevRtt.Seconds(),
-		Jitter:                    computeJitter(stats.Rtts).Seconds(),
+		Rtts:                      convertRttsAsFloat(stats.Rtts),
 	}, nil
+}
+
+func convertRttsAsFloat(rtts []time.Duration) []float64 {
+	rttsFloat := make([]float64, len(rtts))
+	for _, rtt := range rtts {
+		rttsFloat = append(rttsFloat, rtt.Seconds())
+	}
+	return rttsFloat
 }
 
 func computeJitter(rtts []time.Duration) time.Duration {

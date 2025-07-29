@@ -52,17 +52,7 @@ type (
 		PacketsSent int `json:"packets_sent"`
 		// PacketsReceivedDuplicates is the number of duplicate responses there were to a sent packet.
 		PacketsReceivedDuplicates int `json:"packets_received_duplicates"`
-		// PacketLoss indicates the percentage of packets lost
-		PacketLoss float64 `json:"packet_loss"`
-		// RttMin is the minimum round-trip time sent.
-		RttMin float64 `json:"rtt_min"`
-		// RttMax is the maximum round-trip time sent.
-		RttMax float64 `json:"rtt_max"`
-		// RttAvg is the average round trip time
-		RttAvg float64 `json:"rtt_avg"`
-		// RttStdDev is the standard deviation of the round-trip times sent.
-		RttStdDev float64 `json:"rtt_std_dev"`
-		// Jitter is the computed jitter.
-		Jitter float64 `json:"jitter"`
+		// PacketsReceivedDuplicates is the number of duplicate responses there were to a sent packet.
+		Rtts []float64 `json:"rtts"`
 	}
 )
