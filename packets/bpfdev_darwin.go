@@ -151,6 +151,12 @@ func (b *BpfDevice) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
+// SetPacketFilter sets this Source to only return certain packets.
+func (b *BpfDevice) SetPacketFilter(_ PacketFilterSpec) error {
+	// not implemented, no-op on MacOS
+	return nil
+}
+
 func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
 	conn, err := net.Dial("udp", net.JoinHostPort(targetIp.String(), "53"))
 	if err != nil {

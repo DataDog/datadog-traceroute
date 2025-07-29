@@ -18,6 +18,21 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func RemoveBPF(c syscall.RawConn) error {
+	var sockoptErr error
+	err := c.Control(func(fd uintptr) {
+		// normally people pass in NULL but golang doesn't have an interface for this.
+		// according to https://man7.org/linux/man-pages/man7/socket.7.html "the option value is ignored"
+		sockoptErr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_DETACH_FILTER, 0)
+	})
+	err = errors.Join(err, sockoptErr)
+	if err != nil {
+		return fmt.Errorf("RemoveBPF failed to attach filter: %w", err)
+	}
+	return nil
+
+}
+
 // SetBPF attaches a BPF filter to the underlying socket
 func SetBPF(c syscall.RawConn, filter []bpf.RawInstruction) error {
 	var p unix.SockFprog
@@ -36,11 +51,6 @@ func SetBPF(c syscall.RawConn, filter []bpf.RawInstruction) error {
 		return fmt.Errorf("SetBPF failed to attach filter: %w", err)
 	}
 	return nil
-}
-
-// this is a simple BPF program that drops all packets no matter what
-var dropAllFilter = []bpf.RawInstruction{
-	{Op: 0x6, Jt: 0, Jf: 0, K: 0x00000000},
 }
 
 // SetBPFAndDrain sets the filter for a raw socket and drains old data, so that

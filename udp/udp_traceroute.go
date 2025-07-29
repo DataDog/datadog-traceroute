@@ -38,6 +38,12 @@ func (u *UDPv4) Traceroute() (*common.Results, error) {
 	if handle.MustClosePort {
 		conn.Close()
 	}
+	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
+		FilterType: packets.FilterTypeUDP,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
+	}
 
 	driver := newUDPDriver(u, handle.Sink, handle.Source)
 

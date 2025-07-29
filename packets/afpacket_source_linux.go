@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/log"
 	"golang.org/x/sys/unix"
 )
 
@@ -63,6 +64,31 @@ func (a *afPacketSource) Read(buf []byte) (int, error) {
 // Close closes the socket
 func (a *afPacketSource) Close() error {
 	return a.sock.Close()
+}
+
+// SetPacketFilter sets this Source to only return certain packets.
+func (a *afPacketSource) SetPacketFilter(spec PacketFilterSpec) error {
+	log.Tracef("setting packet filter to %+v", spec)
+	rawConn, err := a.sock.SyscallConn()
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to get rawConn: %w", err)
+	}
+	if spec.FilterType == FilterTypeNone {
+		err := RemoveBPF(rawConn)
+		if err != nil {
+			return fmt.Errorf("SetPacketFilter failed to remove BPF filter: %w", err)
+		}
+		return nil
+	}
+	bpfProg, err := getClassicBPFFilter(spec)
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to get BPF filter program: %w", err)
+	}
+	err = SetBPFAndDrain(rawConn, bpfProg)
+	if err != nil {
+		return fmt.Errorf("SetPacketFilter failed to apply BPF filter: %w", err)
+	}
+	return nil
 }
 
 // htons converts a short (uint16) from host-to-network byte order.

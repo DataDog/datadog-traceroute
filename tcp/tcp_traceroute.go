@@ -8,6 +8,7 @@ package tcp
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -22,6 +23,10 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	}
 	conn.Close() // we don't need the UDP port here
 	t.srcIP = addr.IP
+	localAddr, ok := common.UnmappedAddrFromSlice(t.srcIP)
+	if !ok {
+		return nil, fmt.Errorf("failed to get netipAddr for source %s", t.srcIP)
+	}
 
 	// reserve a local port so that the tcpDriver has free reign to safely send packets on it
 	port, tcpListener, err := reserveLocalPort()
@@ -45,6 +50,17 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	if handle.MustClosePort {
 		tcpListener.Close()
 	}
+	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
+		FilterType: packets.FilterTypeTCP,
+		TCPFilterConfig: packets.TCPFilterConfig{
+			Src: netip.AddrPortFrom(targetAddr, t.DestPort),
+			Dst: netip.AddrPortFrom(localAddr, port),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
+	}
+
 	driver := newTCPDriver(t, handle.Sink, handle.Source)
 
 	params := common.TracerouteSerialParams{

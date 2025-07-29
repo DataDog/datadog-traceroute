@@ -50,9 +50,8 @@ type icmpDriver struct {
 	isIPV6     bool
 }
 
-//nolint:unused // This is used, but not on all platforms yet
-func newICMPDriver(params Params, localAddr netip.Addr, sink packets.Sink, source packets.Source) (*icmpDriver, error) {
-	retval := &icmpDriver{
+func newICMPDriver(params Params, localAddr netip.Addr, sink packets.Sink, source packets.Source) *icmpDriver {
+	return &icmpDriver{
 		sink:       sink,
 		source:     source,
 		buffer:     make([]byte, 1024),
@@ -63,7 +62,6 @@ func newICMPDriver(params Params, localAddr netip.Addr, sink packets.Sink, sourc
 		echoID:     nextEchoID(),
 		isIPV6:     localAddr.Is6(),
 	}
-	return retval, nil
 }
 
 func (s *icmpDriver) Close() {

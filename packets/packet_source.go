@@ -25,6 +25,10 @@ type Source interface {
 	Read(buf []byte) (int, error)
 	// Close closes the socket
 	Close() error
+	// SetPacketFilter sets this Source to only return certain packets.
+	// This is purely a performance optimization -- on some platforms SetPacketFilter
+	// may be a no-op.
+	SetPacketFilter(spec PacketFilterSpec) error
 }
 
 // ReadAndParse reads from the given source into the buffer, and parses it with parser

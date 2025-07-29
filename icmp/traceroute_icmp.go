@@ -64,12 +64,15 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ICMP Traceroute failed to make NewSourceSink: %w", err)
 	}
+	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
+		FilterType: packets.FilterTypeICMP,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ICMP traceroute failed to set packet filter: %w", err)
+	}
 
 	// create the raw packet connection which watches for TCP/ICMP responses
-	driver, err := newICMPDriver(p, local.AddrPort().Addr(), handle.Sink, handle.Source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init icmp driver: %w", err)
-	}
+	driver := newICMPDriver(p, local.AddrPort().Addr(), handle.Sink, handle.Source)
 	defer driver.Close()
 
 	log.Debugf("icmp traceroute dialing %s", p.Target)
