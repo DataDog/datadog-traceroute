@@ -10,18 +10,19 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/icmp"
-	"golang.org/x/net/ipv4"
 	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"golang.org/x/net/icmp"
+	"golang.org/x/net/ipv4"
+
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 )
 
 //nolint:unused // This is used, but not on all platforms yet

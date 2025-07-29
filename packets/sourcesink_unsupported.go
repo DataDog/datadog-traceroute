@@ -9,11 +9,10 @@ package packets
 
 import (
 	"fmt"
-
-	"github.com/google/gopacket"
+	"net/netip"
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(_ gopacket.LayerType) (SourceSinkHandle, error) {
+func NewSourceSink(_ netip.Addr) (SourceSinkHandle, error) {
 	return SourceSinkHandle{}, fmt.Errorf("NewSourceSink: this platform is not supported")
 }

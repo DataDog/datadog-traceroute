@@ -10,17 +10,18 @@ import (
 	"net"
 	"time"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/winconn"
-	"golang.org/x/sys/windows"
 )
 
 // TracerouteSequential runs a traceroute
 func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	log.Debugf("Running UDP traceroute to %+v", u)
 	// Get local address for the interface that connects to this
-	// host and store in in the probe
+	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(u.Target, u.TargetPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)

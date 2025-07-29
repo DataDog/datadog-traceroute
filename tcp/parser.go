@@ -11,10 +11,11 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"golang.org/x/net/ipv4"
+
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 type (

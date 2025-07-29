@@ -12,9 +12,10 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 // FrameParser parses traceroute responses using gopacket.
@@ -63,7 +64,7 @@ func (p *FrameParser) Parse(buffer []byte) error {
 		err = nil
 	}
 	if err != nil {
-		return fmt.Errorf("Parse: %w", err)
+		return fmt.Errorf("parse: %w", err)
 	}
 	if err := p.checkLayers(); err != nil {
 		return &common.BadPacketError{Err: err}

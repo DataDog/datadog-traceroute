@@ -8,7 +8,6 @@ package icmp
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/DataDog/datadog-traceroute/common"
 	"net"
 	"net/netip"
 	"testing"
@@ -19,6 +18,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/require"
 
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
 )
 

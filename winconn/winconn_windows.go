@@ -12,10 +12,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/log"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/windows"
+
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 var (
