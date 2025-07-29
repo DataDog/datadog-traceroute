@@ -236,7 +236,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
-	rootCmd.Flags().IntVarP(&Args.pingCount, "ping-count", "", pinger.DefaultCount, "Ping - Delay between packets (ms)")
+	rootCmd.Flags().IntVarP(&Args.pingCount, "ping-count", "", pinger.DefaultCount, "Ping - Number of ping calls")
 	rootCmd.Flags().IntVarP(&Args.pingDelayMs, "ping-delay", "", pinger.DefaultIntervalMs, "Ping - Delay between packets (ms)")
 	rootCmd.Flags().IntVarP(&Args.pingTimeoutMs, "ping-timeout", "", pinger.DefaultTimeoutMs, "Ping - Timeout (ms)")
 }
