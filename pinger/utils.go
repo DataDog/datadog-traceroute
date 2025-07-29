@@ -50,7 +50,7 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 func convertRttsAsFloat(rtts []time.Duration) []float32 {
 	rttsFloat := make([]float32, 0, len(rtts))
 	for _, rtt := range rtts {
-		rttsFloat = append(rttsFloat, rtt.Seconds()*1000)
+		rttsFloat = append(rttsFloat, float32(rtt.Seconds()*1000))
 	}
 	return rttsFloat
 }
