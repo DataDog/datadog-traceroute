@@ -17,19 +17,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
-	"github.com/DataDog/datadog-traceroute/log"
-	"github.com/DataDog/datadog-traceroute/pinger"
-	"github.com/DataDog/datadog-traceroute/sack"
-	"github.com/DataDog/datadog-traceroute/tcp"
-	"github.com/DataDog/datadog-traceroute/udp"
-
 	"github.com/spf13/cobra"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/pinger"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
 	"github.com/DataDog/datadog-traceroute/udp"
