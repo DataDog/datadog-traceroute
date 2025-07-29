@@ -66,7 +66,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	t.srcPort = port
 
 	// create a socket filter for TCP to reduce CPU usage
-	filterCfg := packets.TCP4FilterConfig{
+	filterCfg := packets.TCPFilterConfig{
 		Src: netip.AddrPortFrom(targetAddr, t.DestPort),
 		Dst: netip.AddrPortFrom(localAddr, port),
 	}

@@ -118,6 +118,13 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to make NewSourceSink: %w", err)
 	}
+	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
+		FilterType: packets.FilterTypeSYNACK,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SACK traceroute failed to set packet filter: %w", err)
+	}
+
 	// we need to have another socket open by definition for SACK traceroute, so if that's not
 	// allowed, this can't work
 	if handle.MustClosePort {
@@ -163,6 +170,17 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		return nil, fmt.Errorf("sack traceroute failed to read handshake: %w", err)
 	}
 	log.Debugf("sack traceroute running traceroute %s", p.Target)
+
+	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
+		FilterType: packets.FilterTypeTCP,
+		TCPFilterConfig: packets.TCPFilterConfig{
+			Src: p.Target,
+			Dst: local.AddrPort(),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SACK traceroute failed to set packet filter: %w", err)
+	}
 
 	// this actually runs the traceroute
 	resp, err := common.TracerouteParallel(ctx, driver, p.ParallelParams)

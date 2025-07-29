@@ -63,6 +63,20 @@ func (mr *MockSourceMockRecorder) Read(buf interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSource)(nil).Read), buf)
 }
 
+// SetPacketFilter mocks base method.
+func (m *MockSource) SetPacketFilter(spec PacketFilterSpec) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetPacketFilter", spec)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetPacketFilter indicates an expected call of SetPacketFilter.
+func (mr *MockSourceMockRecorder) SetPacketFilter(spec interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPacketFilter", reflect.TypeOf((*MockSource)(nil).SetPacketFilter), spec)
+}
+
 // SetReadDeadline mocks base method.
 func (m *MockSource) SetReadDeadline(t time.Time) error {
 	m.ctrl.T.Helper()

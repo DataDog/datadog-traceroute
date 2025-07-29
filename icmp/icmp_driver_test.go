@@ -46,8 +46,7 @@ func initTest(t *testing.T, ipv6 bool) (*icmpDriver, *packets.MockSink, *packets
 		srcIP = netip.MustParseAddr("2001:0db8:1234:5678:0000:0000:9abc:def0")
 	}
 
-	driver, err := newICMPDriver(params, srcIP, mockSink, mockSource)
-	require.NoError(t, err)
+	driver := newICMPDriver(params, srcIP, mockSink, mockSource)
 
 	return driver, mockSink, mockSource
 }
