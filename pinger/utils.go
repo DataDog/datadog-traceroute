@@ -54,19 +54,3 @@ func convertRttsAsFloat(rtts []time.Duration) []float32 {
 	}
 	return rttsFloat
 }
-
-func computeJitter(rtts []time.Duration) time.Duration {
-	if len(rtts) < 2 {
-		return time.Duration(0)
-	}
-	var prevRtt time.Duration
-	var cumulativeDifference time.Duration
-	for _, rtt := range rtts {
-		if prevRtt != 0 {
-			cumulativeDifference += (rtt - prevRtt).Abs()
-		}
-		prevRtt = rtt
-	}
-	jitter := cumulativeDifference / time.Duration(len(rtts)-1)
-	return jitter
-}
