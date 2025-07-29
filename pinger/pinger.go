@@ -51,6 +51,6 @@ type (
 		// PacketsSent is the number of packets sent.
 		PacketsSent int `json:"packets_sent"`
 		// Rtts is the list of received round-trip-time in millisecond
-		Rtts []float64 `json:"rtts"`
+		Rtts []float32 `json:"rtts"`
 	}
 )
