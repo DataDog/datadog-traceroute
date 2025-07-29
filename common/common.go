@@ -69,9 +69,9 @@ func (m MismatchError) Error() string {
 	return string(m)
 }
 
-// LocalAddrForHost takes in a destionation IP and port and returns the local
+// LocalAddrForHost takes in a destination IP and port and returns the local
 // address that should be used to connect to the destination. The returned connection
-// should be closed by the caller when the the local UDP port is no longer needed
+// should be closed by the caller when the local UDP port is no longer needed
 func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
 	// this is a quick way to get the local address for connecting to the host
 	// using UDP as the network type to avoid actually creating a connection to

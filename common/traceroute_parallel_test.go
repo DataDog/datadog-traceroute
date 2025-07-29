@@ -346,7 +346,7 @@ func TestParallelTracerouteMissingDest(t *testing.T) {
 
 func TestParallelTracerouteProbeSanityCheck(t *testing.T) {
 	// this probe checks that TracerouteParallel yells at you when it reads
-	// a an invalid TTL
+	// an invalid TTL
 	m := initMockDriver(t, parallelParams.TracerouteParams, parallelInfo)
 	t.Parallel()
 

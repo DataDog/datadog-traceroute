@@ -14,8 +14,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/udp"
-	//pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
-	//pkglogsetup "github.com/DataDog/datadog-traceroute/log/setup"
 )
 
 func main() {

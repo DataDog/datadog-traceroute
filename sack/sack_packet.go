@@ -9,9 +9,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+
+	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 type sackTCPState struct {
