@@ -25,7 +25,7 @@ import (
 func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
-	// host and store in in the probe
+	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)
@@ -99,7 +99,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
-	// host and store in in the probe
+	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)

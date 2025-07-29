@@ -11,7 +11,6 @@ import (
 	"net/netip"
 	"slices"
 	"time"
-	//"github.com/DataDog/datadog-traceroute/log"
 )
 
 // ReceiveProbeNoPktError is returned when ReceiveProbe() didn't find anything new.
@@ -143,8 +142,6 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*Hop, error) {
 	return hops, nil
 }
 
-//var badPktLimit = log.NewLogLimit(10, 5*time.Minute)
-
 // CheckProbeRetryable returns whether ReceiveProbe failed due to a real error or just an irrelevant packet
 func CheckProbeRetryable(funcName string, err error) bool {
 	noPktErr := &ReceiveProbeNoPktError{}
@@ -152,9 +149,6 @@ func CheckProbeRetryable(funcName string, err error) bool {
 	if errors.As(err, &noPktErr) {
 		return true
 	} else if errors.As(err, &badPktErr) {
-		//if badPktLimit.ShouldLog() {
-		//	log.Warnf("%s() saw a malformed packet: %s", funcName, err)
-		//}
 		return true
 	}
 	return false

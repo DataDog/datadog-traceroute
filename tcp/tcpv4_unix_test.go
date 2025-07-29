@@ -14,12 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
+
+	"github.com/DataDog/datadog-traceroute/common"
 )
 
 func TestSendAndReceive(t *testing.T) {

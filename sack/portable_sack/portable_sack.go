@@ -16,8 +16,6 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/sack"
-	//pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
-	//pkglogsetup "github.com/DataDog/datadog-traceroute/log/setup"
 )
 
 func main() {
