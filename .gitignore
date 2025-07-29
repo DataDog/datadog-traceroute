@@ -1,2 +1,13 @@
 .idea
+.vscode
 vendor
+
+portable_*.exe
+portable_syn
+!portable_syn/
+portable_sack
+!portable_sack/
+portable_udp
+!portable_udp/
+portable_icmp
+!portable_icmp/

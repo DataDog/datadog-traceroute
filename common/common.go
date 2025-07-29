@@ -16,6 +16,9 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/pinger"
 	"golang.org/x/net/ipv4"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 type (
@@ -93,4 +96,12 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 func UnmappedAddrFromSlice(slice []byte) (netip.Addr, bool) {
 	addr, ok := netip.AddrFromSlice(slice)
 	return addr.Unmap(), ok
+}
+
+// IPFamily returns the IP family of an address (v4 or v6) as a gopacket layer
+func IPFamily(addr netip.Addr) gopacket.LayerType {
+	if addr.Is4() {
+		return layers.LayerTypeIPv4
+	}
+	return layers.LayerTypeIPv6
 }
