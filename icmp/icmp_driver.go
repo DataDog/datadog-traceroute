@@ -15,10 +15,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
