@@ -41,10 +41,9 @@ func RunPing(cfg *Config, host string) (*Result, error) {
 	log.Tracef("ping stats: %+v", stats)
 
 	return &Result{
-		PacketsReceived:           stats.PacketsRecv,
-		PacketsSent:               stats.PacketsSent,
-		PacketsReceivedDuplicates: stats.PacketsRecvDuplicates,
-		Rtts:                      convertRttsAsFloat(stats.Rtts),
+		PacketsReceived: stats.PacketsRecv,
+		PacketsSent:     stats.PacketsSent,
+		Rtts:            convertRttsAsFloat(stats.Rtts),
 	}, nil
 }
 

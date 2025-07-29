@@ -50,8 +50,6 @@ type (
 		PacketsReceived int `json:"packets_received"`
 		// PacketsSent is the number of packets sent.
 		PacketsSent int `json:"packets_sent"`
-		// PacketsReceivedDuplicates is the number of duplicate responses there were to a sent packet.
-		PacketsReceivedDuplicates int `json:"packets_received_duplicates"`
 		// Rtts is the list of received round-trip-time in millisecond
 		Rtts []float64 `json:"rtts"`
 	}
