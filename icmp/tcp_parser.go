@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"golang.org/x/net/ipv4"
+
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 type (

@@ -40,7 +40,7 @@ type (
 // sent and we wait for a response before sending the next packet
 func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	// Get local address for the interface that connects to this
-	// host and store in in the probe
+	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)

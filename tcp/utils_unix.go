@@ -16,12 +16,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
-	"github.com/DataDog/datadog-traceroute/log"
 	"go.uber.org/multierr"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
+
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 type (
@@ -157,7 +158,7 @@ func handlePackets(ctx context.Context, conn rawConnWrapper, localIP net.IP, loc
 			if tcpResp.Match(localIP, localPort, remoteIP, remotePort, seqNum) {
 				return packetResponse{
 					IP:   tcpResp.SrcIP,
-					Port: uint16(tcpResp.SrcPort),
+					Port: tcpResp.SrcPort,
 					Time: received,
 				}
 			}

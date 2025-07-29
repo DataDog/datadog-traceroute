@@ -13,10 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket/layers"
+
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
-	"github.com/google/gopacket/layers"
 )
 
 type probeData struct {

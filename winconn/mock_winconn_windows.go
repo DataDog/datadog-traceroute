@@ -9,11 +9,11 @@ import (
 	reflect "reflect"
 	time "time"
 
-	common "github.com/DataDog/datadog-traceroute/common"
 	gomock "github.com/golang/mock/gomock"
 	ipv4 "golang.org/x/net/ipv4"
-)
 
+	common "github.com/DataDog/datadog-traceroute/common"
+)
 // MockRawConnWrapper is a mock of RawConnWrapper interface.
 type MockRawConnWrapper struct {
 	ctrl     *gomock.Controller

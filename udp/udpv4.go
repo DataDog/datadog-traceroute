@@ -12,9 +12,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+
+	"github.com/DataDog/datadog-traceroute/icmp"
 )
 
 type (
