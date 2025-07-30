@@ -22,24 +22,28 @@ import (
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/pinger"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
 type args struct {
-	protocol     string
-	npaths       int
-	minTTL       int
-	maxTTL       int
-	delay        int
-	outputFile   string
-	outputFormat string
-	timeout      int
-	tcpmethod    string
-	dport        int
-	wantV6       bool
-	verbose      bool
+	protocol      string
+	npaths        int
+	minTTL        int
+	maxTTL        int
+	delay         int
+	outputFile    string
+	outputFormat  string
+	timeout       int
+	tcpmethod     string
+	dport         int
+	wantV6        bool
+	verbose       bool
+	pingCount     int
+	pingDelayMs   int
+	pingTimeoutMs int
 }
 
 const (
@@ -71,9 +75,11 @@ var rootCmd = &cobra.Command{
 
 		log.SetVerbose(Args.verbose)
 
+		target := args[0]
+
 		switch Args.protocol {
 		case "udp":
-			target, err := parseTarget(args[0], Args.dport, Args.wantV6)
+			target, err := parseTarget(target, Args.dport, Args.wantV6)
 			if err != nil {
 				return fmt.Errorf("invalid target: %w", err)
 			}
@@ -92,7 +98,7 @@ var rootCmd = &cobra.Command{
 			}
 
 		case "tcp":
-			target, err := parseTarget(args[0], Args.dport, Args.wantV6)
+			target, err := parseTarget(target, Args.dport, Args.wantV6)
 			if err != nil {
 				return fmt.Errorf("invalid target: %w", err)
 			}
@@ -120,7 +126,7 @@ var rootCmd = &cobra.Command{
 				return fmt.Errorf("unknown tcp method: %q", Args.tcpmethod)
 			}
 		case "icmp":
-			target, err := parseTarget(args[0], 80, Args.wantV6)
+			target, err := parseTarget(target, 80, Args.wantV6)
 			if err != nil {
 				return fmt.Errorf("invalid target: %w", err)
 			}
@@ -143,6 +149,18 @@ var rootCmd = &cobra.Command{
 		default:
 			return fmt.Errorf("unknown protocol: %q", Args.protocol)
 		}
+
+		pingCfg := &pinger.Config{
+			Count:   Args.pingCount,
+			Timeout: time.Duration(Args.pingTimeoutMs) * time.Millisecond,
+			Delay:   time.Duration(Args.pingDelayMs) * time.Millisecond,
+		}
+		pingResults, err := pinger.RunPing(pingCfg, target)
+		if err != nil {
+			return fmt.Errorf("ping failed: %w", err)
+		}
+
+		results.Ping = pingResults
 
 		switch Args.outputFormat {
 		case "json":
@@ -214,6 +232,9 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
+	rootCmd.Flags().IntVarP(&Args.pingCount, "ping-count", "", pinger.DefaultCount, "Ping - Number of ping calls")
+	rootCmd.Flags().IntVarP(&Args.pingDelayMs, "ping-delay", "", pinger.DefaultIntervalMs, "Ping - Delay between packets (ms)")
+	rootCmd.Flags().IntVarP(&Args.pingTimeoutMs, "ping-timeout", "", pinger.DefaultTimeoutMs, "Ping - Timeout (ms)")
 }
 
 func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {
