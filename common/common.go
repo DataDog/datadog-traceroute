@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/pinger"
 	"golang.org/x/net/ipv4"
 
 	"github.com/google/gopacket"
@@ -30,6 +31,7 @@ type (
 		DstPort    uint16
 		Hops       []*Hop
 		Tags       []string
+		Ping       *pinger.PingResult
 	}
 
 	// Hop encapsulates information about a single
