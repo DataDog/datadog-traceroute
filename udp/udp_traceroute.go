@@ -46,6 +46,7 @@ func (u *UDPv4) Traceroute() (*common.Results, error) {
 	}
 
 	driver := newUDPDriver(u, handle.Sink, handle.Source)
+	defer driver.Close()
 
 	params := common.TracerouteParallelParams{
 		TracerouteParams: common.TracerouteParams{

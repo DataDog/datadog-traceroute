@@ -62,6 +62,7 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	}
 
 	driver := newTCPDriver(t, handle.Sink, handle.Source)
+	defer driver.Close()
 
 	params := common.TracerouteSerialParams{
 		TracerouteParams: common.TracerouteParams{
