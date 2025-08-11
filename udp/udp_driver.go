@@ -6,6 +6,7 @@
 package udp
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"sync"
@@ -196,4 +197,11 @@ func (u *udpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
 		RTT:    rtt,
 		IsDest: ipPair.SrcAddr == u.getTargetAddrPort().Addr(),
 	}, nil
+}
+
+// Close closes the udpDriver
+func (u *udpDriver) Close() error {
+	sinkErr := u.sink.Close()
+	sourceErr := u.source.Close()
+	return errors.Join(sinkErr, sourceErr)
 }
