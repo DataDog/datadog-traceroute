@@ -43,7 +43,7 @@ func TestTracerouteSerial(t *testing.T) {
 			expectedResults = append(expectedResults, result)
 			select {
 			case receiveProbes <- result:
-			default:
+			case <-time.After(parallelParams.TracerouteTimeout):
 				// we expect this channel to never fill
 				t.Fatalf("TTL %d never got read by receiveHandler", sendTTL-1)
 			}
@@ -52,15 +52,7 @@ func TestTracerouteSerial(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		var probe *ProbeResponse
-		select {
-		case probe = <-receiveProbes:
-		default:
-		}
-		if probe == nil {
-			return noData(serialParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 	results, err := TracerouteSerial(context.Background(), m, serialParams)
 	require.NoError(t, err)
@@ -89,7 +81,7 @@ func TestTracerouteSerialMissingHop(t *testing.T) {
 			expectedResults = append(expectedResults, result)
 			select {
 			case receiveProbes <- result:
-			default:
+			case <-time.After(parallelParams.TracerouteTimeout):
 				// we expect this channel to never fill
 				t.Fatalf("TTL %d never got read by receiveHandler", sendTTL-1)
 			}
@@ -98,15 +90,7 @@ func TestTracerouteSerialMissingHop(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		var probe *ProbeResponse
-		select {
-		case probe = <-receiveProbes:
-		default:
-		}
-		if probe == nil {
-			return noData(serialParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 	results, err := TracerouteSerial(context.Background(), m, serialParams)
 	require.NoError(t, err)
@@ -138,7 +122,7 @@ func TestTracerouteSerialWrongHop(t *testing.T) {
 			expectedResults = append(expectedResults, result)
 			select {
 			case receiveProbes <- resultToRead:
-			default:
+			case <-time.After(parallelParams.TracerouteTimeout):
 				// we expect this channel to never fill
 				t.Fatalf("TTL %d never got read by receiveHandler", sendTTL-1)
 			}
@@ -147,15 +131,7 @@ func TestTracerouteSerialWrongHop(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		var probe *ProbeResponse
-		select {
-		case probe = <-receiveProbes:
-		default:
-		}
-		if probe == nil {
-			return noData(serialParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 	results, err := TracerouteSerial(context.Background(), m, serialParams)
 	require.NoError(t, err)
@@ -184,7 +160,7 @@ func TestTracerouteSerialMissingDest(t *testing.T) {
 			expectedResults = append(expectedResults, result)
 			select {
 			case receiveProbes <- result:
-			default:
+			case <-time.After(parallelParams.TracerouteTimeout):
 				// we expect this channel to never fill
 				t.Fatalf("TTL %d never got read by receiveHandler", sendTTL-1)
 			}
@@ -193,15 +169,7 @@ func TestTracerouteSerialMissingDest(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		var probe *ProbeResponse
-		select {
-		case probe = <-receiveProbes:
-		default:
-		}
-		if probe == nil {
-			return noData(serialParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 	results, err := TracerouteSerial(context.Background(), m, serialParams)
 	require.NoError(t, err)

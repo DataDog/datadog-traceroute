@@ -59,7 +59,7 @@ func (m *MockDriver) ReceiveProbe(timeout time.Duration) (*ProbeResponse, error)
 	require.Equal(m.t, m.params.PollFrequency, timeout)
 
 	if m.receiveHandler == nil {
-		return noData(timeout)
+		return pollData(nil, timeout)
 	}
 	res, err := m.receiveHandler()
 	var errNoPkt *ReceiveProbeNoPktError
@@ -69,9 +69,19 @@ func (m *MockDriver) ReceiveProbe(timeout time.Duration) (*ProbeResponse, error)
 	return res, err
 }
 
-func noData(pollFrequency time.Duration) (*ProbeResponse, error) {
-	time.Sleep(pollFrequency)
-	return nil, &ReceiveProbeNoPktError{Err: fmt.Errorf("testing, no data")}
+func pollData(receiveProbes chan *ProbeResponse, pollFrequency time.Duration) (*ProbeResponse, error) {
+	noData := &ReceiveProbeNoPktError{Err: fmt.Errorf("testing, no data")}
+	after := time.After(pollFrequency)
+	select {
+	case probe := <-receiveProbes:
+		if probe == nil {
+			<-after
+			return nil, noData
+		}
+		return probe, nil
+	case <-after:
+		return nil, noData
+	}
 }
 
 func TestClipResultsDest(t *testing.T) {

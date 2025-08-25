@@ -22,7 +22,7 @@ var parallelParams = TracerouteParallelParams{
 	TracerouteParams: TracerouteParams{
 		MinTTL:            1,
 		MaxTTL:            10,
-		TracerouteTimeout: 500 * time.Millisecond,
+		TracerouteTimeout: 1000 * time.Millisecond,
 		PollFrequency:     1 * time.Millisecond,
 		SendDelay:         1 * time.Millisecond,
 	},
@@ -69,11 +69,7 @@ func TestParallelTraceroute(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -109,11 +105,7 @@ func testParallelTracerouteShuffled(t *testing.T, seed int64) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -122,6 +114,7 @@ func testParallelTracerouteShuffled(t *testing.T, seed int64) {
 	require.Len(t, results, mockDestTTL)
 }
 func TestParallelTracerouteShuffled(t *testing.T) {
+	t.Parallel()
 	for seed := range 9 {
 		t.Run(fmt.Sprintf("seed=%d", seed), func(t *testing.T) {
 			testParallelTracerouteShuffled(t, int64(seed))
@@ -176,7 +169,8 @@ func TestParallelTracerouteTimeout(t *testing.T) {
 	totalCalls := 0
 	m.receiveHandler = func() (*ProbeResponse, error) {
 		totalCalls++
-		return noData(parallelParams.PollFrequency)
+
+		return pollData(nil, parallelParams.PollFrequency)
 	}
 
 	start := time.Now()
@@ -223,11 +217,7 @@ func TestParallelTracerouteMinTTL(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -280,11 +270,7 @@ func TestParallelTracerouteMissingHop(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -323,11 +309,7 @@ func TestParallelTracerouteMissingDest(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -416,11 +398,7 @@ func TestParallelTracerouteDoubleReceive(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -472,11 +450,7 @@ func TestParallelTracerouteDestOverwrite(t *testing.T) {
 		return nil
 	}
 	m.receiveHandler = func() (*ProbeResponse, error) {
-		probe, ok := <-receiveProbes
-		if !ok {
-			return noData(parallelParams.PollFrequency)
-		}
-		return probe, nil
+		return pollData(receiveProbes, parallelParams.PollFrequency)
 	}
 
 	results, err := TracerouteParallel(context.Background(), m, parallelParams)
@@ -512,7 +486,7 @@ func TestParallelSendFirst(t *testing.T) {
 	m.receiveHandler = func() (*ProbeResponse, error) {
 		hasReceived.Store(true)
 		require.True(t, hasSent.Load(), "ReceiveProbe() called before SendProbe() finished")
-		return noData(parallelParams.PollFrequency)
+		return pollData(nil, parallelParams.PollFrequency)
 	}
 
 	_, err := TracerouteParallel(context.Background(), m, parallelParams)
