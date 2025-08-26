@@ -10,17 +10,43 @@ package packets
 import (
 	"fmt"
 	"net/netip"
+
+	"github.com/DataDog/datadog-agent/pkg/network/driver"
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
 func NewSourceSink(addr netip.Addr) (SourceSinkHandle, error) {
-	rawConn, err := NewRawConn(addr)
+	return NewSourceSinkDriver(addr)
+}
+
+func NewSourceSinkDriver(addr netip.Addr) (SourceSinkHandle, error) {
+	// init the driver
+	err := driver.Init()
 	if err != nil {
-		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to init rawConn: %w", err)
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to init driver: %w", err)
 	}
+
+	// start the driver
+	err = driver.Start()
+	if err != nil {
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to start driver: %w", err)
+	}
+
+	// create new handles to the driver
+	source, err := NewSourceDriver(addr)
+	if err != nil {
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to create source driver: %w", err)
+	}
+
+	// create a new sink driver
+	sink, err := NewSinkDriver(addr)
+	if err != nil {
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to create sink driver: %w", err)
+	}
+
 	return SourceSinkHandle{
-		Source:        rawConn,
-		Sink:          rawConn,
-		MustClosePort: true,
+		Source:        source,
+		Sink:          sink,
+		MustClosePort: false,
 	}, nil
 }
