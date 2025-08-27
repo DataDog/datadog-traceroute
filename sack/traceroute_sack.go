@@ -178,7 +178,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		FilterType: packets.FilterTypeTCP,
 		FilterConfig: packets.FilterConfig{
 			Src: p.Target,
-			Dst: local.AddrPort(),
+			Dst: tcpAddr.AddrPort(),
 		},
 	})
 	if err != nil {
@@ -192,7 +192,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	}
 
 	result := &sackResult{
-		LocalAddr: local.AddrPort(),
+		LocalAddr: tcpAddr.AddrPort(),
 		Hops:      resp,
 	}
 	return result, nil
