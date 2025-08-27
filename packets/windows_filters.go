@@ -72,47 +72,8 @@ func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) 
 			},
 		}, nil
 	case FilterTypeUDP:
-		return []driver.FilterDefinition{
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_UDP,
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_UDP,
-				Discard:        uint64(1),
-			},
-			// create ipv6 udp filters
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_UDP,
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_UDP,
-				Discard:        uint64(1),
-			},
-		}, nil
+		// udp only uses installed icmp filter
+		return []driver.FilterDefinition{}, nil
 	case FilterTypeSYNACK:
 		return []driver.FilterDefinition{
 			{
