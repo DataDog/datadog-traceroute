@@ -15,7 +15,6 @@ import "C"
 import (
 	"fmt"
 	"net/netip"
-	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -27,46 +26,55 @@ import (
 )
 
 const (
-	readBufferCount = 100
+	readBufferCount = 800
 )
 
 type readbuffer struct {
 	ol   windows.Overlapped
-	data [1500]byte
+	data [150]byte
 }
 
 type SourceDriver struct {
-	closeOnce         sync.Once
-	deadline          time.Time
-	handle            driver.Handle
-	iocp              windows.Handle
-	filters           []PacketFilterSpec
-	icmpFilterCreated bool
-	readBuffers       []*readbuffer
+	deadline    time.Time
+	handle      driver.Handle
+	iocp        windows.Handle
+	readBuffers []*readbuffer
 }
 
 var _ Source = &SourceDriver{}
 
 // NewSourceDriver creates a new SourceDriver.
-func NewSourceDriver(adr netip.Addr) (Source, error) {
+func NewSourceDriver(_ netip.Addr) (Source, error) {
+	// return a new SourceDriver, it will be setup when the first filter is set
 	d := &SourceDriver{}
+	return d, nil
+}
+
+func (d *SourceDriver) setupSourceDriver() error {
 	var err error
+	// check if the driver is already setup
+	// if so we need to close the current handle and create a new one
+	if d.handle != nil {
+		if err := d.Close(); err != nil {
+			return fmt.Errorf("failed to close driver: %w", err)
+		}
+	}
 
 	// create the handle
 	d.handle, err = driver.NewHandle(windows.FILE_FLAG_OVERLAPPED, driver.DataHandle, nil)
 	if err != nil {
-		return nil, fmt.Errorf("NewSourceDriver failed to create handle: %w", err)
+		return fmt.Errorf("NewSourceDriver failed to create handle: %w", err)
 	}
 
 	iocp, buffers, err := prepareCompletionBuffers(d.handle.GetWindowsHandle(), readBufferCount)
 	if err != nil {
-		return nil, fmt.Errorf("NewSourceDriver failed to prepare completion buffers: %w", err)
+		return fmt.Errorf("NewSourceDriver failed to prepare completion buffers: %w", err)
 	}
 
 	d.iocp = iocp
 	d.readBuffers = buffers
 
-	return d, nil
+	return nil
 }
 
 // SetDataFilters installs the provided filters for data
@@ -88,48 +96,34 @@ func (d *SourceDriver) SetDataFilters(filters []driver.FilterDefinition) error {
 
 func (d *SourceDriver) createPacketFilters(filter PacketFilterSpec) ([]driver.FilterDefinition, error) {
 	var filters []driver.FilterDefinition
-	// check if the filter is already set
-	// if it is, don't create any filters
-	for _, filt := range d.filters {
-		if filt == filter {
-			return filters, nil
-		}
-	}
 
-	if !d.icmpFilterCreated {
-		// create the icmp filter
-		filters = append(filters,
-			driver.FilterDefinition{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_ICMP,
-			},
-			// create icmpv6 filter
-			driver.FilterDefinition{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_ICMPV6,
-			},
-		)
-		d.icmpFilterCreated = true
-	}
+	// create the icmp filter
+	filters = append(filters,
+		driver.FilterDefinition{
+			FilterVersion:  driver.Signature,
+			Size:           driver.FilterDefinitionSize,
+			FilterLayer:    driver.LayerTransport,
+			Af:             windows.AF_INET,
+			InterfaceIndex: uint64(0),
+			Direction:      driver.DirectionInbound,
+			Protocol:       windows.IPPROTO_ICMP,
+		},
+		// create icmpv6 filter
+		driver.FilterDefinition{
+			FilterVersion:  driver.Signature,
+			Size:           driver.FilterDefinitionSize,
+			FilterLayer:    driver.LayerTransport,
+			Af:             windows.AF_INET6,
+			InterfaceIndex: uint64(0),
+			Direction:      driver.DirectionInbound,
+			Protocol:       windows.IPPROTO_ICMPV6,
+		},
+	)
 
 	filterDefs, err := getWindowsFilter(filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get windows filter: %w", err)
 	}
-
-	// add the filter to the list of filters
-	// this is used to avoid setting the same filter multiple times
-	d.filters = append(d.filters, filter)
 
 	// add the filter definitions to the list of filter definitions
 	filters = append(filters, filterDefs...)
@@ -139,6 +133,12 @@ func (d *SourceDriver) createPacketFilters(filter PacketFilterSpec) ([]driver.Fi
 
 // SetPacketFilter sets the packet filter for the driver.
 func (d *SourceDriver) SetPacketFilter(filter PacketFilterSpec) error {
+	// need to setup a new filter, this requires us to close the current handle
+	// and then create a new one with the correct filters
+	if err := d.setupSourceDriver(); err != nil {
+		return fmt.Errorf("failed to setup source driver: %w", err)
+	}
+
 	filterDefs, err := d.createPacketFilters(filter)
 	if err != nil {
 		return fmt.Errorf("failed to create packet filters: %w", err)
@@ -152,27 +152,29 @@ func (d *SourceDriver) SetPacketFilter(filter PacketFilterSpec) error {
 
 // Close closes the driver.
 func (d *SourceDriver) Close() error {
-	var err error
-	d.closeOnce.Do(func() {
-		// destroy io completion port, and file
-		if e := d.handle.CancelIoEx(nil); e != nil {
-			err = fmt.Errorf("error cancelling DNS io completion: %w", e)
-			return
-		}
-		if e := windows.CloseHandle(d.iocp); e != nil {
-			err = fmt.Errorf("error closing DNS io completion handle: %w", e)
-			return
-		}
-		if e := d.handle.Close(); e != nil {
-			err = fmt.Errorf("error closing driver DNS h: %w", e)
-			return
-		}
-		for _, buf := range d.readBuffers {
-			C.free(unsafe.Pointer(buf))
-		}
-		d.readBuffers = nil
-	})
-	return err
+	// if the driver is already closed, return nil
+	if d.handle == nil {
+		return nil
+	}
+
+	// destroy io completion port, and file
+	if e := d.handle.CancelIoEx(nil); e != nil {
+		return fmt.Errorf("error cancelling DNS io completion: %w", e)
+	}
+	if e := windows.CloseHandle(d.iocp); e != nil {
+		return fmt.Errorf("error closing DNS io completion handle: %w", e)
+	}
+	d.iocp = windows.InvalidHandle
+	if e := d.handle.Close(); e != nil {
+		return fmt.Errorf("error closing driver DNS h: %w", e)
+	}
+	d.handle = nil
+	for _, buf := range d.readBuffers {
+		C.free(unsafe.Pointer(buf))
+	}
+	d.readBuffers = nil
+
+	return nil
 }
 
 // prepare N read buffers
