@@ -120,6 +120,9 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	}
 	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
 		FilterType: packets.FilterTypeSYNACK,
+		FilterConfig: packets.FilterConfig{
+			Src: p.Target,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to set packet filter: %w", err)
@@ -173,9 +176,9 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 
 	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
 		FilterType: packets.FilterTypeTCP,
-		TCPFilterConfig: packets.TCPFilterConfig{
+		FilterConfig: packets.FilterConfig{
 			Src: p.Target,
-			Dst: local.AddrPort(),
+			Dst: tcpAddr.AddrPort(),
 		},
 	})
 	if err != nil {
@@ -189,7 +192,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	}
 
 	result := &sackResult{
-		LocalAddr: local.AddrPort(),
+		LocalAddr: tcpAddr.AddrPort(),
 		Hops:      resp,
 	}
 	return result, nil

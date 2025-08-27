@@ -238,7 +238,7 @@ func TestClassicBPFFilters(t *testing.T) {
 	tcp4Syn := packetDef{"tcp4Syn", makeTcp4SynPacket(t)}
 	tcp4Synack := packetDef{"tcp4Synack", makeTcp4SynAckPacket(t)}
 
-	tcp4TupleFilter, err := TCPFilterConfig{
+	tcp4TupleFilter, err := FilterConfig{
 		Src: netip.MustParseAddrPort("127.0.0.1:345"),
 		Dst: netip.MustParseAddrPort("127.0.0.2:678"),
 	}.GenerateTCP4Filter()

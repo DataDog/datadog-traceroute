@@ -52,7 +52,7 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	}
 	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
 		FilterType: packets.FilterTypeTCP,
-		TCPFilterConfig: packets.TCPFilterConfig{
+		FilterConfig: packets.FilterConfig{
 			Src: netip.AddrPortFrom(targetAddr, t.DestPort),
 			Dst: netip.AddrPortFrom(localAddr, port),
 		},
