@@ -78,7 +78,7 @@ func getClassicBPFFilter(spec PacketFilterSpec) ([]bpf.RawInstruction, error) {
 	case FilterTypeUDP:
 		return udpFilter, nil
 	case FilterTypeTCP:
-		return spec.TCPFilterConfig.GenerateTCP4Filter()
+		return spec.FilterConfig.GenerateTCP4Filter()
 	case FilterTypeSYNACK:
 		return tcpSynackFilter, nil
 	default:

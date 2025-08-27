@@ -22,15 +22,16 @@ type PacketFilterType int
 const (
 	// FilterTypeNone indicates no filter (all packets).
 	FilterTypeNone PacketFilterType = iota
-	// FilterTypeICMP indicates only ICMP packets
+	// FilterTypeICMP indicates only ICMP packets.
 	FilterTypeICMP
-	// FilterTypeUDP indicates only ICMP and UDP packets
+	// FilterTypeUDP indicates only ICMP and UDP packets.
+	// FilterConfig will contain the UDP source/destination 4-tuple.
 	FilterTypeUDP
 	// FilterTypeTCP indicates only ICMP and TCP packets.
-	// This one accepts a 4-tuple for source/dest.
+	// FilterConfig will contain the TCP source/destination 4-tuple.
 	FilterTypeTCP
 	// FilterTypeSYNACK indicates only TCP SYNACK packets.
-	// Does not accept a 4-tuple like FilterTypeTCP.
+	// FilterConfig will contain the source addr/port, but NOT the destination.
 	// This is used by SACK traceroute.
 	FilterTypeSYNACK
 )
@@ -39,6 +40,8 @@ const (
 type PacketFilterSpec struct {
 	// FilterType is which kind of packet filter to enable
 	FilterType PacketFilterType
-	// TCPFilterConfig is only read by FilterTypeTCP -- it contains the 4-tuple of source/dest
-	TCPFilterConfig TCPFilterConfig
+	// FilterConfig contains the 4-tuple of source/dest.
+	// Some fields may be unused for certain PacketFilterTypes -- refer
+	// to the PacketFilterType documentation
+	FilterConfig FilterConfig
 }

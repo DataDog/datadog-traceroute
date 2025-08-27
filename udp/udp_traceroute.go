@@ -8,6 +8,7 @@ package udp
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -38,8 +39,15 @@ func (u *UDPv4) Traceroute() (*common.Results, error) {
 	if handle.MustClosePort {
 		conn.Close()
 	}
+
+	// TODO remove localAddr once UDPv4 only uses AddrPort
+	localAddr, _ := common.UnmappedAddrFromSlice(u.srcIP)
 	err = handle.Source.SetPacketFilter(packets.PacketFilterSpec{
 		FilterType: packets.FilterTypeUDP,
+		FilterConfig: packets.FilterConfig{
+			Src: netip.AddrPortFrom(targetAddr, u.TargetPort),
+			Dst: netip.AddrPortFrom(localAddr, u.srcPort),
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)

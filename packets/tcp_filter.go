@@ -13,15 +13,15 @@ import (
 	"golang.org/x/net/bpf"
 )
 
-// TCPFilterConfig is the config for GenerateTCP4Filter
-type TCPFilterConfig struct {
+// FilterConfig is the config for GenerateTCP4Filter
+type FilterConfig struct {
 	Src netip.AddrPort
 	Dst netip.AddrPort
 }
 
 // GenerateTCP4Filter creates a classic BPF filter for TCP SOCK_RAW sockets.
 // It will only allow packets whose tuple matches the given config.
-func (c TCPFilterConfig) GenerateTCP4Filter() ([]bpf.RawInstruction, error) {
+func (c FilterConfig) GenerateTCP4Filter() ([]bpf.RawInstruction, error) {
 	if !c.Src.Addr().Is4() || !c.Dst.Addr().Is4() {
 		return nil, fmt.Errorf("GenerateTCP4Filter2: src=%s and dst=%s must be IPv4", c.Src.Addr(), c.Dst.Addr())
 	}
