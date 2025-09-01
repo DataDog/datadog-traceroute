@@ -28,10 +28,11 @@ type (
 		IP    string  `json:"ip"`
 		RTTMs float64 `json:"rtt_ms"`
 
-		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		ICMPType uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		ICMPCode uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
+		// DEPRECATED: In separate PR, remove fields below and its usage
+		IsDest   bool   `json:"-"`
+		Port     uint16 `json:"-"`
+		ICMPType uint8  `json:"-"`
+		ICMPCode uint8  `json:"-"`
 	}
 	// ResultSource contains result source info
 	ResultSource struct {
