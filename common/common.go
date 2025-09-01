@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"time"
 
 	"golang.org/x/net/ipv4"
 
@@ -33,8 +32,8 @@ type (
 	// ResultHop encapsulates information about a single
 	// hop in a traceroute
 	ResultHop struct {
-		IP  net.IP        `json:"ip"`
-		RTT time.Duration `json:"rtt"`
+		IP  string  `json:"ip"`
+		RTT float64 `json:"rtt"`
 
 		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
 		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment

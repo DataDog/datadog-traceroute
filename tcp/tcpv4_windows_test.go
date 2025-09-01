@@ -53,7 +53,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.IP{},
 			expected: &common.ResultHop{
-				IP:     net.IP{},
+				IP:     "",
 				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
@@ -63,7 +63,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.ParseIP("7.8.9.0"),
 			expected: &common.ResultHop{
-				IP:     net.ParseIP("7.8.9.0"),
+				IP:     "7.8.9.0",
 				IsDest: false,
 			},
 		},
@@ -72,7 +72,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   dstIP,
 			expected: &common.ResultHop{
-				IP:     dstIP,
+				IP:     dstIP.String(),
 				IsDest: true,
 			},
 		},
@@ -96,9 +96,9 @@ func TestSendAndReceive(t *testing.T) {
 			require.NoError(t, err)
 			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTT")))
 			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
-				assert.Greater(t, actual.RTT, time.Duration(0))
+				assert.Greater(t, actual.RTT, 0)
 			} else {
-				assert.Equal(t, actual.RTT, time.Duration(0))
+				assert.Equal(t, actual.RTT, 0)
 			}
 		})
 	}
@@ -137,7 +137,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &common.ResultHop{
-				IP:     net.IP{},
+				IP:     "",
 				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
@@ -149,7 +149,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &common.ResultHop{
-				IP:     net.ParseIP("7.8.9.0"),
+				IP:     "7.8.9.0",
 				IsDest: false,
 			},
 		},
@@ -160,7 +160,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &common.ResultHop{
-				IP:     dstIP,
+				IP:     dstIP.String(),
 				IsDest: true,
 			},
 		},

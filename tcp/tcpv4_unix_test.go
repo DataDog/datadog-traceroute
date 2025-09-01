@@ -76,7 +76,7 @@ func TestSendAndReceive(t *testing.T) {
 				}
 			},
 			expected: &common.ResultHop{
-				IP:       net.ParseIP("7.8.9.0"),
+				IP:       "7.8.9.0",
 				ICMPType: 2,
 				ICMPCode: 3,
 				Port:     443,
@@ -98,7 +98,7 @@ func TestSendAndReceive(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTT")))
-			assert.Greater(t, actual.RTT, time.Duration(0))
+			assert.Greater(t, actual.RTT, 0)
 		})
 	}
 }

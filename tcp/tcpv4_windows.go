@@ -89,11 +89,11 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	return &common.ResultHop{
-		IP:       hopIP,
+		IP:       hopIP.String(),
 		Port:     0, // TODO: fix this
 		ICMPType: icmpType,
 		ICMPCode: icmpCode,
-		RTT:      rtt,
+		RTT:      rtt.Seconds(),
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }
@@ -181,10 +181,10 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 	}
 
 	return &common.ResultHop{
-		IP:       hopIP,
+		IP:       hopIP.String(),
 		Port:     0, // TODO: fix this
 		ICMPType: 0, // TODO: fix this
-		RTT:      rtt,
+		RTT:      rtt.Seconds(),
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }
