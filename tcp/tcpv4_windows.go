@@ -57,8 +57,8 @@ func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
 
 	return &common.Results{
 		Source: common.ResultSource{
-			IP:         t.srcIP,
-			SourcePort: t.srcPort,
+			IP:   t.srcIP,
+			Port: t.srcPort,
 		},
 		Destination: common.ResultDestination{
 			IP:   t.Target,
