@@ -99,7 +99,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 		Port:     0, // TODO: fix this
 		ICMPType: icmpType,
 		ICMPCode: icmpCode,
-		RTTMs:    rtt.Seconds() * 1000,
+		RTT:      rtt.Seconds(),
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }
@@ -196,7 +196,7 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 		IP:       hopIP.String(),
 		Port:     0, // TODO: fix this
 		ICMPType: 0, // TODO: fix this
-		RTTMs:    rtt.Seconds() * 1000,
+		RTT:      rtt.Seconds(),
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }

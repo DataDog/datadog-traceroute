@@ -106,7 +106,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 
 	return &common.ResultHop{
 		IP:     hopIP.String(),
-		RTTMs:  rtt.Seconds() * 1000,
+		RTT:    rtt.Seconds(),
 		IsDest: hopIP.Equal(u.Target),
 	}, nil
 }

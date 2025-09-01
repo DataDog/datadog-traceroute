@@ -54,7 +54,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockHopIP:   net.IP{},
 			expected: &common.ResultHop{
 				IP:     "",
-				RTTMs:  0, // RTTMs should be zero
+				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
 		},
@@ -94,11 +94,11 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTTMs")))
-			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTTMs be >0
-				assert.Greater(t, actual.RTTMs, 0)
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTT")))
+			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
+				assert.Greater(t, actual.RTT, 0)
 			} else {
-				assert.Equal(t, actual.RTTMs, 0)
+				assert.Equal(t, actual.RTT, 0)
 			}
 		})
 	}
@@ -138,7 +138,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPCode: 0,
 			expected: &common.ResultHop{
 				IP:     "",
-				RTTMs:  0, // RTTMs should be zero
+				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
 		},
@@ -183,8 +183,8 @@ func TestSendAndReceiveSocket(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTTMs")))
-			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTTMs be >0
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTT")))
+			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
 				assert.Greater(t, actual.RTT, time.Duration(0))
 			} else {
 				assert.Equal(t, actual.RTT, time.Duration(0))

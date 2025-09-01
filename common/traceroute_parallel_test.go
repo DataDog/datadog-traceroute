@@ -37,7 +37,7 @@ func mockResult(ttl uint8) *ProbeResponse {
 	return &ProbeResponse{
 		TTL: ttl,
 		IP:  netip.AddrFrom4([4]byte{10, 0, 0, ttl}),
-		// mock RTTMs as the TTL in milliseconds
+		// mock RTT as the TTL in milliseconds
 		RTT:    time.Duration(ttl) * time.Millisecond,
 		IsDest: ttl == mockDestTTL,
 	}
@@ -365,8 +365,8 @@ func TestParallelTracerouteProbeReturnValueCheck(t *testing.T) {
 }
 
 func TestParallelTracerouteDoubleReceive(t *testing.T) {
-	// same as TestParallelTraceroute but receives the probes a second time, with a larger RTTMs.
-	// it should not overwrite the RTTMs
+	// same as TestParallelTraceroute but receives the probes a second time, with a larger RTT.
+	// it should not overwrite the RTT
 	m := initMockDriver(t, parallelParams.TracerouteParams, parallelInfo)
 	t.Parallel()
 

@@ -46,7 +46,7 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 		defer resultsMu.Unlock()
 		previous := results[probe.TTL]
 
-		// packets can get delivered twice - only use the first received probe to avoid overestimating RTTMs.
+		// packets can get delivered twice - only use the first received probe to avoid overestimating RTT.
 		// this is also important for SACK because SACK traceroute returns the lowest TTL found from ACKs
 		shouldUpdate := previous == nil
 		// but also just in case, never let ICMP responses "cover up" actual destination responses

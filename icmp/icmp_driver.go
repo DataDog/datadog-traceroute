@@ -107,7 +107,7 @@ func (s *icmpDriver) SendProbe(ttl uint8) error {
 func (s *icmpDriver) storeProbe(ttl uint8) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// store the send time for the RTTMs later when we receive the response
+	// store the send time for the RTT later when we receive the response
 	if !s.sentProbes[ttl].IsZero() {
 		return fmt.Errorf("icmpDriver asked to send probe for TTL %d but it was already sent", ttl)
 	}
@@ -189,7 +189,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			}
 			rtt, err := s.getRTTFromRelSeq(uint8(echo.Seq))
 			if err != nil {
-				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTTMs: %w", err)}
+				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
 			return &common.ProbeResponse{
 				TTL:    uint8(echo.Seq),
@@ -203,7 +203,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			}
 			rtt, err := s.getRTTFromRelSeq(uint8(parser.ICMP4.Seq))
 			if err != nil {
-				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTTMs: %w", err)}
+				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
 			return &common.ProbeResponse{
 				TTL:    uint8(parser.ICMP4.Seq),
@@ -244,7 +244,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			}
 			rtt, err := s.getRTTFromRelSeq(uint8(echo.SeqNumber))
 			if err != nil {
-				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTTMs: %w", err)}
+				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
 			return &common.ProbeResponse{
 				TTL:    uint8(echo.SeqNumber),
@@ -264,7 +264,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			}
 			rtt, err := s.getRTTFromRelSeq(uint8(seq))
 			if err != nil {
-				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTTMs: %w", err)}
+				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
 			return &common.ProbeResponse{
 				TTL:    uint8(seq),

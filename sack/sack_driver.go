@@ -68,7 +68,7 @@ func (s *sackDriver) SendProbe(ttl uint8) error {
 	if ttl < s.params.ParallelParams.MinTTL || ttl > s.params.ParallelParams.MaxTTL {
 		return fmt.Errorf("sackDriver asked to send invalid TTL %d", ttl)
 	}
-	// store the send time for the RTTMs later when we receive the response
+	// store the send time for the RTT later when we receive the response
 	if !s.sendTimes[ttl].IsZero() {
 		return fmt.Errorf("sackDriver asked to send probe for TTL %d but it was already sent", ttl)
 	}
@@ -195,7 +195,7 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 		}
 		rtt, err := s.getRTTFromRelSeq(relSeq)
 		if err != nil {
-			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTTMs: %w", err)}
+			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTT: %w", err)}
 		}
 
 		return &common.ProbeResponse{
@@ -235,7 +235,7 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 		relSeq := tcpInfo.Seq - s.state.localInitSeq
 		rtt, err := s.getRTTFromRelSeq(relSeq)
 		if err != nil {
-			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTTMs: %w", err)}
+			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTT: %w", err)}
 		}
 		return &common.ProbeResponse{
 			TTL:    uint8(relSeq),

@@ -97,8 +97,8 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTTMs")))
-			assert.Greater(t, actual.RTTMs, 0)
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.ResultHop{}, "RTT")))
+			assert.Greater(t, actual.RTT, 0)
 		})
 	}
 }
