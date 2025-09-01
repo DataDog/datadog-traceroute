@@ -84,11 +84,10 @@ func (r *Results) Normalize() {
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := 0
-		for _, hop := range run.Hops {
-			if hop.IP == "" {
-				break
+		for i, hop := range run.Hops {
+			if hop.IP != "" {
+				hopCount = i + 1
 			}
-			hopCount++
 		}
 		hopCounts = append(hopCounts, hopCount)
 	}
