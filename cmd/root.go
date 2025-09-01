@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/spf13/cobra"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -67,7 +68,7 @@ var rootCmd = &cobra.Command{
 		} else {
 			timeout = time.Duration(Args.timeout) * time.Millisecond
 		}
-		var results *common.Results
+		var results *result.Results
 
 		log.SetVerbose(Args.verbose)
 
@@ -144,7 +145,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unknown protocol: %q", Args.protocol)
 		}
 
-		results.Params = common.Params{
+		results.Params = result.Params{
 			Protocol: Args.protocol,
 			Hostname: args[0],
 			Port:     Args.dport,
@@ -165,7 +166,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func doSack(ctx context.Context, target netip.AddrPort, timeout time.Duration) (*common.Results, error) {
+func doSack(ctx context.Context, target netip.AddrPort, timeout time.Duration) (*result.Results, error) {
 	cfg := sack.Params{
 		Target:           target,
 		HandshakeTimeout: timeout,
@@ -184,7 +185,7 @@ func doSack(ctx context.Context, target netip.AddrPort, timeout time.Duration) (
 	return sack.RunSackTraceroute(ctx, cfg)
 }
 
-func doSyn(target netip.AddrPort, timeout time.Duration) (*common.Results, error) {
+func doSyn(target netip.AddrPort, timeout time.Duration) (*result.Results, error) {
 	compatibilityMode := os.Getenv("COMPAT") == "true"
 
 	cfg := tcp.NewTCPv4(

@@ -12,10 +12,11 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Traceroute runs a UDP traceroute
-func (u *UDPv4) Traceroute() (*common.Results, error) {
+func (u *UDPv4) Traceroute() (*result.Results, error) {
 	targetAddr, ok := common.UnmappedAddrFromSlice(u.Target)
 	if !ok {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", u.Target)
@@ -68,15 +69,15 @@ func (u *UDPv4) Traceroute() (*common.Results, error) {
 		return nil, fmt.Errorf("UDP traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		TracerouteTest: common.TracerouteTest{
-			Runs: []common.TracerouteRun{
+	result := &result.Results{
+		TracerouteTest: result.TracerouteTest{
+			Runs: []result.TracerouteRun{
 				{
-					Source: common.ResultSource{
+					Source: result.ResultSource{
 						IP:   u.srcIP,
 						Port: u.srcPort,
 					},
-					Destination: common.ResultDestination{
+					Destination: result.ResultDestination{
 						IP:   u.Target.String(),
 						Port: u.TargetPort,
 					},

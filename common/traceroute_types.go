@@ -11,6 +11,8 @@ import (
 	"net/netip"
 	"slices"
 	"time"
+
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // ReceiveProbeNoPktError is returned when ReceiveProbe() didn't find anything new.
@@ -126,13 +128,13 @@ func clipResults(minTTL uint8, results []*ProbeResponse) []*ProbeResponse {
 
 // ToHops converts a list of ProbeResponses to a Results
 // TODO remove this, and use a single type to represent results
-func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*ResultHop, error) {
+func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.ResultHop, error) {
 	if p.MinTTL != 1 {
 		return nil, fmt.Errorf("ToHops: processResults() requires MinTTL == 1")
 	}
-	hops := make([]*ResultHop, len(probes))
+	hops := make([]*result.ResultHop, len(probes))
 	for i, probe := range probes {
-		hops[i] = &ResultHop{}
+		hops[i] = &result.ResultHop{}
 		if probe != nil {
 			hops[i].IP = probe.IP.String()
 			hops[i].RTT = probe.RTT.Seconds()

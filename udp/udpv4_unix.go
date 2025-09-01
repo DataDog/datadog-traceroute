@@ -10,10 +10,10 @@ package udp
 import (
 	"errors"
 
-	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // TracerouteSequential runs a traceroute
-func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
+func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 	return nil, errors.New("non-Dublin UDP not implemented for Unix")
 }

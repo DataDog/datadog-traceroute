@@ -18,7 +18,7 @@ import (
 )
 
 // TracerouteSequential runs a traceroute
-func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
+func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 	log.Debugf("Running UDP traceroute to %+v", u)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
@@ -41,7 +41,7 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	}
 	defer rs.Close()
 
-	hops := make([]*common.ResultHop, 0, int(u.MaxTTL-u.MinTTL)+1)
+	hops := make([]*result.ResultHop, 0, int(u.MaxTTL-u.MinTTL)+1)
 
 	for i := int(u.MinTTL); i <= int(u.MaxTTL); i++ {
 		hop, err := u.sendAndReceive(rs, i, u.Timeout)
@@ -57,15 +57,15 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 		}
 	}
 
-	return &common.Results{
-		TracerouteTest: common.TracerouteTest{
-			Runs: []common.TracerouteRun{
+	return &result.Results{
+		TracerouteTest: result.TracerouteTest{
+			Runs: []result.TracerouteRun{
 				{
-					Source: common.ResultSource{
+					Source: result.ResultSource{
 						IP:   u.srcIP,
 						Port: u.srcPort,
 					},
-					Destination: common.ResultDestination{
+					Destination: result.ResultDestination{
 						IP:   u.Target.String(),
 						Port: u.TargetPort,
 					},
@@ -76,7 +76,7 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	}, nil
 }
 
-func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*common.ResultHop, error) {
+func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*result.ResultHop, error) {
 	ipHdrID, buffer, udpChecksum, err := u.createRawUDPBuffer(u.srcIP, u.srcPort, u.Target, u.TargetPort, ttl)
 	if err != nil {
 		log.Errorf("failed to create UDP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -104,7 +104,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 		rtt = end.Sub(start)
 	}
 
-	return &common.ResultHop{
+	return &result.ResultHop{
 		IP:     hopIP.String(),
 		RTT:    rtt.Seconds(),
 		IsDest: hopIP.Equal(u.Target),

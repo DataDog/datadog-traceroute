@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/result"
 	"golang.org/x/net/ipv4"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -38,7 +39,7 @@ type (
 
 // TracerouteSequential runs a traceroute sequentially where a packet is
 // sent and we wait for a response before sending the next packet
-func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
+func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	// Get local address for the interface that connects to this
 	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
@@ -94,7 +95,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	log.Tracef("Listening for TCP on: %s\n", addr.IP.String())
 
 	// hops should be of length # of hops
-	hops := make([]*common.ResultHop, 0, t.MaxTTL-t.MinTTL)
+	hops := make([]*result.ResultHop, 0, t.MaxTTL-t.MinTTL)
 
 	for i := int(t.MinTTL); i <= int(t.MaxTTL); i++ {
 		seqNumber, packetID := t.nextSeqNumAndPacketID()
@@ -111,15 +112,15 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 		}
 	}
 
-	return &common.Results{
-		TracerouteTest: common.TracerouteTest{
-			Runs: []common.TracerouteRun{
+	return &result.Results{
+		TracerouteTest: result.TracerouteTest{
+			Runs: []result.TracerouteRun{
 				{
-					Source: common.ResultSource{
+					Source: result.ResultSource{
 						IP:   t.srcIP,
 						Port: t.srcPort,
 					},
-					Destination: common.ResultDestination{
+					Destination: result.ResultDestination{
 						IP:   t.Target.String(),
 						Port: t.DestPort,
 					},
@@ -131,7 +132,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	}, nil
 }
 
-func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*common.ResultHop, error) {
+func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*result.ResultHop, error) {
 	tcpHeader, tcpPacket, err := t.createRawTCPSyn(packetID, seqNum, ttl)
 	if err != nil {
 		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -156,7 +157,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 		rtt = resp.Time.Sub(start)
 	}
 
-	return &common.ResultHop{
+	return &result.ResultHop{
 		IP:       resp.IP.String(),
 		Port:     resp.Port,
 		ICMPType: resp.Type,
@@ -167,7 +168,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 }
 
 // TracerouteSequentialSocket is not supported on unix
-func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
+func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
 	// not implemented or supported on unix
 	return nil, fmt.Errorf("not implemented or supported on unix")
 }
