@@ -25,7 +25,6 @@ type (
 	// traceroute
 	Results struct {
 		Source      ResultSource      `json:"source"`
-		SourcePort  uint16            `json:"source_port"`
 		Destination ResultDestination `json:"destination"`
 		Hops        []*ResultHop
 		Tags        []string
