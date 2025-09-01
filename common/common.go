@@ -33,13 +33,13 @@ type (
 	// ResultHop encapsulates information about a single
 	// hop in a traceroute
 	ResultHop struct {
-		IP     net.IP
-		Port   uint16
-		RTT    time.Duration
-		IsDest bool
+		IP  net.IP        `json:"ip"`
+		RTT time.Duration `json:"rtt"`
 
-		ICMPType uint8 `json:"-"`
-		ICMPCode uint8 `json:"-"`
+		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE
+		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE
+		ICMPType uint8  `json:"-"` // DEPRECATED: TO REMOVE
+		ICMPCode uint8  `json:"-"` // DEPRECATED: TO REMOVE
 	}
 	// ResultSource contains result source info
 	ResultSource struct {
