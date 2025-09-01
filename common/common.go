@@ -20,38 +20,6 @@ import (
 )
 
 type (
-	// Results encapsulates a response from the
-	// traceroute
-	Results struct {
-		Source      ResultSource      `json:"source"`
-		Destination ResultDestination `json:"destination"`
-		Hops        []*ResultHop      `json:"hops"`
-		Tags        []string          `json:"tags"`
-	}
-
-	// ResultHop encapsulates information about a single
-	// hop in a traceroute
-	ResultHop struct {
-		IP  string  `json:"ip"`
-		RTT float64 `json:"rtt"`
-
-		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		ICMPType uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-		ICMPCode uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
-	}
-	// ResultSource contains result source info
-	ResultSource struct {
-		IP   net.IP `json:"ip"`
-		Port uint16 `json:"port"`
-	}
-
-	// ResultDestination contains result destination info
-	ResultDestination struct {
-		IP   net.IP `json:"ip"`
-		Port uint16 `json:"port"`
-	}
-
 	// CanceledError is sent when a listener
 	// is canceled
 	CanceledError string

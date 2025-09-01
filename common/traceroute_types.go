@@ -14,7 +14,7 @@ import (
 )
 
 // ReceiveProbeNoPktError is returned when ReceiveProbe() didn't find anything new.
-// This is normal if the RTT is long
+// This is normal if the RTTMs is long
 type ReceiveProbeNoPktError struct {
 	Err error
 }
@@ -135,7 +135,7 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*ResultHop, error) {
 		hops[i] = &ResultHop{}
 		if probe != nil {
 			hops[i].IP = probe.IP.String()
-			hops[i].RTT = probe.RTT.Seconds()
+			hops[i].RTTMs = probe.RTT.Seconds() * 1000
 			hops[i].IsDest = probe.IsDest
 		}
 	}

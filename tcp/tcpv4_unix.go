@@ -112,15 +112,21 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	}
 
 	return &common.Results{
-		Source: common.ResultSource{
-			IP:   t.srcIP,
-			Port: t.srcPort,
+		TracerouteTest: common.TracerouteTest{
+			TracerouteRuns: []common.TracerouteRun{
+				{
+					Source: common.ResultSource{
+						IP:   t.srcIP,
+						Port: t.srcPort,
+					},
+					Destination: common.ResultDestination{
+						IP:   t.Target,
+						Port: t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
 		},
-		Destination: common.ResultDestination{
-			IP:   t.Target,
-			Port: t.DestPort,
-		},
-		Hops: hops,
 		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}, nil
 }
@@ -155,7 +161,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 		Port:     resp.Port,
 		ICMPType: resp.Type,
 		ICMPCode: resp.Code,
-		RTT:      rtt.Seconds(),
+		RTTMs:    rtt.Seconds() * 1000,
 		IsDest:   resp.IP.Equal(t.Target),
 	}, nil
 }

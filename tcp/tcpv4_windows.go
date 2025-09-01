@@ -56,15 +56,21 @@ func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
 	}
 
 	return &common.Results{
-		Source: common.ResultSource{
-			IP:   t.srcIP,
-			Port: t.srcPort,
+		TracerouteTest: common.TracerouteTest{
+			TracerouteRuns: []common.TracerouteRun{
+				{
+					Source: common.ResultSource{
+						IP:   t.srcIP,
+						Port: t.srcPort,
+					},
+					Destination: common.ResultDestination{
+						IP:   t.Target,
+						Port: t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
 		},
-		Destination: common.ResultDestination{
-			IP:   t.Target,
-			Port: t.DestPort,
-		},
-		Hops: hops,
 		Tags: []string{"tcp_method:syn_socket"},
 	}, nil
 }
@@ -93,7 +99,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 		Port:     0, // TODO: fix this
 		ICMPType: icmpType,
 		ICMPCode: icmpCode,
-		RTT:      rtt.Seconds(),
+		RTTMs:    rtt.Seconds() * 1000,
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }
@@ -136,15 +142,21 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	}
 
 	return &common.Results{
-		Source: common.ResultSource{
-			IP:   t.srcIP,
-			Port: t.srcPort,
+		TracerouteTest: common.TracerouteTest{
+			TracerouteRuns: []common.TracerouteRun{
+				{
+					Source: common.ResultSource{
+						IP:   t.srcIP,
+						Port: t.srcPort,
+					},
+					Destination: common.ResultDestination{
+						IP:   t.Target,
+						Port: t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
 		},
-		Destination: common.ResultDestination{
-			IP:   t.Target,
-			Port: t.DestPort,
-		},
-		Hops: hops,
 		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}, nil
 }
@@ -184,7 +196,7 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 		IP:       hopIP.String(),
 		Port:     0, // TODO: fix this
 		ICMPType: 0, // TODO: fix this
-		RTT:      rtt.Seconds(),
+		RTTMs:    rtt.Seconds() * 1000,
 		IsDest:   hopIP.Equal(t.Target),
 	}, nil
 }

@@ -84,15 +84,21 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	}
 
 	result := &common.Results{
-		Source: common.ResultSource{
-			IP:   t.srcIP,
-			Port: t.srcPort,
+		TracerouteTest: common.TracerouteTest{
+			TracerouteRuns: []common.TracerouteRun{
+				{
+					Source: common.ResultSource{
+						IP:   t.srcIP,
+						Port: t.srcPort,
+					},
+					Destination: common.ResultDestination{
+						IP:   t.Target,
+						Port: t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
 		},
-		Destination: common.ResultDestination{
-			IP:   t.Target,
-			Port: t.DestPort,
-		},
-		Hops: hops,
 		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}
 

@@ -58,15 +58,21 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	}
 
 	return &common.Results{
-		Source: common.ResultSource{
-			IP:   u.srcIP,
-			Port: u.srcPort,
+		TracerouteTest: common.TracerouteTest{
+			TracerouteRuns: []common.TracerouteRun{
+				{
+					Source: common.ResultSource{
+						IP:   u.srcIP,
+						Port: u.srcPort,
+					},
+					Destination: common.ResultDestination{
+						IP:   u.Target,
+						Port: u.TargetPort,
+					},
+					Hops: hops,
+				},
+			},
 		},
-		Destination: common.ResultDestination{
-			IP:   u.Target,
-			Port: u.TargetPort,
-		},
-		Hops: hops,
 	}, nil
 }
 
@@ -100,7 +106,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 
 	return &common.ResultHop{
 		IP:     hopIP.String(),
-		RTT:    rtt.Seconds(),
+		RTTMs:  rtt.Seconds() * 1000,
 		IsDest: hopIP.Equal(u.Target),
 	}, nil
 }

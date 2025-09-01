@@ -144,6 +144,11 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("unknown protocol: %q", Args.protocol)
 		}
 
+		results.Params = common.Params{
+			Protocol: Args.protocol,
+			Hostname: args[0],
+			Port:     Args.dport,
+		}
 		switch Args.outputFormat {
 		case "json":
 			jsonStr, err := json.MarshalIndent(results, "", "  ")
