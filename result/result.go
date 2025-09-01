@@ -1,14 +1,16 @@
 package result
 
-import "net"
+import (
+	"net"
+)
 
 type (
 	// Results all the results from a single test run
 	Results struct {
-		Params         Params         `json:"params"`
-		TracerouteTest TracerouteTest `json:"traceroute"`
-		E2eProbe       E2eProbe       `json:"e2e_probe"`
-		Tags           []string       `json:"tags"`
+		Params     Params     `json:"params"`
+		Traceroute Traceroute `json:"traceroute"`
+		E2eProbe   E2eProbe   `json:"e2e_probe"`
+		Tags       []string   `json:"tags"`
 	}
 
 	// E2eProbe TODO
@@ -29,26 +31,26 @@ type (
 
 	HopsStats struct {
 		Avg float64 `json:"avg"`
-		Min float64 `json:"min"`
-		Max float64 `json:"max"`
+		Min int     `json:"min"`
+		Max int     `json:"max"`
 	}
 
-	// TracerouteTest TODO
-	TracerouteTest struct {
+	// Traceroute TODO
+	Traceroute struct {
 		Runs []TracerouteRun `json:"runs"`
 		Hops HopsStats       `json:"hops"`
 	}
 
 	// TracerouteRun TODO
 	TracerouteRun struct {
-		Source      ResultSource      `json:"source"`
-		Destination ResultDestination `json:"destination"`
-		Hops        []*ResultHop      `json:"hops"`
+		Source      TracerouteSource      `json:"source"`
+		Destination TracerouteDestination `json:"destination"`
+		Hops        []*TracerouteHop      `json:"hops"`
 	}
 
-	// ResultHop encapsulates information about a single
+	// TracerouteHop encapsulates information about a single
 	// hop in a traceroute
-	ResultHop struct {
+	TracerouteHop struct {
 		IP  string  `json:"ip"`
 		RTT float64 `json:"rtt"`
 
@@ -58,14 +60,14 @@ type (
 		ICMPType uint8  `json:"-"`
 		ICMPCode uint8  `json:"-"`
 	}
-	// ResultSource contains result source info
-	ResultSource struct {
+	// TracerouteSource contains result source info
+	TracerouteSource struct {
 		IP   net.IP `json:"ip"`
 		Port uint16 `json:"port"`
 	}
 
-	// ResultDestination contains result destination info
-	ResultDestination struct {
+	// TracerouteDestination contains result destination info
+	TracerouteDestination struct {
 		IP   string `json:"ip"`
 		Port uint16 `json:"port"`
 	}
@@ -76,3 +78,35 @@ type (
 		Port     int    `json:"port"`
 	}
 )
+
+func (r *Results) Normalize() {
+	// build hops stats
+	var hopCounts []int
+	for _, run := range r.Traceroute.Runs {
+		hopCount := 0
+		for _, hop := range run.Hops {
+			if hop.IP == "" {
+				break
+			}
+			hopCount++
+		}
+		hopCounts = append(hopCounts, hopCount)
+	}
+	var hopsAvg float64
+	var hopsMin, hopsMax int
+	var totalHopCount int
+	for _, hopsCount := range hopCounts {
+		if hopsCount < hopsMin || hopsMin == 0 {
+			hopsMin = hopsCount
+		}
+		if hopsCount > hopsMax {
+			hopsMax = hopsCount
+		}
+		totalHopCount += hopsCount
+	}
+	hopsAvg = float64(totalHopCount) / float64(len(hopCounts))
+
+	r.Traceroute.Hops.Avg = hopsAvg
+	r.Traceroute.Hops.Min = hopsMin
+	r.Traceroute.Hops.Max = hopsMax
+}

@@ -95,7 +95,7 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	log.Tracef("Listening for TCP on: %s\n", addr.IP.String())
 
 	// hops should be of length # of hops
-	hops := make([]*result.ResultHop, 0, t.MaxTTL-t.MinTTL)
+	hops := make([]*result.TracerouteHop, 0, t.MaxTTL-t.MinTTL)
 
 	for i := int(t.MinTTL); i <= int(t.MaxTTL); i++ {
 		seqNumber, packetID := t.nextSeqNumAndPacketID()
@@ -113,14 +113,14 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	}
 
 	return &result.Results{
-		TracerouteTest: result.TracerouteTest{
+		Traceroute: result.Traceroute{
 			Runs: []result.TracerouteRun{
 				{
-					Source: result.ResultSource{
+					Source: result.TracerouteSource{
 						IP:   t.srcIP,
 						Port: t.srcPort,
 					},
-					Destination: result.ResultDestination{
+					Destination: result.TracerouteDestination{
 						IP:   t.Target.String(),
 						Port: t.DestPort,
 					},
@@ -132,7 +132,7 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	}, nil
 }
 
-func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*result.ResultHop, error) {
+func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*result.TracerouteHop, error) {
 	tcpHeader, tcpPacket, err := t.createRawTCPSyn(packetID, seqNum, ttl)
 	if err != nil {
 		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -157,7 +157,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 		rtt = resp.Time.Sub(start)
 	}
 
-	return &result.ResultHop{
+	return &result.TracerouteHop{
 		IP:       resp.IP.String(),
 		Port:     resp.Port,
 		ICMPType: resp.Type,

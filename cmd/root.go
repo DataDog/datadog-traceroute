@@ -150,6 +150,7 @@ var rootCmd = &cobra.Command{
 			Hostname: args[0],
 			Port:     Args.dport,
 		}
+		results.Normalize()
 		switch Args.outputFormat {
 		case "json":
 			jsonStr, err := json.MarshalIndent(results, "", "  ")
