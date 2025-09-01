@@ -36,10 +36,10 @@ type (
 		IP  net.IP        `json:"ip"`
 		RTT time.Duration `json:"rtt"`
 
-		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE
-		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE
-		ICMPType uint8  `json:"-"` // DEPRECATED: TO REMOVE
-		ICMPCode uint8  `json:"-"` // DEPRECATED: TO REMOVE
+		IsDest   bool   `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
+		Port     uint16 `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
+		ICMPType uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
+		ICMPCode uint8  `json:"-"` // DEPRECATED: TO REMOVE since now used at the moment
 	}
 	// ResultSource contains result source info
 	ResultSource struct {
