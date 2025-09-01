@@ -113,14 +113,14 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 
 	return &common.Results{
 		TracerouteTest: common.TracerouteTest{
-			TracerouteRuns: []common.TracerouteRun{
+			Runs: []common.TracerouteRun{
 				{
 					Source: common.ResultSource{
 						IP:   t.srcIP,
 						Port: t.srcPort,
 					},
 					Destination: common.ResultDestination{
-						IP:   t.Target,
+						IP:   t.Target.String(),
 						Port: t.DestPort,
 					},
 					Hops: hops,

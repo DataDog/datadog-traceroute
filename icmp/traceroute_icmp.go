@@ -103,14 +103,14 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 
 	result := &common.Results{
 		TracerouteTest: common.TracerouteTest{
-			TracerouteRuns: []common.TracerouteRun{
+			Runs: []common.TracerouteRun{
 				{
 					Source: common.ResultSource{
 						IP:   icmpResult.LocalAddr.Addr().AsSlice(),
 						Port: icmpResult.LocalAddr.Port(),
 					},
 					Destination: common.ResultDestination{
-						IP: p.Target.AsSlice(),
+						IP: p.Target.String(),
 					},
 					Hops: hops,
 				},

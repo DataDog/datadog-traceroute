@@ -85,14 +85,14 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 
 	result := &common.Results{
 		TracerouteTest: common.TracerouteTest{
-			TracerouteRuns: []common.TracerouteRun{
+			Runs: []common.TracerouteRun{
 				{
 					Source: common.ResultSource{
 						IP:   t.srcIP,
 						Port: t.srcPort,
 					},
 					Destination: common.ResultDestination{
-						IP:   t.Target,
+						IP:   t.Target.String(),
 						Port: t.DestPort,
 					},
 					Hops: hops,

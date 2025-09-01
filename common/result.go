@@ -12,7 +12,7 @@ type (
 
 	// TracerouteTest TODO
 	TracerouteTest struct {
-		TracerouteRuns []TracerouteRun `json:"traceroute_runs"`
+		Runs []TracerouteRun `json:"runs"`
 	}
 
 	// TracerouteRun TODO
@@ -42,7 +42,7 @@ type (
 
 	// ResultDestination contains result destination info
 	ResultDestination struct {
-		IP   net.IP `json:"ip"`
+		IP   string `json:"ip"`
 		Port uint16 `json:"port"`
 	}
 	// Params contains destination param info

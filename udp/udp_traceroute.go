@@ -70,14 +70,14 @@ func (u *UDPv4) Traceroute() (*common.Results, error) {
 
 	result := &common.Results{
 		TracerouteTest: common.TracerouteTest{
-			TracerouteRuns: []common.TracerouteRun{
+			Runs: []common.TracerouteRun{
 				{
 					Source: common.ResultSource{
 						IP:   u.srcIP,
 						Port: u.srcPort,
 					},
 					Destination: common.ResultDestination{
-						IP:   u.Target,
+						IP:   u.Target.String(),
 						Port: u.TargetPort,
 					},
 					Hops: hops,
