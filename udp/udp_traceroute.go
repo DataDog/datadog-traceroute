@@ -17,6 +17,7 @@ import (
 
 // Traceroute runs a UDP traceroute
 func (u *UDPv4) Traceroute() (*result.Results, error) {
+
 	targetAddr, ok := common.UnmappedAddrFromSlice(u.Target)
 	if !ok {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", u.Target)

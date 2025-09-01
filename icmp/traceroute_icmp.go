@@ -45,7 +45,7 @@ type icmpResult struct {
 	Hops      []*common.ProbeResponse
 }
 
-func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
+func doRunICMPTracerouteOnce(ctx context.Context, p Params) (*icmpResult, error) {
 	err := p.validate()
 	if err != nil {
 		return nil, fmt.Errorf("invalid icmp driver params: %w", err)
@@ -92,33 +92,45 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 
 // RunICMPTraceroute fully executes a ICMP traceroute using the given parameters
 func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
-	icmpResult, err := runICMPTraceroute(ctx, p)
-	if err != nil {
-		return nil, fmt.Errorf("icmp traceroute failed: %w", err)
+	var runs []result.TracerouteRun
+	for i := 0; i < 3; i++ {
+		tracerouteRun, err := runICMPTracerouteOnce(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, tracerouteRun)
 	}
 
-	hops, err := common.ToHops(p.ParallelParams.TracerouteParams, icmpResult.Hops)
-	if err != nil {
-		return nil, fmt.Errorf("icmp traceroute ToHops failed: %w", err)
-	}
-
-	result := &result.Results{
+	res := &result.Results{
 		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IP:   icmpResult.LocalAddr.Addr().AsSlice(),
-						Port: icmpResult.LocalAddr.Port(),
-					},
-					Destination: result.TracerouteDestination{
-						IP: p.Target.String(),
-					},
-					Hops: hops,
-				},
-			},
+			Runs: runs,
 		},
 		Tags: []string{"icmp"},
 	}
 
-	return result, nil
+	return res, nil
+}
+
+func runICMPTracerouteOnce(ctx context.Context, p Params) (result.TracerouteRun, error) {
+	icmpResult, err := doRunICMPTracerouteOnce(ctx, p)
+	if err != nil {
+		return result.TracerouteRun{}, fmt.Errorf("icmp traceroute failed: %w", err)
+	}
+
+	hops, err := common.ToHops(p.ParallelParams.TracerouteParams, icmpResult.Hops)
+	if err != nil {
+		return result.TracerouteRun{}, fmt.Errorf("icmp traceroute ToHops failed: %w", err)
+	}
+
+	tracerouteRun := result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IP:   icmpResult.LocalAddr.Addr().AsSlice(),
+			Port: icmpResult.LocalAddr.Port(),
+		},
+		Destination: result.TracerouteDestination{
+			IP: p.Target.String(),
+		},
+		Hops: hops,
+	}
+	return tracerouteRun, nil
 }
