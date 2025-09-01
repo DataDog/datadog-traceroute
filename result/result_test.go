@@ -20,7 +20,7 @@ func TestResults_Normalize(t *testing.T) {
 						{
 							Hops: []*TracerouteHop{
 								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{},
 								{IP: "10.10.10.10", RTT: 30},
 							},
 						},
@@ -39,7 +39,7 @@ func TestResults_Normalize(t *testing.T) {
 						{
 							Hops: []*TracerouteHop{
 								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{},
 								{IP: "10.10.10.10", RTT: 30},
 							},
 						},
