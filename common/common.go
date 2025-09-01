@@ -26,8 +26,8 @@ type (
 	Results struct {
 		Source      ResultSource      `json:"source"`
 		Destination ResultDestination `json:"destination"`
-		Hops        []*ResultHop
-		Tags        []string
+		Hops        []*ResultHop      `json:"hops"`
+		Tags        []string          `json:"tags"`
 	}
 
 	// ResultHop encapsulates information about a single
