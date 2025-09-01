@@ -59,7 +59,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
-	// get this platform's Source and Sink implementations
+	// get this platform's ResultSource and Sink implementations
 	handle, err := packets.NewSourceSink(p.Target)
 	if err != nil {
 		return nil, fmt.Errorf("ICMP Traceroute failed to make NewSourceSink: %w", err)
@@ -102,11 +102,15 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 	}
 
 	result := &common.Results{
-		Source:     icmpResult.LocalAddr.Addr().AsSlice(),
-		SourcePort: icmpResult.LocalAddr.Port(),
-		Target:     p.Target.AsSlice(),
-		Hops:       hops,
-		Tags:       []string{"icmp"},
+		Source: common.ResultSource{
+			IP:   icmpResult.LocalAddr.Addr().AsSlice(),
+			Port: icmpResult.LocalAddr.Port(),
+		},
+		Destination: common.ResultDestination{
+			IP: p.Target.AsSlice(),
+		},
+		Hops: hops,
+		Tags: []string{"icmp"},
 	}
 
 	return result, nil

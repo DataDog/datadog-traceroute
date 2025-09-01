@@ -42,7 +42,7 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", t.Target)
 	}
 
-	// get this platform's Source and Sink implementations
+	// get this platform's ResultSource and Sink implementations
 	handle, err := packets.NewSourceSink(targetAddr)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to make NewSourceSink: %w", err)
@@ -84,12 +84,16 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 	}
 
 	result := &common.Results{
-		Source:     t.srcIP,
-		SourcePort: t.srcPort,
-		Target:     t.Target,
-		DstPort:    t.DestPort,
-		Hops:       hops,
-		Tags:       []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
+		Source: common.ResultSource{
+			IP:   t.srcIP,
+			Port: t.srcPort,
+		},
+		Destination: common.ResultDestination{
+			IP:   t.Target,
+			Port: t.DestPort,
+		},
+		Hops: hops,
+		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}
 
 	return result, nil

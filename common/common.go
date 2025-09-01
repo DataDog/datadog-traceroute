@@ -24,23 +24,34 @@ type (
 	// Results encapsulates a response from the
 	// traceroute
 	Results struct {
-		Source     net.IP
-		SourcePort uint16
-		Target     net.IP
-		DstPort    uint16
-		Hops       []*Hop
-		Tags       []string
+		Source      ResultSource      `json:"source"`
+		SourcePort  uint16            `json:"source_port"`
+		Destination ResultDestination `json:"destination"`
+		Hops        []*ResultHop
+		Tags        []string
 	}
 
-	// Hop encapsulates information about a single
+	// ResultHop encapsulates information about a single
 	// hop in a traceroute
-	Hop struct {
-		IP       net.IP
-		Port     uint16
-		ICMPType uint8
-		ICMPCode uint8
-		RTT      time.Duration
-		IsDest   bool
+	ResultHop struct {
+		IP     net.IP
+		Port   uint16
+		RTT    time.Duration
+		IsDest bool
+
+		ICMPType uint8 `json:"-"`
+		ICMPCode uint8 `json:"-"`
+	}
+	// ResultSource contains result source info
+	ResultSource struct {
+		IP   net.IP `json:"ip"`
+		Port uint16 `json:"port"`
+	}
+
+	// ResultDestination contains result destination info
+	ResultDestination struct {
+		IP   net.IP `json:"ip"`
+		Port uint16 `json:"port"`
 	}
 
 	// CanceledError is sent when a listener

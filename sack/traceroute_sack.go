@@ -211,12 +211,16 @@ func RunSackTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 	}
 
 	result := &common.Results{
-		Source:     sackResult.LocalAddr.Addr().AsSlice(),
-		SourcePort: sackResult.LocalAddr.Port(),
-		Target:     p.Target.Addr().AsSlice(),
-		DstPort:    p.Target.Port(),
-		Hops:       hops,
-		Tags:       []string{"tcp_method:sack"},
+		Source: common.ResultSource{
+			IP:   sackResult.LocalAddr.Addr().AsSlice(),
+			Port: sackResult.LocalAddr.Port(),
+		},
+		Destination: common.ResultDestination{
+			IP:   p.Target.Addr().AsSlice(),
+			Port: p.Target.Port(),
+		},
+		Hops: hops,
+		Tags: []string{"tcp_method:sack"},
 	}
 
 	return result, nil

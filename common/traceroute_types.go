@@ -126,13 +126,13 @@ func clipResults(minTTL uint8, results []*ProbeResponse) []*ProbeResponse {
 
 // ToHops converts a list of ProbeResponses to a Results
 // TODO remove this, and use a single type to represent results
-func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*Hop, error) {
+func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*ResultHop, error) {
 	if p.MinTTL != 1 {
 		return nil, fmt.Errorf("ToHops: processResults() requires MinTTL == 1")
 	}
-	hops := make([]*Hop, len(probes))
+	hops := make([]*ResultHop, len(probes))
 	for i, probe := range probes {
-		hops[i] = &Hop{}
+		hops[i] = &ResultHop{}
 		if probe != nil {
 			hops[i].IP = probe.IP.AsSlice()
 			hops[i].RTT = probe.RTT

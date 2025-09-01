@@ -41,7 +41,7 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	}
 	defer rs.Close()
 
-	hops := make([]*common.Hop, 0, int(u.MaxTTL-u.MinTTL)+1)
+	hops := make([]*common.ResultHop, 0, int(u.MaxTTL-u.MinTTL)+1)
 
 	for i := int(u.MinTTL); i <= int(u.MaxTTL); i++ {
 		hop, err := u.sendAndReceive(rs, i, u.Timeout)
@@ -58,15 +58,19 @@ func (u *UDPv4) TracerouteSequential() (*common.Results, error) {
 	}
 
 	return &common.Results{
-		Source:     u.srcIP,
-		SourcePort: u.srcPort,
-		Target:     u.Target,
-		DstPort:    u.TargetPort,
-		Hops:       hops,
+		Source: common.ResultSource{
+			IP:   u.srcIP,
+			Port: u.srcPort,
+		},
+		Destination: common.ResultDestination{
+			IP:   u.Target,
+			Port: u.TargetPort,
+		},
+		Hops: hops,
 	}, nil
 }
 
-func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*common.Hop, error) {
+func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*common.ResultHop, error) {
 	ipHdrID, buffer, udpChecksum, err := u.createRawUDPBuffer(u.srcIP, u.srcPort, u.Target, u.TargetPort, ttl)
 	if err != nil {
 		log.Errorf("failed to create UDP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -94,7 +98,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 		rtt = end.Sub(start)
 	}
 
-	return &common.Hop{
+	return &common.ResultHop{
 		IP:     hopIP,
 		RTT:    rtt,
 		IsDest: hopIP.Equal(u.Target),
