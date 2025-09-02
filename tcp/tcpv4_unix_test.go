@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
 
-	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 func TestSendAndReceive(t *testing.T) {
