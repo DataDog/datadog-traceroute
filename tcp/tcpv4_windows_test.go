@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
