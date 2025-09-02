@@ -32,7 +32,7 @@ func TestSendAndReceive(t *testing.T) {
 		ttl         int
 		sendFunc    func(rawConnWrapper, *ipv4.Header, []byte) error
 		listenFunc  func(rawConnWrapper, rawConnWrapper, time.Duration, net.IP, uint16, net.IP, uint16, uint32, uint16) packetResponse
-		expected    *result.ResultHop
+		expected    *result.TracerouteHop
 		errMsg      string
 	}{
 		{
@@ -75,7 +75,7 @@ func TestSendAndReceive(t *testing.T) {
 					Err:  nil,
 				}
 			},
-			expected: &result.ResultHop{
+			expected: &result.TracerouteHop{
 				IP:       "7.8.9.0",
 				ICMPType: 2,
 				ICMPCode: 3,
@@ -97,7 +97,7 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.ResultHop{}, "RTT")))
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "RTT")))
 			assert.Greater(t, actual.RTT, 0)
 		})
 	}
