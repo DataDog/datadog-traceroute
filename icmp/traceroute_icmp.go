@@ -60,7 +60,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 
-	// get this platform's TracerouteSource and Sink implementations
+	// get this platform's Source and Sink implementations
 	handle, err := packets.NewSourceSink(p.Target)
 	if err != nil {
 		return nil, fmt.Errorf("ICMP Traceroute failed to make NewSourceSink: %w", err)

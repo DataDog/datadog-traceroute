@@ -31,7 +31,7 @@ func (u *UDPv4) Traceroute() (*result.Results, error) {
 	u.srcIP = addr.IP
 	u.srcPort = uint16(addr.Port)
 
-	// get this platform's TracerouteSource and Sink implementations
+	// get this platform's Source and Sink implementations
 	handle, err := packets.NewSourceSink(targetAddr)
 	if err != nil {
 		return nil, fmt.Errorf("UDP Traceroute failed to make NewSourceSink: %w", err)

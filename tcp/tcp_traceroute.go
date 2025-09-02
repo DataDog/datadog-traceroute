@@ -43,7 +43,7 @@ func (t *TCPv4) Traceroute() (*result.Results, error) {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", t.Target)
 	}
 
-	// get this platform's TracerouteSource and Sink implementations
+	// get this platform's Source and Sink implementations
 	handle, err := packets.NewSourceSink(targetAddr)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to make NewSourceSink: %w", err)
