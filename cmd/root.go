@@ -6,9 +6,7 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -19,13 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/log"
-	"github.com/DataDog/datadog-traceroute/result"
-	"github.com/DataDog/datadog-traceroute/sack"
-	"github.com/DataDog/datadog-traceroute/tcp"
-	"github.com/DataDog/datadog-traceroute/udp"
 )
 
 type args struct {
@@ -59,7 +51,7 @@ var Args args
 
 var rootCmd = &cobra.Command{
 	Use:   "datadog-traceroute [target]",
-	Short: "Multi-protocol datadog traceroute CLI",
+	Short: "Multi-Protocol datadog traceroute CLI",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var timeout time.Duration
@@ -72,15 +64,15 @@ var rootCmd = &cobra.Command{
 		log.SetVerbose(Args.verbose)
 
 		params := TracerouteParams{
-			hostname:  args[0],
-			protocol:  Args.protocol,
-			minTTL:    Args.minTTL,
-			maxTTL:    Args.maxTTL,
-			delay:     Args.delay,
-			timeout:   timeout,
-			tcpmethod: Args.tcpmethod,
-			dport:     Args.dport,
-			wantV6:    Args.wantV6,
+			Hostname:        args[0],
+			Protocol:        Args.protocol,
+			MinTTL:          Args.minTTL,
+			MaxTTL:          Args.maxTTL,
+			Delay:           Args.delay,
+			Timeout:         timeout,
+			TCPMethod:       Args.tcpmethod,
+			DestinationPort: Args.dport,
+			WantV6:          Args.wantV6,
 		}
 
 		results, err := RunTraceroute(cmd.Context(), params)
@@ -102,126 +94,6 @@ var rootCmd = &cobra.Command{
 		}
 		return nil
 	},
-}
-
-func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	var results *result.Results
-
-	switch params.protocol {
-	case "udp":
-		target, err := parseTarget(params.hostname, params.dport, params.wantV6)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		cfg := udp.NewUDPv4(
-			target.Addr().AsSlice(),
-			target.Port(),
-			uint16(params.npaths),
-			uint8(params.minTTL),
-			uint8(params.maxTTL),
-			time.Duration(params.delay)*time.Millisecond,
-			params.timeout)
-
-		results, err = cfg.Traceroute()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate udp traceroute results: %w", err)
-		}
-
-	case "tcp":
-		target, err := parseTarget(params.hostname, params.dport, params.wantV6)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		switch params.tcpmethod {
-		case "syn":
-			results, err = doSyn(target, params.timeout)
-			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp syn traceroute results: %w", err)
-			}
-		case "sack":
-			results, err = doSack(ctx, target, params.timeout)
-			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp sack traceroute results: %w", err)
-			}
-		case "prefer_sack":
-			results, err = doSack(ctx, target, params.timeout)
-			var sackNotSupportedErr *sack.NotSupportedError
-			if errors.As(err, &sackNotSupportedErr) {
-				results, err = doSyn(target, params.timeout)
-			}
-			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp syn/sack traceroute results: %w", err)
-			}
-		default:
-			return nil, fmt.Errorf("unknown tcp method: %q", params.tcpmethod)
-		}
-	case "icmp":
-		target, err := parseTarget(params.hostname, 80, params.wantV6)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		cfg := icmp.Params{
-			Target: target.Addr(),
-			ParallelParams: common.TracerouteParallelParams{
-				TracerouteParams: common.TracerouteParams{
-					MinTTL:            uint8(params.minTTL),
-					MaxTTL:            uint8(params.maxTTL),
-					TracerouteTimeout: params.timeout,
-					PollFrequency:     100 * time.Millisecond,
-					SendDelay:         time.Duration(params.delay) * time.Millisecond,
-				},
-			},
-		}
-		results, err = icmp.RunICMPTraceroute(ctx, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("unknown protocol: %q", params.protocol)
-	}
-
-	results.Params = result.Params{
-		Protocol: params.protocol,
-		Hostname: params.hostname,
-		Port:     params.dport,
-	}
-	results.Normalize()
-	return results, nil
-}
-
-func doSack(ctx context.Context, target netip.AddrPort, timeout time.Duration) (*result.Results, error) {
-	cfg := sack.Params{
-		Target:           target,
-		HandshakeTimeout: timeout,
-		FinTimeout:       500 * time.Second,
-		ParallelParams: common.TracerouteParallelParams{
-			TracerouteParams: common.TracerouteParams{
-				MinTTL:            uint8(Args.minTTL),
-				MaxTTL:            uint8(Args.maxTTL),
-				TracerouteTimeout: timeout,
-				PollFrequency:     100 * time.Millisecond,
-				SendDelay:         time.Duration(Args.delay) * time.Millisecond,
-			},
-		},
-		LoosenICMPSrc: true,
-	}
-	return sack.RunSackTraceroute(ctx, cfg)
-}
-
-func doSyn(target netip.AddrPort, timeout time.Duration) (*result.Results, error) {
-	compatibilityMode := os.Getenv("COMPAT") == "true"
-
-	cfg := tcp.NewTCPv4(
-		target.Addr().AsSlice(),
-		target.Port(),
-		uint16(Args.npaths),
-		uint8(Args.minTTL),
-		uint8(Args.maxTTL),
-		time.Duration(Args.delay)*time.Millisecond,
-		timeout,
-		compatibilityMode)
-
-	return cfg.Traceroute()
 }
 
 func Execute() {

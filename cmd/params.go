@@ -3,14 +3,14 @@ package cmd
 import "time"
 
 type TracerouteParams struct {
-	hostname  string
-	protocol  string
-	npaths    int
-	minTTL    int
-	maxTTL    int
-	delay     int
-	timeout   time.Duration
-	tcpmethod string
-	dport     int
-	wantV6    bool
+	Hostname        string
+	Protocol        string
+	TracerouteCount int
+	MinTTL          int
+	MaxTTL          int
+	Delay           int
+	Timeout         time.Duration
+	TCPMethod       string
+	DestinationPort int
+	WantV6          bool
 }
