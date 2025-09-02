@@ -8,13 +8,10 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/netip"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/runner"
 	"github.com/spf13/cobra"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -63,7 +60,7 @@ var rootCmd = &cobra.Command{
 
 		log.SetVerbose(Args.verbose)
 
-		params := TracerouteParams{
+		params := runner.TracerouteParams{
 			Hostname:        args[0],
 			Protocol:        Args.protocol,
 			MinTTL:          Args.minTTL,
@@ -75,7 +72,7 @@ var rootCmd = &cobra.Command{
 			WantV6:          Args.wantV6,
 		}
 
-		results, err := RunTraceroute(cmd.Context(), params)
+		results, err := runner.RunTraceroute(cmd.Context(), params)
 		if err != nil {
 			return err
 		}
@@ -115,69 +112,6 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
-}
-
-func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {
-	var host, portStr string
-	var err error
-
-	if !hasPort(raw) {
-		portStr = strconv.Itoa(defaultPort)
-		unwrappedHost := strings.Trim(raw, "[]")
-		raw = net.JoinHostPort(unwrappedHost, portStr)
-	}
-
-	host, portStr, err = net.SplitHostPort(raw)
-	if err != nil {
-		return netip.AddrPort{}, fmt.Errorf("invalid address: %w", err)
-	}
-
-	ip, err := netip.ParseAddr(host)
-	if err != nil {
-		// Not an IP — do DNS resolution
-		ips, err := net.LookupIP(host)
-		if err != nil || len(ips) == 0 {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
-		}
-
-		found := false
-		for _, r := range ips {
-			if wantIPv6 {
-				if r.To16() != nil {
-					ip = netip.MustParseAddr(r.String())
-					found = true
-					break
-				}
-			} else {
-				if r.To4() != nil {
-					ip = netip.MustParseAddr(r.String())
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
-		}
-		if !ip.IsValid() {
-			ip = netip.MustParseAddr(ips[0].String())
-		}
-	}
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil || port < 1 || port > 65535 {
-		return netip.AddrPort{}, fmt.Errorf("invalid port: %v", portStr)
-	}
-
-	return netip.AddrPortFrom(ip, uint16(port)), nil
-}
-
-// hasPort returns true if the input string includes a port
-func hasPort(s string) bool {
-	if strings.HasPrefix(s, "[") {
-		return strings.Contains(s, "]:")
-	}
-	return strings.Count(s, ":") == 1
 }
 
 func writeOutput(data string) error {
