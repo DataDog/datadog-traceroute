@@ -126,7 +126,8 @@ var rootCmd = &cobra.Command{
 				return fmt.Errorf("invalid target: %w", err)
 			}
 			cfg := icmp.Params{
-				Target: target.Addr(),
+				Target:    target.Addr(),
+				RawTarget: args[0],
 				ParallelParams: common.TracerouteParallelParams{
 					TracerouteParams: common.TracerouteParams{
 						MinTTL:            uint8(Args.minTTL),
