@@ -13,7 +13,7 @@ type (
 		Tags       []string   `json:"tags"`
 	}
 
-	// E2eProbe TODO
+	// E2eProbe contains e2e probe results
 	E2eProbe struct {
 		Rtts                 []float64          `json:"rtts"`
 		PacketsSent          int                `json:"packets_sent"`
@@ -23,25 +23,27 @@ type (
 		Rtt                  E2eProbeRttLatency `json:"rtt"`
 	}
 
+	// E2eProbeRttLatency contains e2e latency stats
 	E2eProbeRttLatency struct {
 		Avg float64 `json:"avg"`
 		Min float64 `json:"min"`
 		Max float64 `json:"max"`
 	}
 
+	// HopCountStats contains hop count stats
 	HopCountStats struct {
 		Avg float64 `json:"avg"`
 		Min int     `json:"min"`
 		Max int     `json:"max"`
 	}
 
-	// Traceroute TODO
+	// Traceroute contains traceroute results
 	Traceroute struct {
 		Runs     []TracerouteRun `json:"runs"`
 		HopCount HopCountStats   `json:"hop_count"`
 	}
 
-	// TracerouteRun TODO
+	// TracerouteRun contains traceroute results for a single run
 	TracerouteRun struct {
 		Source      TracerouteSource      `json:"source"`
 		Destination TracerouteDestination `json:"destination"`
