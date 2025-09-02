@@ -83,6 +83,7 @@ type (
 	}
 )
 
+// Normalize results
 func (r *Results) Normalize() {
 	r.normalizeHops()
 	r.normalizeE2eProbe()
