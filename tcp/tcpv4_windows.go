@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
@@ -56,7 +57,7 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
 	}
 
 	return &result.Results{
-		TracerouteTest: result.TracerouteTest{
+		Traceroute: result.Traceroute{
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.ResultSource{
@@ -142,7 +143,7 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	}
 
 	return &result.Results{
-		TracerouteTest: result.TracerouteTest{
+		Traceroute: result.Traceroute{
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.ResultSource{
