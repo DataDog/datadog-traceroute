@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -47,28 +46,26 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		if err != nil {
 			return nil, fmt.Errorf("invalid target: %w", err)
 		}
-		switch params.TCPMethod {
-		case "syn":
-			results, err = doSyn(target, params)
+
+		doSyn := func() (*result.Results, error) {
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			return tr.Traceroute()
+		}
+		doSack := func() (*result.Results, error) {
+			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout)
 			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp syn traceroute results: %w", err)
+				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
-		case "sack":
-			results, err = doSack(ctx, target, params)
-			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp sack traceroute results: %w", err)
-			}
-		case "prefer_sack":
-			results, err = doSack(ctx, target, params)
-			var sackNotSupportedErr *sack.NotSupportedError
-			if errors.As(err, &sackNotSupportedErr) {
-				results, err = doSyn(target, params)
-			}
-			if err != nil {
-				return nil, fmt.Errorf("could not generate tcp syn/sack traceroute results: %w", err)
-			}
-		default:
-			return nil, fmt.Errorf("unknown tcp method: %q", params.TCPMethod)
+			return sack.RunSackTraceroute(context.TODO(), params)
+		}
+		doSynSocket := func() (*result.Results, error) {
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			return tr.TracerouteSequentialSocket()
+		}
+
+		results, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
+		if err != nil {
+			return nil, err
 		}
 	case "icmp":
 		target, err := parseTarget(params.Hostname, 80, params.WantV6)
@@ -104,39 +101,28 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	return results, nil
 }
 
-func doSack(ctx context.Context, target netip.AddrPort, params TracerouteParams) (*result.Results, error) {
-	cfg := sack.Params{
-		Target:           target,
-		HandshakeTimeout: params.Timeout,
-		FinTimeout:       500 * time.Second,
-		ParallelParams: common.TracerouteParallelParams{
-			TracerouteParams: common.TracerouteParams{
-				MinTTL:            uint8(params.MinTTL),
-				MaxTTL:            uint8(params.MaxTTL),
-				TracerouteTimeout: params.Timeout,
-				PollFrequency:     100 * time.Millisecond,
-				SendDelay:         time.Duration(params.Delay) * time.Millisecond,
-			},
-		},
-		LoosenICMPSrc: true,
+func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration) (sack.Params, error) {
+	targetAddr, ok := netip.AddrFromSlice(target)
+	if !ok {
+		return sack.Params{}, fmt.Errorf("invalid target IP")
 	}
-	return sack.RunSackTraceroute(ctx, cfg)
-}
-
-func doSyn(target netip.AddrPort, params TracerouteParams) (*result.Results, error) {
-	compatibilityMode := os.Getenv("COMPAT") == "true"
-
-	cfg := tcp.NewTCPv4(
-		target.Addr().AsSlice(),
-		target.Port(),
-		uint16(params.TracerouteCount),
-		uint8(params.MinTTL),
-		uint8(params.MaxTTL),
-		time.Duration(params.Delay)*time.Millisecond,
-		params.Timeout,
-		compatibilityMode)
-
-	return cfg.Traceroute()
+	parallelParams := common.TracerouteParallelParams{
+		TracerouteParams: common.TracerouteParams{
+			MinTTL:            minTTL,
+			MaxTTL:            maxTTL,
+			TracerouteTimeout: timeout,
+			PollFrequency:     100 * time.Millisecond,
+			SendDelay:         10 * time.Millisecond,
+		},
+	}
+	params := sack.Params{
+		Target:           netip.AddrPortFrom(targetAddr, targetPort),
+		HandshakeTimeout: timeout,
+		FinTimeout:       500 * time.Second,
+		ParallelParams:   parallelParams,
+		LoosenICMPSrc:    true,
+	}
+	return params, nil
 }
 
 func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {
@@ -200,4 +186,32 @@ func hasPort(s string) bool {
 		return strings.Contains(s, "]:")
 	}
 	return strings.Count(s, ":") == 1
+}
+
+type tracerouteImpl func() (*result.Results, error)
+
+func performTCPFallback(tcpMethod common.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.Results, error) {
+	if tcpMethod == "" {
+		tcpMethod = "syn"
+	}
+	switch tcpMethod {
+	case common.TCPConfigSYN:
+		return doSyn()
+	case common.TCPConfigSACK:
+		return doSack()
+	case common.TCPConfigSYNSocket:
+		return doSynSocket()
+	case common.TCPConfigPreferSACK:
+		results, err := doSack()
+		var sackNotSupportedErr *sack.NotSupportedError
+		if errors.As(err, &sackNotSupportedErr) {
+			return doSyn()
+		}
+		if err != nil {
+			return nil, fmt.Errorf("SACK traceroute failed fatally, not falling back: %w", err)
+		}
+		return results, nil
+	default:
+		return nil, fmt.Errorf("unexpected TCPMethod: %s", tcpMethod)
+	}
 }

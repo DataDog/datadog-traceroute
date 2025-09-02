@@ -1,16 +1,21 @@
 package runner
 
-import "time"
+import (
+	"time"
+
+	"github.com/DataDog/datadog-traceroute/common"
+)
 
 type TracerouteParams struct {
-	Hostname        string
-	Protocol        string
-	TracerouteCount int
-	MinTTL          int
-	MaxTTL          int
-	Delay           int
-	Timeout         time.Duration
-	TCPMethod       string
-	DestinationPort int
-	WantV6          bool
+	Hostname                  string
+	Protocol                  string
+	TracerouteCount           int
+	MinTTL                    int
+	MaxTTL                    int
+	Delay                     int
+	Timeout                   time.Duration
+	TCPMethod                 common.TCPMethod
+	DestinationPort           int
+	WantV6                    bool
+	TCPSynParisTracerouteMode bool
 }
