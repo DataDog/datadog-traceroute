@@ -11,8 +11,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/runner"
+	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/spf13/cobra"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -68,7 +68,7 @@ var rootCmd = &cobra.Command{
 			MaxTTL:          Args.maxTTL,
 			Delay:           Args.delay,
 			Timeout:         timeout,
-			TCPMethod:       common.TCPMethod(Args.tcpmethod),
+			TCPMethod:       traceroute.TCPMethod(Args.tcpmethod),
 			DestinationPort: Args.dport,
 			WantV6:          Args.wantV6,
 		}
