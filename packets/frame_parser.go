@@ -255,7 +255,7 @@ func (p *FrameParser) IsTTLExceeded() bool {
 	}
 }
 
-// IsDestinationUnreachable returns true if the packet is a TracerouteDestination Unreachable ICMP response
+// IsDestinationUnreachable returns true if the packet is a Destination Unreachable ICMP response
 func (p *FrameParser) IsDestinationUnreachable() bool {
 	switch p.GetTransportLayer() {
 	case layers.LayerTypeICMPv4:
