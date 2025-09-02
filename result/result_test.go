@@ -63,7 +63,7 @@ func TestResults_Normalize(t *testing.T) {
 					PacketsSent:          1,
 					PacketsReceived:      1,
 					PacketLossPercentage: 0,
-					RttLatency: E2eProbeRttLatency{
+					Rtt: E2eProbeRttLatency{
 						Avg: 30,
 						Min: 30,
 						Max: 30,
