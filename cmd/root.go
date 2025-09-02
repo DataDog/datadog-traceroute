@@ -48,7 +48,7 @@ var Args args
 
 var rootCmd = &cobra.Command{
 	Use:   "datadog-traceroute [target]",
-	Short: "Multi-Protocol datadog traceroute CLI",
+	Short: "Multi-protocol datadog traceroute CLI",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var timeout time.Duration
