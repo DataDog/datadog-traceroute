@@ -90,7 +90,6 @@ func (r *Results) Normalize() {
 }
 
 func (r *Results) normalizeHops() {
-	// build hops stats
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := len(run.Hops)
