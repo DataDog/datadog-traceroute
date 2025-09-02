@@ -53,7 +53,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.IP{},
 			expected: &result.TracerouteHop{
-				IP:     "",
+				IP:     net.IP{},
 				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
@@ -137,7 +137,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &result.TracerouteHop{
-				IP:     "",
+				IP:     net.IP{},
 				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
