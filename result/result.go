@@ -124,8 +124,8 @@ func (r *Results) normalizeHops() {
 func (r *Results) normalizeE2eProbe() {
 	r.E2eProbe.Rtts = []float64{}
 
-	// TODO: Replace with e2e probe impl
-	//       Right now, we temporarily use Traceroute data to fill e2e probe
+	// TODO: Replace with "50x e2e probe impl"
+	//       Right now, we temporarily use single Traceroute data to fill e2e probe
 	if len(r.Traceroute.Runs) == 0 {
 		return
 	}
