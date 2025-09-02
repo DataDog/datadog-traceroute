@@ -22,6 +22,7 @@ func TestResults_Normalize(t *testing.T) {
 								{IP: "10.10.10.10", RTT: 10},
 								{},
 								{IP: "10.10.10.10", RTT: 30},
+								{IP: "10.10.10.10", RTT: 30, IsDest: true},
 							},
 						},
 						{
@@ -41,6 +42,7 @@ func TestResults_Normalize(t *testing.T) {
 								{IP: "10.10.10.10", RTT: 10},
 								{},
 								{IP: "10.10.10.10", RTT: 30},
+								{IP: "10.10.10.10", RTT: 30, IsDest: true},
 							},
 						},
 						{
@@ -51,9 +53,20 @@ func TestResults_Normalize(t *testing.T) {
 						},
 					},
 					Hops: HopsStats{
-						Avg: 2.5,
+						Avg: 3,
 						Min: 2,
-						Max: 3,
+						Max: 4,
+					},
+				},
+				E2eProbe: E2eProbe{
+					Rtts:                 []float64{30},
+					PacketsSent:          1,
+					PacketsReceived:      1,
+					PacketLossPercentage: 0,
+					RttLatency: E2eProbeRttLatency{
+						Avg: 30,
+						Min: 30,
+						Max: 30,
 					},
 				},
 			},

@@ -15,15 +15,15 @@ type (
 
 	// E2eProbe TODO
 	E2eProbe struct {
-		Rtts                 []float64   `json:"rtts"`
-		PacketsSent          int         `json:"packets_sent"`
-		PacketsReceived      int         `json:"packets_received"`
-		PacketLossPercentage float32     `json:"packet_loss_percentage"`
-		Jitter               int         `json:"jitter"`
-		Rtt                  E2eProbeRtt `json:"latency"`
+		Rtts                 []float64          `json:"rtts"`
+		PacketsSent          int                `json:"packets_sent"`
+		PacketsReceived      int                `json:"packets_received"`
+		PacketLossPercentage float32            `json:"packet_loss_percentage"`
+		Jitter               int                `json:"jitter"`
+		RttLatency           E2eProbeRttLatency `json:"rtt_latency"`
 	}
 
-	E2eProbeRtt struct {
+	E2eProbeRttLatency struct {
 		Avg float64 `json:"avg"`
 		Min float64 `json:"min"`
 		Max float64 `json:"max"`
@@ -136,9 +136,9 @@ func (r *Results) normalizeE2eProbe() {
 		r.E2eProbe.PacketLossPercentage = 1
 		return
 	}
-	r.E2eProbe.Rtt.Avg = destHop.RTT
-	r.E2eProbe.Rtt.Min = destHop.RTT
-	r.E2eProbe.Rtt.Max = destHop.RTT
+	r.E2eProbe.RttLatency.Avg = destHop.RTT
+	r.E2eProbe.RttLatency.Min = destHop.RTT
+	r.E2eProbe.RttLatency.Max = destHop.RTT
 	r.E2eProbe.PacketsReceived = 1
 	r.E2eProbe.PacketLossPercentage = 0
 	r.E2eProbe.Rtts = []float64{destHop.RTT}
