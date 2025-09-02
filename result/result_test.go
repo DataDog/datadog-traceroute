@@ -13,7 +13,7 @@ func TestResults_Normalize(t *testing.T) {
 		ExpectedResults Results
 	}{
 		{
-			name: "base case",
+			name: "normalize hops & e2e probes",
 			Results: Results{
 				Traceroute: Traceroute{
 					Runs: []TracerouteRun{
