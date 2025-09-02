@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
+	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
@@ -190,18 +191,18 @@ func hasPort(s string) bool {
 
 type tracerouteImpl func() (*result.Results, error)
 
-func performTCPFallback(tcpMethod common.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.Results, error) {
+func performTCPFallback(tcpMethod traceroute.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.Results, error) {
 	if tcpMethod == "" {
 		tcpMethod = "syn"
 	}
 	switch tcpMethod {
-	case common.TCPConfigSYN:
+	case traceroute.TCPConfigSYN:
 		return doSyn()
-	case common.TCPConfigSACK:
+	case traceroute.TCPConfigSACK:
 		return doSack()
-	case common.TCPConfigSYNSocket:
+	case traceroute.TCPConfigSYNSocket:
 		return doSynSocket()
-	case common.TCPConfigPreferSACK:
+	case traceroute.TCPConfigPreferSACK:
 		results, err := doSack()
 		var sackNotSupportedErr *sack.NotSupportedError
 		if errors.As(err, &sackNotSupportedErr) {

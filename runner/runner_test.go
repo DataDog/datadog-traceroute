@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
+	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +33,7 @@ func TestTCPFallback(t *testing.T) {
 		doSack := neverCalled(t)
 		doSynSocket := neverCalled(t)
 		// success case
-		results, err := performTCPFallback(common.TCPConfigSYN, doSyn, doSack, doSynSocket)
+		results, err := performTCPFallback(traceroute.TCPConfigSYN, doSyn, doSack, doSynSocket)
 		require.NoError(t, err)
 		require.Equal(t, dummySyn, results)
 
@@ -41,7 +41,7 @@ func TestTCPFallback(t *testing.T) {
 			return nil, dummyErr
 		}
 		// error case
-		results, err = performTCPFallback(common.TCPConfigSYN, doSyn, doSack, doSynSocket)
+		results, err = performTCPFallback(traceroute.TCPConfigSYN, doSyn, doSack, doSynSocket)
 		require.Equal(t, dummyErr, err)
 		require.Nil(t, results)
 	})
@@ -53,7 +53,7 @@ func TestTCPFallback(t *testing.T) {
 		}
 		doSynSocket := neverCalled(t)
 		// success case
-		results, err := performTCPFallback(common.TCPConfigSACK, doSyn, doSack, doSynSocket)
+		results, err := performTCPFallback(traceroute.TCPConfigSACK, doSyn, doSack, doSynSocket)
 		require.NoError(t, err)
 		require.Equal(t, dummySack, results)
 
@@ -61,7 +61,7 @@ func TestTCPFallback(t *testing.T) {
 			return nil, dummyErr
 		}
 		// error case
-		results, err = performTCPFallback(common.TCPConfigSACK, doSyn, doSack, doSynSocket)
+		results, err = performTCPFallback(traceroute.TCPConfigSACK, doSyn, doSack, doSynSocket)
 		require.Equal(t, dummyErr, err)
 		require.Nil(t, results)
 	})
@@ -73,7 +73,7 @@ func TestTCPFallback(t *testing.T) {
 		}
 		doSynSocket := neverCalled(t)
 		// success case
-		results, err := performTCPFallback(common.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
+		results, err := performTCPFallback(traceroute.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
 		require.NoError(t, err)
 		require.Equal(t, dummySack, results)
 
@@ -81,7 +81,7 @@ func TestTCPFallback(t *testing.T) {
 			return nil, dummyErr
 		}
 		// error case (sack encounters a fatal error and does not fall back to SYN)
-		results, err = performTCPFallback(common.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
+		results, err = performTCPFallback(traceroute.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
 		require.ErrorIs(t, err, dummyErr)
 		require.Nil(t, results)
 	})
@@ -96,7 +96,7 @@ func TestTCPFallback(t *testing.T) {
 		}
 		doSynSocket := neverCalled(t)
 		// success case
-		results, err := performTCPFallback(common.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
+		results, err := performTCPFallback(traceroute.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
 		require.NoError(t, err)
 		require.Equal(t, dummySyn, results)
 
@@ -104,7 +104,7 @@ func TestTCPFallback(t *testing.T) {
 			return nil, dummyErr
 		}
 		// error case
-		results, err = performTCPFallback(common.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
+		results, err = performTCPFallback(traceroute.TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
 		require.Equal(t, dummyErr, err)
 		require.Nil(t, results)
 	})
@@ -116,7 +116,7 @@ func TestTCPFallback(t *testing.T) {
 			return dummySynSocket, nil
 		}
 		// success case
-		results, err := performTCPFallback(common.TCPConfigSYNSocket, doSyn, doSack, doSynSocket)
+		results, err := performTCPFallback(traceroute.TCPConfigSYNSocket, doSyn, doSack, doSynSocket)
 		require.NoError(t, err)
 		require.Equal(t, dummySynSocket, results)
 
@@ -124,7 +124,7 @@ func TestTCPFallback(t *testing.T) {
 			return nil, dummyErr
 		}
 		// error case
-		results, err = performTCPFallback(common.TCPConfigSYNSocket, doSyn, doSack, doSynSocket)
+		results, err = performTCPFallback(traceroute.TCPConfigSYNSocket, doSyn, doSack, doSynSocket)
 		require.Equal(t, dummyErr, err)
 		require.Nil(t, results)
 	})
