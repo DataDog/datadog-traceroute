@@ -52,7 +52,7 @@ func TestResults_Normalize(t *testing.T) {
 							},
 						},
 					},
-					Hops: HopsStats{
+					HopCount: HopCountStats{
 						Avg: 3,
 						Min: 2,
 						Max: 4,

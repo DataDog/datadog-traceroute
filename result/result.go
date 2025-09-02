@@ -29,7 +29,7 @@ type (
 		Max float64 `json:"max"`
 	}
 
-	HopsStats struct {
+	HopCountStats struct {
 		Avg float64 `json:"avg"`
 		Min int     `json:"min"`
 		Max int     `json:"max"`
@@ -37,8 +37,8 @@ type (
 
 	// Traceroute TODO
 	Traceroute struct {
-		Runs []TracerouteRun `json:"runs"`
-		Hops HopsStats       `json:"hops"`
+		Runs     []TracerouteRun `json:"runs"`
+		HopCount HopCountStats   `json:"hop_count"`
 	}
 
 	// TracerouteRun TODO
@@ -114,9 +114,9 @@ func (r *Results) normalizeHops() {
 	}
 	hopsAvg = float64(totalHopCount) / float64(len(hopCounts))
 
-	r.Traceroute.Hops.Avg = hopsAvg
-	r.Traceroute.Hops.Min = hopsMin
-	r.Traceroute.Hops.Max = hopsMax
+	r.Traceroute.HopCount.Avg = hopsAvg
+	r.Traceroute.HopCount.Min = hopsMin
+	r.Traceroute.HopCount.Max = hopsMax
 }
 
 func (r *Results) normalizeE2eProbe() {
