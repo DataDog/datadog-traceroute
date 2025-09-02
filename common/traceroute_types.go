@@ -136,7 +136,7 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 	for i, probe := range probes {
 		hops[i] = &result.TracerouteHop{}
 		if probe != nil {
-			hops[i].IP = probe.IP.String()
+			hops[i].IP = probe.IP.AsSlice()
 			hops[i].RTT = probe.RTT.Seconds()
 			hops[i].IsDest = probe.IsDest
 		}

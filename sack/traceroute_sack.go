@@ -220,7 +220,7 @@ func RunSackTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 						Port: sackResult.LocalAddr.Port(),
 					},
 					Destination: result.TracerouteDestination{
-						IP:   p.Target.Addr().String(),
+						IP:   p.Target.Addr().AsSlice(),
 						Port: p.Target.Port(),
 					},
 					Hops: hops,

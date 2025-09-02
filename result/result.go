@@ -51,7 +51,7 @@ type (
 	// TracerouteHop encapsulates information about a single
 	// hop in a traceroute
 	TracerouteHop struct {
-		IP  string  `json:"ip"`
+		IP  net.IP  `json:"ip"`
 		RTT float64 `json:"rtt"`
 
 		// Internal use
@@ -70,7 +70,7 @@ type (
 
 	// TracerouteDestination contains result destination info
 	TracerouteDestination struct {
-		IP   string `json:"ip"`
+		IP   net.IP `json:"ip"`
 		Port uint16 `json:"port"`
 	}
 	// Params contains destination param info
@@ -93,7 +93,7 @@ func (r *Results) normalizeHops() {
 		hopCount := len(run.Hops)
 		for i := len(run.Hops) - 1; i >= 0; i-- {
 			hop := run.Hops[i]
-			if hop.IP != "" {
+			if !hop.IP.Equal(net.IP{}) {
 				hopCount = i + 1
 				break
 			}

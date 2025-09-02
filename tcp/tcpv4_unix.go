@@ -121,7 +121,7 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 						Port: t.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IP:   t.Target.String(),
+						IP:   t.Target,
 						Port: t.DestPort,
 					},
 					Hops: hops,
@@ -158,7 +158,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 	}
 
 	return &result.TracerouteHop{
-		IP:       resp.IP.String(),
+		IP:       resp.IP,
 		Port:     resp.Port,
 		ICMPType: resp.Type,
 		ICMPCode: resp.Code,

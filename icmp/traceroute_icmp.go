@@ -111,7 +111,7 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 						Port: icmpResult.LocalAddr.Port(),
 					},
 					Destination: result.TracerouteDestination{
-						IP: p.Target.String(),
+						IP: p.Target.AsSlice(),
 					},
 					Hops: hops,
 				},

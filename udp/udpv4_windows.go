@@ -67,7 +67,7 @@ func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 						Port: u.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IP:   u.Target.String(),
+						IP:   u.Target,
 						Port: u.TargetPort,
 					},
 					Hops: hops,
@@ -106,7 +106,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 	}
 
 	return &result.TracerouteHop{
-		IP:     hopIP.String(),
+		IP:     hopIP,
 		RTT:    rtt.Seconds(),
 		IsDest: hopIP.Equal(u.Target),
 	}, nil

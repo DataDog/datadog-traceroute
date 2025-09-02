@@ -1,6 +1,7 @@
 package result
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,16 +20,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IP: "10.10.10.10", RTT: 30},
-								{IP: "10.10.10.10", RTT: 30, IsDest: true},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -39,16 +40,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IP: "10.10.10.10", RTT: 30},
-								{IP: "10.10.10.10", RTT: 30, IsDest: true},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -78,16 +79,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IP: "10.10.10.10", RTT: 30},
-								{IP: "10.10.10.10", RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -98,16 +99,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IP: "10.10.10.10", RTT: 30},
-								{IP: "10.10.10.10", RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 30},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IP: "10.10.10.10", RTT: 10},
-								{IP: "10.10.10.10", RTT: 20},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IP: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
