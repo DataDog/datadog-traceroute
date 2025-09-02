@@ -134,7 +134,7 @@ func (r *Results) normalizeE2eProbe() {
 
 	r.E2eProbe.PacketsSent = 1
 
-	destHop := tracerouteRun.GetDestinationHop()
+	destHop := tracerouteRun.getDestinationHop()
 	if destHop == nil {
 		r.E2eProbe.PacketLossPercentage = 1
 		return
@@ -147,7 +147,7 @@ func (r *Results) normalizeE2eProbe() {
 	r.E2eProbe.Rtts = []float64{destHop.RTT}
 }
 
-func (tr *TracerouteRun) GetDestinationHop() *TracerouteHop {
+func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {
 	for _, hop := range tr.Hops {
 		if hop.IsDest {
 			return hop
