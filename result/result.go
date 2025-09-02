@@ -54,8 +54,10 @@ type (
 		IP  string  `json:"ip"`
 		RTT float64 `json:"rtt"`
 
+		// Internal use
+		IsDest bool `json:"-"`
+
 		// DEPRECATED: In separate PR, remove fields below and its usage
-		IsDest   bool   `json:"-"`
 		Port     uint16 `json:"-"`
 		ICMPType uint8  `json:"-"`
 		ICMPCode uint8  `json:"-"`
@@ -80,6 +82,11 @@ type (
 )
 
 func (r *Results) Normalize() {
+	r.normalizeHops()
+	r.normalizeE2eProbe()
+}
+
+func (r *Results) normalizeHops() {
 	// build hops stats
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
@@ -110,4 +117,38 @@ func (r *Results) Normalize() {
 	r.Traceroute.Hops.Avg = hopsAvg
 	r.Traceroute.Hops.Min = hopsMin
 	r.Traceroute.Hops.Max = hopsMax
+}
+
+func (r *Results) normalizeE2eProbe() {
+	r.E2eProbe.Rtts = []float64{}
+
+	// TODO: Replace with e2e probe impl
+	//       Right now, we temporarily use Traceroute data to fill e2e probe
+	if len(r.Traceroute.Runs) == 0 {
+		return
+	}
+	tracerouteRun := r.Traceroute.Runs[0]
+
+	r.E2eProbe.PacketsSent = 1
+
+	destHop := tracerouteRun.GetDestinationHop()
+	if destHop == nil {
+		r.E2eProbe.PacketLossPercentage = 1
+		return
+	}
+	r.E2eProbe.Rtt.Avg = destHop.RTT
+	r.E2eProbe.Rtt.Min = destHop.RTT
+	r.E2eProbe.Rtt.Max = destHop.RTT
+	r.E2eProbe.PacketsReceived = 1
+	r.E2eProbe.PacketLossPercentage = 0
+	r.E2eProbe.Rtts = []float64{destHop.RTT}
+}
+
+func (tr *TracerouteRun) GetDestinationHop() *TracerouteHop {
+	for _, hop := range tr.Hops {
+		if hop.IsDest {
+			return hop
+		}
+	}
+	return nil
 }
