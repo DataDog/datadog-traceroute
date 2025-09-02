@@ -41,7 +41,7 @@ func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 	}
 	defer rs.Close()
 
-	hops := make([]*result.ResultHop, 0, int(u.MaxTTL-u.MinTTL)+1)
+	hops := make([]*result.TracerouteHop, 0, int(u.MaxTTL-u.MinTTL)+1)
 
 	for i := int(u.MinTTL); i <= int(u.MaxTTL); i++ {
 		hop, err := u.sendAndReceive(rs, i, u.Timeout)
@@ -76,7 +76,7 @@ func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 	}, nil
 }
 
-func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*result.ResultHop, error) {
+func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
 	ipHdrID, buffer, udpChecksum, err := u.createRawUDPBuffer(u.srcIP, u.srcPort, u.Target, u.TargetPort, ttl)
 	if err != nil {
 		log.Errorf("failed to create UDP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -104,7 +104,7 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 		rtt = end.Sub(start)
 	}
 
-	return &result.ResultHop{
+	return &result.TracerouteHop{
 		IP:     hopIP.String(),
 		RTT:    rtt.Seconds(),
 		IsDest: hopIP.Equal(u.Target),
