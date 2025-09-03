@@ -19,7 +19,7 @@ type (
 		PacketsSent          int                `json:"packets_sent"`
 		PacketsReceived      int                `json:"packets_received"`
 		PacketLossPercentage float32            `json:"packet_loss_percentage"`
-		Jitter               int                `json:"jitter"`
+		Jitter               float64            `json:"jitter"`
 		Rtt                  E2eProbeRttLatency `json:"rtt"`
 	}
 
@@ -55,7 +55,7 @@ type (
 	TracerouteHop struct {
 		TTL       int     `json:"ttl"`
 		IPAddress net.IP  `json:"ip_address"`
-		RTT       float64 `json:"rtt"`
+		Rtt       float64 `json:"rtt"`
 		Reachable bool    `json:"reachable"`
 
 		// Internal use
@@ -141,12 +141,12 @@ func (r *Results) normalizeE2eProbe() {
 		r.E2eProbe.PacketLossPercentage = 1
 		return
 	}
-	r.E2eProbe.Rtt.Avg = destHop.RTT
-	r.E2eProbe.Rtt.Min = destHop.RTT
-	r.E2eProbe.Rtt.Max = destHop.RTT
+	r.E2eProbe.Rtt.Avg = destHop.Rtt
+	r.E2eProbe.Rtt.Min = destHop.Rtt
+	r.E2eProbe.Rtt.Max = destHop.Rtt
 	r.E2eProbe.PacketsReceived = 1
 	r.E2eProbe.PacketLossPercentage = 0
-	r.E2eProbe.Rtts = []float64{destHop.RTT}
+	r.E2eProbe.Rtts = []float64{destHop.Rtt}
 }
 
 func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {
