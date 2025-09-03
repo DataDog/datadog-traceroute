@@ -158,12 +158,12 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 	}
 
 	return &result.TracerouteHop{
-		IP:       resp.IP,
-		Port:     resp.Port,
-		ICMPType: resp.Type,
-		ICMPCode: resp.Code,
-		RTT:      rtt.Seconds(),
-		IsDest:   resp.IP.Equal(t.Target),
+		IPAddress: resp.IP,
+		Port:      resp.Port,
+		ICMPType:  resp.Type,
+		ICMPCode:  resp.Code,
+		RTT:       rtt.Seconds(),
+		IsDest:    resp.IP.Equal(t.Target),
 	}, nil
 }
 

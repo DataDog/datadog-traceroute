@@ -106,8 +106,8 @@ func (u *UDPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, timeout time.
 	}
 
 	return &result.TracerouteHop{
-		IP:     hopIP,
-		RTT:    rtt.Seconds(),
-		IsDest: hopIP.Equal(u.Target),
+		IPAddress: hopIP,
+		RTT:       rtt.Seconds(),
+		IsDest:    hopIP.Equal(u.Target),
 	}, nil
 }

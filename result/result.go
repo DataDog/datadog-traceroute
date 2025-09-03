@@ -53,8 +53,10 @@ type (
 	// TracerouteHop encapsulates information about a single
 	// hop in a traceroute
 	TracerouteHop struct {
-		IP  net.IP  `json:"ip"`
-		RTT float64 `json:"rtt"`
+		TTL       int     `json:"ttl"`
+		IPAddress net.IP  `json:"ip_address"`
+		RTT       float64 `json:"rtt"`
+		Reachable bool    `json:"reachable"`
 
 		// Internal use
 		IsDest bool `json:"-"`
@@ -95,7 +97,7 @@ func (r *Results) normalizeHops() {
 		hopCount := len(run.Hops)
 		for i := len(run.Hops) - 1; i >= 0; i-- {
 			hop := run.Hops[i]
-			if !hop.IP.Equal(net.IP{}) {
+			if !hop.IPAddress.Equal(net.IP{}) {
 				hopCount = i + 1
 				break
 			}

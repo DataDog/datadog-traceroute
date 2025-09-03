@@ -8,6 +8,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"slices"
 	"time"
@@ -134,11 +135,19 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 	}
 	hops := make([]*result.TracerouteHop, len(probes))
 	for i, probe := range probes {
-		hops[i] = &result.TracerouteHop{}
+		hops[i] = &result.TracerouteHop{
+			// Using index for TTL mimics what we already do in datadog-agent.
+			// Should we rely on probe.TTL instead in the future?
+			TTL: i + 1,
+		}
 		if probe != nil {
-			hops[i].IP = probe.IP.AsSlice()
+			hops[i].IPAddress = probe.IP.AsSlice()
 			hops[i].RTT = probe.RTT.Seconds()
 			hops[i].IsDest = probe.IsDest
+
+			if !hops[i].IPAddress.Equal(net.IP{}) {
+				hops[i].Reachable = true
+			}
 		}
 	}
 	return hops, nil

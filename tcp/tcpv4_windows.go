@@ -96,12 +96,12 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	return &result.TracerouteHop{
-		IP:       hopIP,
-		Port:     0, // TODO: fix this
-		ICMPType: icmpType,
-		ICMPCode: icmpCode,
-		RTT:      rtt.Seconds(),
-		IsDest:   hopIP.Equal(t.Target),
+		IPAddress: hopIP,
+		Port:      0, // TODO: fix this
+		ICMPType:  icmpType,
+		ICMPCode:  icmpCode,
+		RTT:       rtt.Seconds(),
+		IsDest:    hopIP.Equal(t.Target),
 	}, nil
 }
 
@@ -194,10 +194,10 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 	}
 
 	return &result.TracerouteHop{
-		IP:       hopIP,
-		Port:     0, // TODO: fix this
-		ICMPType: 0, // TODO: fix this
-		RTT:      rtt.Seconds(),
-		IsDest:   hopIP.Equal(t.Target),
+		IPAddress: hopIP,
+		Port:      0, // TODO: fix this
+		ICMPType:  0, // TODO: fix this
+		RTT:       rtt.Seconds(),
+		IsDest:    hopIP.Equal(t.Target),
 	}, nil
 }
