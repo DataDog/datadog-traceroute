@@ -16,3 +16,9 @@ import (
 func NewSourceSink(_ netip.Addr) (SourceSinkHandle, error) {
 	return SourceSinkHandle{}, fmt.Errorf("NewSourceSink: this platform is not supported")
 }
+
+// StartDriver starts the driver
+// as there is no driver for this platform, this is a no-op
+func StartDriver() error {
+	return nil
+}
