@@ -21,7 +21,7 @@ import (
 
 const (
 	DefaultNetworkPathTimeout = 3000
-	DefaultTraceroutePort     = 33434
+	DefaultPort               = 33434
 	DefaultNumPaths           = 1
 	DefaultMinTTL             = 1
 	DefaultMaxTTL             = 30

@@ -24,7 +24,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 
 	destinationPort := params.DestinationPort
 	if destinationPort == 0 {
-		destinationPort = common.DefaultTraceroutePort
+		destinationPort = common.DefaultPort
 	}
 
 	switch params.Protocol {
@@ -37,7 +37,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 			target.Addr().AsSlice(),
 			target.Port(),
 			uint16(params.TracerouteCount),
-			uint8(params.MinTTL),
+			uint8(common.DefaultMinTTL),
 			uint8(params.MaxTTL),
 			time.Duration(params.Delay)*time.Millisecond,
 			params.Timeout)
@@ -54,18 +54,18 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		}
 
 		doSyn := func() (*result.Results, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.Traceroute()
 		}
 		doSack := func() (*result.Results, error) {
-			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout)
+			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), params.Timeout)
 			if err != nil {
 				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
 			return sack.RunSackTraceroute(context.TODO(), params)
 		}
 		doSynSocket := func() (*result.Results, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.TracerouteSequentialSocket()
 		}
 
@@ -82,7 +82,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 			Target: target.Addr(),
 			ParallelParams: common.TracerouteParallelParams{
 				TracerouteParams: common.TracerouteParams{
-					MinTTL:            uint8(params.MinTTL),
+					MinTTL:            uint8(common.DefaultMinTTL),
 					MaxTTL:            uint8(params.MaxTTL),
 					TracerouteTimeout: params.Timeout,
 					PollFrequency:     100 * time.Millisecond,

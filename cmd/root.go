@@ -22,14 +22,13 @@ import (
 type args struct {
 	protocol     string
 	npaths       int
-	minTTL       int
 	maxTTL       int
 	delay        int
 	outputFile   string
 	outputFormat string
 	timeout      int
 	tcpmethod    string
-	dport        int
+	port         int
 	wantV6       bool
 	verbose      bool
 }
@@ -52,13 +51,12 @@ var rootCmd = &cobra.Command{
 
 		params := runner.TracerouteParams{
 			Hostname:        args[0],
+			DestinationPort: Args.port,
 			Protocol:        Args.protocol,
-			MinTTL:          Args.minTTL,
 			MaxTTL:          Args.maxTTL,
 			Delay:           Args.delay,
 			Timeout:         timeout,
 			TCPMethod:       traceroute.TCPMethod(Args.tcpmethod),
-			DestinationPort: Args.dport,
 			WantV6:          Args.wantV6,
 		}
 
@@ -93,11 +91,10 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.protocol, "protocol", "p", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcpmethod", "m", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().IntVarP(&Args.npaths, "npaths", "n", common.DefaultNumPaths, "Number of paths to probe")
-	rootCmd.Flags().IntVarP(&Args.minTTL, "min-ttl", "t", common.DefaultMinTTL, "Minimum TTL")
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "T", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().IntVarP(&Args.delay, "delay", "D", common.DefaultDelay, "Delay between packets (ms)")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "x", 0, "Timeout (ms)")
-	rootCmd.Flags().IntVarP(&Args.dport, "dport", "d", common.DefaultTraceroutePort, "the base destination port to send packets to")
+	rootCmd.Flags().IntVarP(&Args.port, "dport", "d", common.DefaultPort, "the base destination port to send packets to")
 	rootCmd.Flags().StringVarP(&Args.outputFile, "output-file", "o", "", "Output file name (or '-' for stdout)")
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", common.DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
