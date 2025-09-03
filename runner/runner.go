@@ -29,7 +29,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 
 	switch params.Protocol {
 	case "udp":
-		target, err := parseTarget(params.Hostname, params.Port, params.WantV6)
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, fmt.Errorf("invalid target: %w", err)
 		}
@@ -48,7 +48,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		}
 
 	case "tcp":
-		target, err := parseTarget(params.Hostname, params.Port, params.WantV6)
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, fmt.Errorf("invalid target: %w", err)
 		}
@@ -101,7 +101,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	results.Params = result.Params{
 		Protocol: params.Protocol,
 		Hostname: params.Hostname,
-		Port:     params.Port,
+		Port:     destinationPort,
 	}
 	results.Normalize()
 	return results, nil
