@@ -38,7 +38,7 @@ func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) 
 	case FilterTypeTCP:
 		// get Af from address
 		af := uint64(windows.AF_INET)
-		if spec.TCPFilterConfig.Dst.Addr().Is6() {
+		if spec.FilterConfig.Dst.Addr().Is6() {
 			af = uint64(windows.AF_INET6)
 		}
 		return []driver.FilterDefinition{
@@ -50,10 +50,10 @@ func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) 
 				InterfaceIndex: uint64(0),
 				Direction:      driver.DirectionInbound,
 				Protocol:       windows.IPPROTO_TCP,
-				LocalAddress:   createFilterAddress(spec.TCPFilterConfig.Dst.Addr()),
-				RemoteAddress:  createFilterAddress(spec.TCPFilterConfig.Src.Addr()),
-				LocalPort:      uint64(spec.TCPFilterConfig.Dst.Port()),
-				RemotePort:     uint64(spec.TCPFilterConfig.Src.Port()),
+				LocalAddress:   createFilterAddress(spec.FilterConfig.Dst.Addr()),
+				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
+				LocalPort:      uint64(spec.FilterConfig.Dst.Port()),
+				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
 			},
 			// need to capture the discard packets
 			{
@@ -64,10 +64,10 @@ func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) 
 				InterfaceIndex: uint64(0),
 				Direction:      driver.DirectionInbound,
 				Protocol:       windows.IPPROTO_TCP,
-				LocalAddress:   createFilterAddress(spec.TCPFilterConfig.Dst.Addr()),
-				RemoteAddress:  createFilterAddress(spec.TCPFilterConfig.Src.Addr()),
-				LocalPort:      uint64(spec.TCPFilterConfig.Dst.Port()),
-				RemotePort:     uint64(spec.TCPFilterConfig.Src.Port()),
+				LocalAddress:   createFilterAddress(spec.FilterConfig.Dst.Addr()),
+				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
+				LocalPort:      uint64(spec.FilterConfig.Dst.Port()),
+				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
 				Discard:        uint64(1),
 			},
 		}, nil
@@ -75,44 +75,34 @@ func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) 
 		// udp only uses installed icmp filter
 		return []driver.FilterDefinition{}, nil
 	case FilterTypeSYNACK:
+		// we have the remote filter address and port, so fill that in
+		// get af
+		af := uint64(windows.AF_INET)
+		if spec.FilterConfig.Src.Addr().Is6() {
+			af = uint64(windows.AF_INET6)
+		}
 		return []driver.FilterDefinition{
 			{
 				FilterVersion:  driver.Signature,
 				Size:           driver.FilterDefinitionSize,
 				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
+				Af:             af,
 				InterfaceIndex: uint64(0),
 				Direction:      driver.DirectionInbound,
 				Protocol:       windows.IPPROTO_TCP,
+				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
+				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
 			},
 			{
 				FilterVersion:  driver.Signature,
 				Size:           driver.FilterDefinitionSize,
 				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
+				Af:             af,
 				InterfaceIndex: uint64(0),
 				Direction:      driver.DirectionInbound,
 				Protocol:       windows.IPPROTO_TCP,
-				Discard:        uint64(1),
-			},
-			// create ipv6 filters
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
+				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
+				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
 				Discard:        uint64(1),
 			},
 		}, nil

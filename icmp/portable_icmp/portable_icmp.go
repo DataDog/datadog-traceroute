@@ -40,7 +40,7 @@ func main() {
 	}
 
 	// start the driver outside of the agent
-	// this if for the windows driver
+	// this is for the windows driver
 	err := packets.StartDriver()
 	if err != nil {
 		fmt.Printf("Error starting driver: %s\n", err)
