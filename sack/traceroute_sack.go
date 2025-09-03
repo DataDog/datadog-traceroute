@@ -216,12 +216,12 @@ func RunSackTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IP:   sackResult.LocalAddr.Addr().AsSlice(),
-						Port: sackResult.LocalAddr.Port(),
+						IPAddress: sackResult.LocalAddr.Addr().AsSlice(),
+						Port:      sackResult.LocalAddr.Port(),
 					},
 					Destination: result.TracerouteDestination{
-						IP:   p.Target.Addr().AsSlice(),
-						Port: p.Target.Port(),
+						IPAddress: p.Target.Addr().AsSlice(),
+						Port:      p.Target.Port(),
 					},
 					Hops: hops,
 				},

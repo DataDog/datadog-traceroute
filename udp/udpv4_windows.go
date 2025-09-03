@@ -63,12 +63,12 @@ func (u *UDPv4) TracerouteSequential() (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IP:   u.srcIP,
-						Port: u.srcPort,
+						IPAddress: u.srcIP,
+						Port:      u.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IP:   u.Target,
-						Port: u.TargetPort,
+						IPAddress: u.Target,
+						Port:      u.TargetPort,
 					},
 					Hops: hops,
 				},

@@ -89,12 +89,12 @@ func (t *TCPv4) Traceroute() (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IP:   t.srcIP,
-						Port: t.srcPort,
+						IPAddress: t.srcIP,
+						Port:      t.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IP:   t.Target,
-						Port: t.DestPort,
+						IPAddress: t.Target,
+						Port:      t.DestPort,
 					},
 					Hops: hops,
 				},

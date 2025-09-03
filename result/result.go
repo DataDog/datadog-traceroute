@@ -68,14 +68,14 @@ type (
 	}
 	// TracerouteSource contains result source info
 	TracerouteSource struct {
-		IP   net.IP `json:"ip"`
-		Port uint16 `json:"port"`
+		IPAddress net.IP `json:"ip_address"`
+		Port      uint16 `json:"port"`
 	}
 
 	// TracerouteDestination contains result destination info
 	TracerouteDestination struct {
-		IP   net.IP `json:"ip"`
-		Port uint16 `json:"port"`
+		IPAddress net.IP `json:"ip_address"`
+		Port      uint16 `json:"port"`
 	}
 	// Params contains destination param info
 	Params struct {
