@@ -7,8 +7,8 @@
 package udp
 
 import (
+	"bytes"
 	"fmt"
-	"golang.org/x/net/ipv4"
 	"net"
 	"time"
 
@@ -61,27 +61,23 @@ func NewUDPv4(target net.IP, targetPort uint16, numPaths uint16, minTTL uint8, m
 	}
 }
 
-// Close doesn't to anything yet, but we should
-// use this to close out long running sockets
-// when we're done with a path test
-func (u *UDPv4) Close() error {
-	return nil
+const magic = "NSMNC"
+const magicLen = uint16(len(magic))
+
+func repeatMagic(packetLen uint16) []byte {
+	udpPayload := bytes.Repeat([]byte(magic), int(packetLen/magicLen)+1)[:packetLen]
+	return udpPayload
 }
 
 // createRawUDPBuffer creates a raw UDP packet with the specified parameters
-//
-// the nolint:unused is necessary because we don't yet use this outside the Windows implementation
-func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP net.IP, destPort uint16, ttl int) (uint16, []byte, uint16, error) { //nolint:unused
+func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP net.IP, destPort uint16, ttl uint8) (uint16, []byte, uint16, error) { //nolint:unused
 	// if this function is modified in a way that changes the size,
 	// update the NewSerializeBufferExpectedSize call in NewUDPv4
 	udpLayer := &layers.UDP{
 		SrcPort: layers.UDPPort(sourcePort),
 		DstPort: layers.UDPPort(destPort),
 	}
-	udpPayload := []byte("NSMNC\x00\x00\x00")
-	id := uint16(ttl) + destPort
-	udpPayload[6] = byte((id >> 8) & 0xff)
-	udpPayload[7] = byte(id & 0xff)
+	var id uint16
 
 	// TODO: compute checksum before serialization so we
 	// can set ID field of the IP header to detect NATs just
@@ -89,12 +85,13 @@ func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP ne
 	// the checksum computations and modifying the IP header after
 	// serialization would change its checksum
 	var ipLayer gopacket.SerializableLayer
+	var payload gopacket.Payload
 	if destIP.To4() != nil {
 		ipv4Layer := &layers.IPv4{
 			Version:  4,
 			Length:   20,
-			TTL:      uint8(ttl),
-			Id:       uint16(41821),
+			TTL:      ttl,
+			Id:       41821 + uint16(ttl),
 			Protocol: layers.IPProtocolUDP, // hard code UDP so other OSs can use it
 			DstIP:    destIP,
 			SrcIP:    sourceIP,
@@ -105,6 +102,12 @@ func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP ne
 			return 0, nil, 0, fmt.Errorf("failed to create packet checksum: %w", err)
 		}
 		ipLayer = ipv4Layer
+
+		id = ipv4Layer.Id
+		udpPayload := []byte("NSMNC\x00\x00\x00")
+		udpPayload[6] = byte((id >> 8) & 0xff)
+		udpPayload[7] = byte(id & 0xff)
+		payload = gopacket.Payload(udpPayload)
 	} else {
 		// Create IPv6 header
 		ipv6Layer := &layers.IPv6{
@@ -119,6 +122,11 @@ func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP ne
 			return 0, nil, 0, fmt.Errorf("failed to create packet checksum: %w", err)
 		}
 		ipLayer = ipv6Layer
+
+		packetLen := uint16(len(magic)) + uint16(ttl)
+		payload = gopacket.Payload(repeatMagic(packetLen))
+		const udpHeaderSize = 8
+		id = packetLen + udpHeaderSize
 	}
 	// clear the gopacket.SerializeBuffer
 	if len(u.buffer.Bytes()) > 0 {
@@ -130,19 +138,12 @@ func (u *UDPv4) createRawUDPBuffer(sourceIP net.IP, sourcePort uint16, destIP ne
 	err := gopacket.SerializeLayers(u.buffer, opts,
 		ipLayer,
 		udpLayer,
-		gopacket.Payload(udpPayload),
+		payload,
 	)
 	if err != nil {
 		return 0, nil, 0, fmt.Errorf("failed to serialize packet: %w", err)
 	}
 
 	packet := u.buffer.Bytes()
-	if destIP.To4() != nil {
-		var ipHdr ipv4.Header
-		if err := ipHdr.Parse(packet[:20]); err != nil {
-			return 0, nil, 0, fmt.Errorf("failed to parse IP header: %w", err)
-		}
-		id = uint16(ipHdr.ID)
-	}
 	return id, packet, udpLayer.Checksum, nil
 }

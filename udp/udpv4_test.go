@@ -26,7 +26,7 @@ func TestCreateRawUDPBuffer(t *testing.T) {
 	dstIP := net.ParseIP("5.6.7.8")
 	srcPort := uint16(12345)
 	dstPort := uint16(33434)
-	ttl := 4
+	ttl := uint8(4)
 
 	udp := NewUDPv4(dstIP, dstPort, 1, 1, 1, 0, 0)
 	udp.srcIP = srcIP
@@ -34,7 +34,7 @@ func TestCreateRawUDPBuffer(t *testing.T) {
 
 	expectedIPHeader := &ipv4.Header{
 		Version:  4,
-		TTL:      ttl, // this will be replaced for each test
+		TTL:      0, // this will be replaced for each test
 		ID:       41821,
 		Protocol: 17,
 		Dst:      dstIP,
