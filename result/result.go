@@ -2,6 +2,8 @@ package result
 
 import (
 	"net"
+
+	"github.com/google/uuid"
 )
 
 type (
@@ -45,6 +47,7 @@ type (
 
 	// TracerouteRun contains traceroute results for a single run
 	TracerouteRun struct {
+		RunID       string                `json:"run_id"`
 		Source      TracerouteSource      `json:"source"`
 		Destination TracerouteDestination `json:"destination"`
 		Hops        []*TracerouteHop      `json:"hops"`
@@ -88,11 +91,18 @@ type (
 
 // Normalize results
 func (r *Results) Normalize() {
-	r.normalizeHops()
+	r.normalizeTracerouteRuns()
+	r.normalizeTracerouteHops()
 	r.normalizeE2eProbe()
 }
 
-func (r *Results) normalizeHops() {
+func (r *Results) normalizeTracerouteRuns() {
+	for i := range r.Traceroute.Runs {
+		r.Traceroute.Runs[i].RunID = uuid.New().String()
+	}
+}
+
+func (r *Results) normalizeTracerouteHops() {
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := len(run.Hops)
