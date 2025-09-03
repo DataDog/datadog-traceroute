@@ -13,6 +13,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
@@ -24,6 +25,14 @@ func main() {
 	target := netip.MustParseAddrPort(os.Args[1])
 
 	cfg := udp.NewUDPv4(target.Addr().AsSlice(), target.Port(), 1, 1, 30, 10*time.Millisecond, 1*time.Second)
+
+	// start the driver outside of the agent
+	// this is for the windows driver
+	err := packets.StartDriver()
+	if err != nil {
+		fmt.Printf("Error starting driver: %s\n", err)
+		os.Exit(1)
+	}
 
 	results, err := cfg.Traceroute()
 	if err != nil {

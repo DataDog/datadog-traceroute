@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/sack"
 )
 
@@ -44,6 +45,14 @@ func main() {
 			},
 		},
 		LoosenICMPSrc: true,
+	}
+
+	// start the driver outside of the agent
+	// this is for the windows driver
+	err := packets.StartDriver()
+	if err != nil {
+		fmt.Printf("Error starting driver: %s\n", err)
+		os.Exit(1)
 	}
 
 	results, err := sack.RunSackTraceroute(context.Background(), cfg)

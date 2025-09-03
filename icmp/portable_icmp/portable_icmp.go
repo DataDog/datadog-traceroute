@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 func main() {
@@ -36,6 +37,14 @@ func main() {
 				SendDelay:         10 * time.Millisecond,
 			},
 		},
+	}
+
+	// start the driver outside of the agent
+	// this if for the windows driver
+	err := packets.StartDriver()
+	if err != nil {
+		fmt.Printf("Error starting driver: %s\n", err)
+		os.Exit(1)
 	}
 
 	results, err := icmp.RunICMPTraceroute(context.Background(), cfg)
