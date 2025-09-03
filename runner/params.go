@@ -8,6 +8,7 @@ import (
 
 type TracerouteParams struct {
 	Hostname                  string
+	Port                      int
 	Protocol                  string
 	TracerouteCount           int
 	MinTTL                    int
@@ -15,7 +16,6 @@ type TracerouteParams struct {
 	Delay                     int
 	Timeout                   time.Duration
 	TCPMethod                 traceroute.TCPMethod
-	DestinationPort           int
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool
 }

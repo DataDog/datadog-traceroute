@@ -20,17 +20,17 @@ import (
 )
 
 type args struct {
-	protocol     string
-	npaths       int
-	maxTTL       int
-	delay        int
-	outputFile   string
-	outputFormat string
-	timeout      int
-	tcpmethod    string
-	port         int
-	wantV6       bool
-	verbose      bool
+	protocol        string
+	tracerouteCount int
+	maxTTL          int
+	delay           int
+	outputFile      string
+	outputFormat    string
+	timeout         int
+	tcpmethod       string
+	port            int
+	wantV6          bool
+	verbose         bool
 }
 
 var Args args
@@ -90,7 +90,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVarP(&Args.protocol, "protocol", "p", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcpmethod", "m", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
-	rootCmd.Flags().IntVarP(&Args.npaths, "npaths", "n", common.DefaultNumPaths, "Number of paths to probe")
+	rootCmd.Flags().IntVarP(&Args.tracerouteCount, "traceroute-count", "c", common.DefaultNumPaths, "Number of paths to probe")
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "T", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().IntVarP(&Args.delay, "delay", "D", common.DefaultDelay, "Delay between packets (ms)")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "x", 0, "Timeout (ms)")
