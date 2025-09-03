@@ -50,14 +50,14 @@ var rootCmd = &cobra.Command{
 		log.SetVerbose(Args.verbose)
 
 		params := runner.TracerouteParams{
-			Hostname:        args[0],
-			DestinationPort: Args.port,
-			Protocol:        Args.protocol,
-			MaxTTL:          Args.maxTTL,
-			Delay:           Args.delay,
-			Timeout:         timeout,
-			TCPMethod:       traceroute.TCPMethod(Args.tcpmethod),
-			WantV6:          Args.wantV6,
+			Hostname:  args[0],
+			Port:      Args.port,
+			Protocol:  Args.protocol,
+			MaxTTL:    Args.maxTTL,
+			Delay:     Args.delay,
+			Timeout:   timeout,
+			TCPMethod: traceroute.TCPMethod(Args.tcpmethod),
+			WantV6:    Args.wantV6,
 		}
 
 		results, err := runner.RunTraceroute(cmd.Context(), params)
