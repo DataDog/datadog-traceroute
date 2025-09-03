@@ -19,6 +19,18 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
+const (
+	DefaultNetworkPathTimeout = 3000
+	DefaultTraceroutePort     = 33434
+	DefaultNumPaths           = 1
+	DefaultMinTTL             = 1
+	DefaultMaxTTL             = 30
+	DefaultDelay              = 50 //msec
+	DefaultOutputFormat       = "json"
+	DefaultProtocol           = "udp"
+	DefaultTcpMethod          = "syn"
+)
+
 type (
 	// CanceledError is sent when a listener
 	// is canceled

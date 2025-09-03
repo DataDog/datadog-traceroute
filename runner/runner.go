@@ -22,6 +22,11 @@ import (
 func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
 	var results *result.Results
 
+	destinationPort := params.DestinationPort
+	if destinationPort == 0 {
+		destinationPort = common.DefaultTraceroutePort
+	}
+
 	switch params.Protocol {
 	case "udp":
 		target, err := parseTarget(params.Hostname, params.DestinationPort, params.WantV6)

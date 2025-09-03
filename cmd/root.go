@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/runner"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/spf13/cobra"
@@ -33,18 +34,6 @@ type args struct {
 	verbose      bool
 }
 
-const (
-	DefaultNetworkPathTimeout = 3000
-	DefaultUDPDestPort        = 33434
-	DefaultNumPaths           = 1
-	DefaultMinTTL             = 1
-	DefaultMaxTTL             = 30
-	DefaultDelay              = 50 //msec
-	DefaultOutputFormat       = "json"
-	DefaultProtocol           = "udp"
-	DefaultTcpMethod          = "syn"
-)
-
 var Args args
 
 var rootCmd = &cobra.Command{
@@ -54,7 +43,7 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var timeout time.Duration
 		if Args.timeout == 0 {
-			timeout = DefaultNetworkPathTimeout * time.Millisecond
+			timeout = common.DefaultNetworkPathTimeout * time.Millisecond
 		} else {
 			timeout = time.Duration(Args.timeout) * time.Millisecond
 		}
@@ -101,16 +90,16 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&Args.protocol, "protocol", "p", DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
-	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcpmethod", "m", DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
-	rootCmd.Flags().IntVarP(&Args.npaths, "npaths", "n", DefaultNumPaths, "Number of paths to probe")
-	rootCmd.Flags().IntVarP(&Args.minTTL, "min-ttl", "t", DefaultMinTTL, "Minimum TTL")
-	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "T", DefaultMaxTTL, "Maximum TTL")
-	rootCmd.Flags().IntVarP(&Args.delay, "delay", "D", DefaultDelay, "Delay between packets (ms)")
+	rootCmd.Flags().StringVarP(&Args.protocol, "protocol", "p", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
+	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcpmethod", "m", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
+	rootCmd.Flags().IntVarP(&Args.npaths, "npaths", "n", common.DefaultNumPaths, "Number of paths to probe")
+	rootCmd.Flags().IntVarP(&Args.minTTL, "min-ttl", "t", common.DefaultMinTTL, "Minimum TTL")
+	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "T", common.DefaultMaxTTL, "Maximum TTL")
+	rootCmd.Flags().IntVarP(&Args.delay, "delay", "D", common.DefaultDelay, "Delay between packets (ms)")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "x", 0, "Timeout (ms)")
-	rootCmd.Flags().IntVarP(&Args.dport, "dport", "d", DefaultUDPDestPort, "the base destination port to send packets to")
+	rootCmd.Flags().IntVarP(&Args.dport, "dport", "d", common.DefaultTraceroutePort, "the base destination port to send packets to")
 	rootCmd.Flags().StringVarP(&Args.outputFile, "output-file", "o", "", "Output file name (or '-' for stdout)")
-	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", DefaultOutputFormat, "Output format (json)")
+	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", common.DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 }
