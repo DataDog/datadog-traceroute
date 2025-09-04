@@ -1,6 +1,7 @@
 package result
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -39,6 +40,7 @@ func TestResults_Normalize(t *testing.T) {
 				Traceroute: Traceroute{
 					Runs: []TracerouteRun{
 						{
+							RunID: "id-0",
 							Hops: []*TracerouteHop{
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 10},
 								{},
@@ -47,6 +49,7 @@ func TestResults_Normalize(t *testing.T) {
 							},
 						},
 						{
+							RunID: "id-1",
 							Hops: []*TracerouteHop{
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 10},
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 20},
@@ -98,6 +101,7 @@ func TestResults_Normalize(t *testing.T) {
 				Traceroute: Traceroute{
 					Runs: []TracerouteRun{
 						{
+							RunID: "id-0",
 							Hops: []*TracerouteHop{
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 10},
 								{},
@@ -106,6 +110,7 @@ func TestResults_Normalize(t *testing.T) {
 							},
 						},
 						{
+							RunID: "id-1",
 							Hops: []*TracerouteHop{
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 10},
 								{IPAddress: net.IP{10, 10, 10, 10}, Rtt: 20},
@@ -131,6 +136,10 @@ func TestResults_Normalize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.Results.Normalize()
+			for i := range tt.Results.Traceroute.Runs {
+				assert.NotEmpty(t, tt.Results.Traceroute.Runs[i].RunID)
+				tt.Results.Traceroute.Runs[i].RunID = fmt.Sprintf("id-%d", i)
+			}
 			assert.Equal(t, tt.ExpectedResults, tt.Results)
 		})
 	}
