@@ -101,7 +101,7 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 		control := ipv6.ControlMessage{
 			HopLimit: int(ttl),
 		}
-		return unix.Sendmsg(p.fd, sendBuf, control.Marshal(), sa, 0)
+		return unix.Sendmsg(p.fd, sendBuf, control.Marshal(), sa, unix.MSG_OOB)
 	default:
 		return fmt.Errorf("invalid address family %s", addr)
 	}
