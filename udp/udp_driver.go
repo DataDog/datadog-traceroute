@@ -19,10 +19,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/packets"
 )
 
-type probeID struct {
-	packetID uint16
-	checksum uint16
-}
+type probeID uint16
 type probeData struct {
 	sendTime time.Time
 	ttl      uint8
@@ -99,12 +96,12 @@ func (u *udpDriver) GetDriverInfo() common.TracerouteDriverInfo {
 
 // SendProbe sends a traceroute packet with a specific TTL
 func (u *udpDriver) SendProbe(ttl uint8) error {
-	id, buffer, checksum, err := u.config.createRawUDPBuffer(u.config.srcIP, u.config.srcPort, u.config.Target, u.config.TargetPort, int(ttl))
+	id, buffer, checksum, err := u.config.createRawUDPBuffer(u.config.srcIP, u.config.srcPort, u.config.Target, u.config.TargetPort, ttl)
 	if err != nil {
 		return fmt.Errorf("udpDriver SendProbe failed to createRawUDPBuffer: %w", err)
 	}
 
-	probeID := probeID{packetID: id, checksum: checksum}
+	probeID := probeID(id)
 	data := probeData{sendTime: time.Now(), ttl: ttl}
 	log.Tracef("sending probe with ttl=%d, packetID=%d, checksum=%d", ttl, id, checksum)
 	ok := u.storeProbe(probeID, data)
@@ -173,14 +170,10 @@ func (u *udpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
 			return nil, common.ErrPacketDidNotMatchTraceroute
 		}
 
-		id := icmpInfo.WrappedPacketID
-		if icmpDst.Addr().Is6() {
-			id = udpInfo.ID
-		}
-		probeID := probeID{packetID: id, checksum: udpInfo.Checksum}
-		probe, _ = u.findMatchingProbe(probeID)
+		packetID := probeID(icmpInfo.WrappedPacketID)
+		probe, _ = u.findMatchingProbe(packetID)
 		if probe == (probeData{}) {
-			log.Warnf("couldn't find probe matching packetID=%d and checksum=%d", probeID.packetID, probeID.checksum)
+			log.Warnf("couldn't find probe matching packetID=%d", packetID)
 		}
 	default:
 		return nil, common.ErrPacketDidNotMatchTraceroute

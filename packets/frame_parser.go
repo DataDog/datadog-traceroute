@@ -183,7 +183,6 @@ func SerializeTCPFirstBytes(tcp TCPInfo) []byte {
 
 // UDPInfo is the info we get back from ICMP exceeded payload in a UDP probe.
 type UDPInfo struct {
-	ID       uint16
 	SrcPort  uint16
 	DstPort  uint16
 	Length   uint16
@@ -201,17 +200,11 @@ func ParseUDPFirstBytes(buffer []byte) (UDPInfo, error) {
 		Length:   binary.BigEndian.Uint16(buffer[4:6]),
 		Checksum: binary.BigEndian.Uint16(buffer[6:8]),
 	}
-	// Check for minimum payload length for NSMNC + 2-byte ID
-	if len(buffer) >= 16 && string(buffer[8:13]) == "NSMNC" {
-		idHigh := buffer[14]
-		idLow := buffer[15]
-		udp.ID = (uint16(idHigh) << 8) | uint16(idLow)
-	}
 
 	return udp, nil
 }
 
-// WriteUDPFirstBytes writes the first 8 bytes of a UDP packet and optional "NSMNC" payload with ID.
+// WriteUDPFirstBytes writes the first 8 bytes of a UDP packet
 func WriteUDPFirstBytes(udp UDPInfo) []byte {
 	buffer := make([]byte, 8)
 
@@ -219,14 +212,6 @@ func WriteUDPFirstBytes(udp UDPInfo) []byte {
 	binary.BigEndian.PutUint16(buffer[2:4], udp.DstPort)
 	binary.BigEndian.PutUint16(buffer[4:6], udp.Length)
 	binary.BigEndian.PutUint16(buffer[6:8], udp.Checksum)
-
-	// If ID is set, append "NSMNC" and the ID as 2 bytes
-	if udp.ID != 0 {
-		payload := []byte("NSMNC\x00")             // pad to 6 bytes first
-		payload = append(payload, byte(udp.ID>>8)) // high byte
-		payload = append(payload, byte(udp.ID))    // low byte
-		buffer = append(buffer, payload...)
-	}
 
 	return buffer
 }
@@ -298,10 +283,15 @@ func (p *FrameParser) GetICMPInfo() (ICMPInfo, error) {
 		if err != nil {
 			return ICMPInfo{}, fmt.Errorf("GetICMPInfo failed to decode inner packet: %w", err)
 		}
+		wrappedPktID := uint16(0)
+		if innerPkt.NextHeader == layers.IPProtocolUDP {
+			wrappedPktID = innerPkt.Length
+		}
 		icmpInfo := ICMPInfo{
-			IPPair:   ipPair,
-			ICMPPair: getIPv6Pair(&innerPkt),
-			Payload:  slices.Clone(innerPkt.Payload),
+			IPPair:          ipPair,
+			WrappedPacketID: wrappedPktID,
+			ICMPPair:        getIPv6Pair(&innerPkt),
+			Payload:         slices.Clone(innerPkt.Payload),
 		}
 		return icmpInfo, nil
 	default:
