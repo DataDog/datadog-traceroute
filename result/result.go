@@ -11,7 +11,7 @@ type (
 	Results struct {
 		Params     Params     `json:"params"`
 		Traceroute Traceroute `json:"traceroute"`
-		E2eProbe   *E2eProbe  `json:"e2e_probe"`
+		E2eProbe   E2eProbe   `json:"e2e_probe"`
 		Tags       []string   `json:"tags"`
 	}
 
@@ -51,7 +51,6 @@ type (
 		Source      TracerouteSource      `json:"source"`
 		Destination TracerouteDestination `json:"destination"`
 		Hops        []*TracerouteHop      `json:"hops"`
-		E2eProbe    *E2eProbe             `json:"e2e_probe"`
 	}
 
 	// TracerouteHop encapsulates information about a single
@@ -89,35 +88,6 @@ type (
 		Port     int    `json:"port"`
 	}
 )
-
-func NewE2eProbe(packetsSent int, rtts []float64) *E2eProbe {
-	// TODO: TEST ME
-	minRtt := 0.0
-	maxRtt := 0.0
-	totalRtt := 0.0
-	for _, rtt := range rtts {
-		if rtt < minRtt {
-			minRtt = rtt
-		}
-		if rtt > maxRtt || maxRtt == 0.0 {
-			maxRtt = rtt
-		}
-		totalRtt += rtt
-	}
-	packetsReceived := len(rtts)
-	return &E2eProbe{
-		PacketsReceived:      packetsReceived,
-		PacketsSent:          packetsSent,
-		PacketLossPercentage: float32(packetsReceived) / float32(packetsSent),
-		Jitter:               0,
-		Rtt: E2eProbeRttLatency{
-			Avg: totalRtt / float64(len(rtts)),
-			Min: minRtt,
-			Max: maxRtt,
-		},
-		Rtts: rtts,
-	}
-}
 
 // Normalize results
 func (r *Results) Normalize() {
@@ -165,25 +135,28 @@ func (r *Results) normalizeTracerouteHops() {
 }
 
 func (r *Results) normalizeE2eProbe() {
-	var allRtts []float64
-	var totalReceived int
-	for i := range r.Traceroute.Runs {
-		run := &r.Traceroute.Runs[i]
-		run.RunID = uuid.New().String()
+	r.E2eProbe.Rtts = []float64{}
 
-		destHop := run.getDestinationHop()
-		packetReceived := 0
-		var rtts []float64
-		if destHop != nil {
-			packetReceived = 1
-			rtts = []float64{destHop.Rtt}
-		}
-		run.E2eProbe = NewE2eProbe(packetReceived, rtts)
-
-		allRtts = append(allRtts, rtts...)
-		totalReceived += packetReceived
+	// TODO: Replace with "50x e2e probe impl"
+	//       Right now, we temporarily use single Traceroute data to fill e2e probe
+	if len(r.Traceroute.Runs) == 0 {
+		return
 	}
-	r.E2eProbe = NewE2eProbe(totalReceived, allRtts)
+	tracerouteRun := r.Traceroute.Runs[0]
+
+	r.E2eProbe.PacketsSent = 1
+
+	destHop := tracerouteRun.getDestinationHop()
+	if destHop == nil {
+		r.E2eProbe.PacketLossPercentage = 1
+		return
+	}
+	r.E2eProbe.Rtt.Avg = destHop.Rtt
+	r.E2eProbe.Rtt.Min = destHop.Rtt
+	r.E2eProbe.Rtt.Max = destHop.Rtt
+	r.E2eProbe.PacketsReceived = 1
+	r.E2eProbe.PacketLossPercentage = 0
+	r.E2eProbe.Rtts = []float64{destHop.Rtt}
 }
 
 func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {
