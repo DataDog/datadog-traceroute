@@ -70,7 +70,6 @@ type (
 	}
 	// TracerouteSource contains result source info
 	TracerouteSource struct {
-		// TODO: FIX ME, use string instead of net.IP
 		IPAddress net.IP `json:"ip_address"`
 		Port      uint16 `json:"port"`
 	}
