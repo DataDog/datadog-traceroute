@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/netip"
 
+	"golang.org/x/net/ipv6"
 	"golang.org/x/sys/unix"
 )
 
@@ -70,14 +71,13 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 		return err
 	}
 
-	var sendBuf []byte
 	switch {
 	case addr.Addr().Is4():
 		if len(buf) > len(p.writeBuf) {
 			return fmt.Errorf("sinkDarwin WriteTo failed because packet is too large (couldn't copy)")
 		}
 		// IPv4: send it using IP_HDRINCL
-		sendBuf = p.writeBuf[:len(buf)]
+		sendBuf := p.writeBuf[:len(buf)]
 		copy(sendBuf, buf)
 		const ipv4MinSize = 20
 		if len(sendBuf) < ipv4MinSize {
@@ -90,25 +90,21 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 		const ip_offOffset = 6
 		updateNtohs16(sendBuf[ip_lenOffset : ip_lenOffset+2])
 		updateNtohs16(sendBuf[ip_offOffset : ip_offOffset+2])
+
+		return unix.Sendto(p.fd, sendBuf, 0, sa)
 	case addr.Addr().Is6():
 		// IPv6: darwin has no IPV6_HDRINCL, so we need to strip the IPv6 header
-		var ttl uint8
-		sendBuf, ttl, err = stripIPv6Header(buf)
+		sendBuf, ttl, err := stripIPv6Header(buf)
 		if err != nil {
 			return fmt.Errorf("failed to strip IPv6 header: %w", err)
 		}
-		// set the TTL via IPV6_HOPLIMIT
-		err = unix.SetsockoptInt(p.fd, unix.IPPROTO_IPV6, unix.IPV6_HOPLIMIT, int(ttl))
-		if err != nil {
-			return fmt.Errorf("failed to set IPV6_HOPLIMIT: %w", err)
+		control := ipv6.ControlMessage{
+			HopLimit: int(ttl),
 		}
+		return unix.Sendmsg(p.fd, sendBuf, control.Marshal(), sa, 0)
 	default:
 		return fmt.Errorf("invalid address family %s", addr)
 	}
-
-	err = unix.Sendto(p.fd, sendBuf, 0, sa)
-
-	return err
 }
 
 // Close closes the socket
