@@ -96,10 +96,10 @@ func NewE2eProbe(packetsSent int, rtts []float64) *E2eProbe {
 	maxRtt := 0.0
 	totalRtt := 0.0
 	for _, rtt := range rtts {
-		if rtt < minRtt || maxRtt == 0.0 {
+		if rtt < minRtt {
 			minRtt = rtt
 		}
-		if rtt > maxRtt {
+		if rtt > maxRtt || maxRtt == 0.0 {
 			maxRtt = rtt
 		}
 		totalRtt += rtt
