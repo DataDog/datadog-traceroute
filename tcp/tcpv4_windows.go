@@ -72,7 +72,6 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
 				},
 			},
 		},
-		Tags: []string{"tcp_method:syn_socket"},
 	}, nil
 }
 
@@ -158,7 +157,6 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 				},
 			},
 		},
-		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}, nil
 }
 

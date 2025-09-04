@@ -12,7 +12,6 @@ type (
 		Params     Params     `json:"params"`
 		Traceroute Traceroute `json:"traceroute"`
 		E2eProbe   E2eProbe   `json:"e2e_probe"`
-		Tags       []string   `json:"tags"`
 	}
 
 	// E2eProbe contains e2e probe results
@@ -94,10 +93,6 @@ func (r *Results) Normalize() {
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeE2eProbe()
-
-	if r.Tags == nil {
-		r.Tags = []string{}
-	}
 }
 
 func (r *Results) normalizeTracerouteRuns() {

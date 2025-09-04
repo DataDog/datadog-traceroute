@@ -227,7 +227,6 @@ func RunSackTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 				},
 			},
 		},
-		Tags: []string{"tcp_method:sack"},
 	}
 
 	return result, nil

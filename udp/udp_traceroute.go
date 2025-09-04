@@ -85,8 +85,6 @@ func (u *UDPv4) Traceroute() (*result.Results, error) {
 				},
 			},
 		},
-
-		Tags: nil,
 	}
 
 	return result, nil

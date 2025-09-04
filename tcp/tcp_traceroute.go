@@ -100,7 +100,6 @@ func (t *TCPv4) Traceroute() (*result.Results, error) {
 				},
 			},
 		},
-		Tags: []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
 	}
 
 	return result, nil
