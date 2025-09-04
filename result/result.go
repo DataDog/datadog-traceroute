@@ -94,6 +94,10 @@ func (r *Results) Normalize() {
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeE2eProbe()
+
+	if r.Tags == nil {
+		r.Tags = []string{}
+	}
 }
 
 func (r *Results) normalizeTracerouteRuns() {
