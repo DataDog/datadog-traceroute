@@ -117,7 +117,6 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 				},
 			},
 		},
-		Tags: []string{"icmp"},
 	}
 
 	return result, nil

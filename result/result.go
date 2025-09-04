@@ -12,7 +12,6 @@ type (
 		Params     Params     `json:"params"`
 		Traceroute Traceroute `json:"traceroute"`
 		E2eProbe   E2eProbe   `json:"e2e_probe"`
-		Tags       []string   `json:"tags"`
 	}
 
 	// E2eProbe contains e2e probe results
@@ -71,7 +70,6 @@ type (
 	}
 	// TracerouteSource contains result source info
 	TracerouteSource struct {
-		// TODO: FIX ME, use string instead of net.IP
 		IPAddress net.IP `json:"ip_address"`
 		Port      uint16 `json:"port"`
 	}
