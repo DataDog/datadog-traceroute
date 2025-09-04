@@ -97,8 +97,8 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "RTT")))
-			assert.Greater(t, actual.Rtt, float64(0))
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "Rtt")))
+			assert.Greater(t, actual.RTT, float64(0))
 		})
 	}
 }
