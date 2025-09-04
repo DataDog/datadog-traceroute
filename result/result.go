@@ -17,16 +17,16 @@ type (
 
 	// E2eProbe contains e2e probe results
 	E2eProbe struct {
-		Rtts                 []float64          `json:"rtts"`
-		PacketsSent          int                `json:"packets_sent"`
-		PacketsReceived      int                `json:"packets_received"`
-		PacketLossPercentage float32            `json:"packet_loss_percentage"`
-		Jitter               float64            `json:"jitter"`
-		Rtt                  E2eProbeRttLatency `json:"rtt"`
+		RTTs                 []float64   `json:"rtts"`
+		PacketsSent          int         `json:"packets_sent"`
+		PacketsReceived      int         `json:"packets_received"`
+		PacketLossPercentage float32     `json:"packet_loss_percentage"`
+		Jitter               float64     `json:"jitter"`
+		RTT                  E2eProbeRTT `json:"rtt"`
 	}
 
-	// E2eProbeRttLatency contains e2e latency stats
-	E2eProbeRttLatency struct {
+	// E2eProbeRTT contains e2e latency stats
+	E2eProbeRTT struct {
 		Avg float64 `json:"avg"`
 		Min float64 `json:"min"`
 		Max float64 `json:"max"`
@@ -58,7 +58,7 @@ type (
 	TracerouteHop struct {
 		TTL       int     `json:"ttl"`
 		IPAddress net.IP  `json:"ip_address"`
-		Rtt       float64 `json:"rtt"`
+		RTT       float64 `json:"rtt"`
 		Reachable bool    `json:"reachable"`
 
 		// Internal use
@@ -135,7 +135,7 @@ func (r *Results) normalizeTracerouteHops() {
 }
 
 func (r *Results) normalizeE2eProbe() {
-	r.E2eProbe.Rtts = []float64{}
+	r.E2eProbe.RTTs = []float64{}
 
 	// TODO: Replace with "50x e2e probe impl"
 	//       Right now, we temporarily use single Traceroute data to fill e2e probe
@@ -151,12 +151,12 @@ func (r *Results) normalizeE2eProbe() {
 		r.E2eProbe.PacketLossPercentage = 1
 		return
 	}
-	r.E2eProbe.Rtt.Avg = destHop.Rtt
-	r.E2eProbe.Rtt.Min = destHop.Rtt
-	r.E2eProbe.Rtt.Max = destHop.Rtt
+	r.E2eProbe.RTT.Avg = destHop.RTT
+	r.E2eProbe.RTT.Min = destHop.RTT
+	r.E2eProbe.RTT.Max = destHop.RTT
 	r.E2eProbe.PacketsReceived = 1
 	r.E2eProbe.PacketLossPercentage = 0
-	r.E2eProbe.Rtts = []float64{destHop.Rtt}
+	r.E2eProbe.RTTs = []float64{destHop.RTT}
 }
 
 func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {

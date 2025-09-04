@@ -162,7 +162,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 		Port:      resp.Port,
 		ICMPType:  resp.Type,
 		ICMPCode:  resp.Code,
-		Rtt:       common.ConvertDurationToMs(rtt),
+		RTT:       common.ConvertDurationToMs(rtt),
 		IsDest:    resp.IP.Equal(t.Target),
 	}, nil
 }

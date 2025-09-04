@@ -54,7 +54,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockHopIP:   net.IP{},
 			expected: &result.TracerouteHop{
 				IP:     net.IP{},
-				Rtt:    0, // RTT should be zero
+				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
 		},
@@ -96,9 +96,9 @@ func TestSendAndReceive(t *testing.T) {
 			require.NoError(t, err)
 			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "Rtt")))
 			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
-				assert.Greater(t, actual.Rtt, float64(0))
+				assert.Greater(t, actual.RTT, float64(0))
 			} else {
-				assert.Equal(t, actual.Rtt, float64(0))
+				assert.Equal(t, actual.RTT, float64(0))
 			}
 		})
 	}
@@ -138,7 +138,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPCode: 0,
 			expected: &result.TracerouteHop{
 				IP:     net.IP{},
-				Rtt:    0, // RTT should be zero
+				RTT:    0, // RTT should be zero
 				IsDest: false,
 			},
 		},

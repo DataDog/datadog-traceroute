@@ -142,7 +142,7 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 		}
 		if probe != nil {
 			hops[i].IPAddress = probe.IP.AsSlice()
-			hops[i].Rtt = ConvertDurationToMs(probe.RTT)
+			hops[i].RTT = ConvertDurationToMs(probe.RTT)
 			hops[i].IsDest = probe.IsDest
 
 			if !hops[i].IPAddress.Equal(net.IP{}) {
