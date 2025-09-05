@@ -16,13 +16,14 @@ import (
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
 // TracerouteSequentialSocket runs a traceroute sequentially where a packet is
 // sent and we wait for a response before sending the next packet
 // This method uses socket options to set the TTL and get the hop IP
-func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
+func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
@@ -34,7 +35,7 @@ func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
 	t.srcIP = addr.IP
 	t.srcPort = addr.AddrPort().Port()
 
-	hops := make([]*common.Hop, 0, int(t.MaxTTL-t.MinTTL)+1)
+	hops := make([]*result.TracerouteHop, 0, int(t.MaxTTL-t.MinTTL)+1)
 
 	for i := int(t.MinTTL); i <= int(t.MaxTTL); i++ {
 		s, err := winconn.NewConn()
@@ -55,17 +56,26 @@ func (t *TCPv4) TracerouteSequentialSocket() (*common.Results, error) {
 		}
 	}
 
-	return &common.Results{
-		Source:     t.srcIP,
-		SourcePort: t.srcPort,
-		Target:     t.Target,
-		DstPort:    t.DestPort,
-		Hops:       hops,
-		Tags:       []string{"tcp_method:syn_socket"},
+	return &result.Results{
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{
+				{
+					Source: result.TracerouteSource{
+						IPAddress: t.srcIP,
+						Port:      t.srcPort,
+					},
+					Destination: result.TracerouteDestination{
+						IPAddress: t.Target,
+						Port:      t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
+		},
 	}, nil
 }
 
-func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout time.Duration) (*common.Hop, error) {
+func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
 	// set the TTL
 	err := s.SetTTL(ttl)
 	if err != nil {
@@ -84,19 +94,19 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 		rtt = end.Sub(start)
 	}
 
-	return &common.Hop{
-		IP:       hopIP,
-		Port:     0, // TODO: fix this
-		ICMPType: icmpType,
-		ICMPCode: icmpCode,
-		RTT:      rtt,
-		IsDest:   hopIP.Equal(t.Target),
+	return &result.TracerouteHop{
+		IPAddress: hopIP,
+		Port:      0, // TODO: fix this
+		ICMPType:  icmpType,
+		ICMPCode:  icmpCode,
+		RTT:       common.ConvertDurationToMs(rtt),
+		IsDest:    hopIP.Equal(t.Target),
 	}, nil
 }
 
 // TracerouteSequential runs a traceroute sequentially where a packet is
 // sent and we wait for a response before sending the next packet
-func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
+func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
@@ -114,7 +124,7 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 	}
 	defer rs.Close()
 
-	hops := make([]*common.Hop, 0, int(t.MaxTTL-t.MinTTL)+1)
+	hops := make([]*result.TracerouteHop, 0, int(t.MaxTTL-t.MinTTL)+1)
 
 	for i := int(t.MinTTL); i <= int(t.MaxTTL); i++ {
 		seqNumber, packetID := t.nextSeqNumAndPacketID()
@@ -131,17 +141,26 @@ func (t *TCPv4) TracerouteSequential() (*common.Results, error) {
 		}
 	}
 
-	return &common.Results{
-		Source:     t.srcIP,
-		SourcePort: t.srcPort,
-		Target:     t.Target,
-		DstPort:    t.DestPort,
-		Hops:       hops,
-		Tags:       []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
+	return &result.Results{
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{
+				{
+					Source: result.TracerouteSource{
+						IPAddress: t.srcIP,
+						Port:      t.srcPort,
+					},
+					Destination: result.TracerouteDestination{
+						IPAddress: t.Target,
+						Port:      t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
+		},
 	}, nil
 }
 
-func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*common.Hop, error) {
+func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32, packetID uint16, timeout time.Duration) (*result.TracerouteHop, error) {
 	_, buffer, _, err := t.createRawTCPSynBuffer(packetID, seqNum, ttl)
 	if err != nil {
 		log.Errorf("failed to create TCP packet with TTL: %d, error: %s", ttl, err.Error())
@@ -172,11 +191,11 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 		rtt = end.Sub(start)
 	}
 
-	return &common.Hop{
-		IP:       hopIP,
-		Port:     0, // TODO: fix this
-		ICMPType: 0, // TODO: fix this
-		RTT:      rtt,
-		IsDest:   hopIP.Equal(t.Target),
+	return &result.TracerouteHop{
+		IPAddress: hopIP,
+		Port:      0, // TODO: fix this
+		ICMPType:  0, // TODO: fix this
+		RTT:       common.ConvertDurationToMs(rtt),
+		IsDest:    hopIP.Equal(t.Target),
 	}, nil
 }

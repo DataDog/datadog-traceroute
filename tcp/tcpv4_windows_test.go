@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/winconn"
 )
 
@@ -35,7 +35,7 @@ func TestSendAndReceive(t *testing.T) {
 		mockHopIP       net.IP
 		mockEnd         time.Time
 		mockListenError error
-		expected        *common.Hop
+		expected        *result.TracerouteHop
 		errMsg          string
 	}{
 		{
@@ -52,28 +52,28 @@ func TestSendAndReceive(t *testing.T) {
 			description: "successful send and receive, hop not found",
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.IP{},
-			expected: &common.Hop{
-				IP:     net.IP{},
-				RTT:    0, // RTT should be zero
-				IsDest: false,
+			expected: &result.TracerouteHop{
+				IPAddress: net.IP{},
+				RTT:       0, // RTT should be zero
+				IsDest:    false,
 			},
 		},
 		{
 			description: "successful send and receive, hop found",
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.ParseIP("7.8.9.0"),
-			expected: &common.Hop{
-				IP:     net.ParseIP("7.8.9.0"),
-				IsDest: false,
+			expected: &result.TracerouteHop{
+				IPAddress: net.ParseIP("7.8.9.0"),
+				IsDest:    false,
 			},
 		},
 		{
 			description: "successful send and receive, destination hop found",
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   dstIP,
-			expected: &common.Hop{
-				IP:     dstIP,
-				IsDest: true,
+			expected: &result.TracerouteHop{
+				IPAddress: dstIP,
+				IsDest:    true,
 			},
 		},
 	}
@@ -94,11 +94,11 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.Hop{}, "RTT")))
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "RTT")))
 			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
-				assert.Greater(t, actual.RTT, time.Duration(0))
+				assert.Greater(t, actual.RTT, float64(0))
 			} else {
-				assert.Equal(t, actual.RTT, time.Duration(0))
+				assert.Equal(t, actual.RTT, float64(0))
 			}
 		})
 	}
@@ -117,7 +117,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 		mockSetTTLError error
 		mockICMPType    uint8
 		mockICMPCode    uint8
-		expected        *common.Hop
+		expected        *result.TracerouteHop
 		errMsg          string
 	}{
 		{
@@ -136,10 +136,10 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockHopIP:    net.IP{},
 			mockICMPType: 0,
 			mockICMPCode: 0,
-			expected: &common.Hop{
-				IP:     net.IP{},
-				RTT:    0, // RTT should be zero
-				IsDest: false,
+			expected: &result.TracerouteHop{
+				IPAddress: net.IP{},
+				RTT:       0, // RTT should be zero
+				IsDest:    false,
 			},
 		},
 		{
@@ -148,9 +148,9 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockHopIP:    net.ParseIP("7.8.9.0"),
 			mockICMPType: 0,
 			mockICMPCode: 0,
-			expected: &common.Hop{
-				IP:     net.ParseIP("7.8.9.0"),
-				IsDest: false,
+			expected: &result.TracerouteHop{
+				IPAddress: net.ParseIP("7.8.9.0"),
+				IsDest:    false,
 			},
 		},
 		{
@@ -159,9 +159,9 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockHopIP:    dstIP,
 			mockICMPType: 0,
 			mockICMPCode: 0,
-			expected: &common.Hop{
-				IP:     dstIP,
-				IsDest: true,
+			expected: &result.TracerouteHop{
+				IPAddress: dstIP,
+				IsDest:    true,
 			},
 		},
 	}
@@ -183,11 +183,11 @@ func TestSendAndReceiveSocket(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.Hop{}, "RTT")))
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "RTT")))
 			if !test.mockHopIP.Equal(net.IP{}) { // only if we get a hop IP back should RTT be >0
-				assert.Greater(t, actual.RTT, time.Duration(0))
+				assert.Greater(t, actual.RTT, float64(0))
 			} else {
-				assert.Equal(t, actual.RTT, time.Duration(0))
+				assert.Equal(t, actual.RTT, float64(0))
 			}
 		})
 	}

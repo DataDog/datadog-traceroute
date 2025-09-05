@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Params is the ICMP traceroute parameters
@@ -90,7 +91,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 }
 
 // RunICMPTraceroute fully executes a ICMP traceroute using the given parameters
-func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
+func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 	icmpResult, err := runICMPTraceroute(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("icmp traceroute failed: %w", err)
@@ -101,12 +102,21 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 		return nil, fmt.Errorf("icmp traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		Source:     icmpResult.LocalAddr.Addr().AsSlice(),
-		SourcePort: icmpResult.LocalAddr.Port(),
-		Target:     p.Target.AsSlice(),
-		Hops:       hops,
-		Tags:       []string{"icmp"},
+	result := &result.Results{
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{
+				{
+					Source: result.TracerouteSource{
+						IPAddress: icmpResult.LocalAddr.Addr().AsSlice(),
+						Port:      icmpResult.LocalAddr.Port(),
+					},
+					Destination: result.TracerouteDestination{
+						IPAddress: p.Target.AsSlice(),
+					},
+					Hops: hops,
+				},
+			},
+		},
 	}
 
 	return result, nil

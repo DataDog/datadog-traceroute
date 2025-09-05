@@ -13,10 +13,11 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Traceroute runs a TCP traceroute
-func (t *TCPv4) Traceroute() (*common.Results, error) {
+func (t *TCPv4) Traceroute() (*result.Results, error) {
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
@@ -83,13 +84,22 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 		return nil, fmt.Errorf("SYN traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		Source:     t.srcIP,
-		SourcePort: t.srcPort,
-		Target:     t.Target,
-		DstPort:    t.DestPort,
-		Hops:       hops,
-		Tags:       []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
+	result := &result.Results{
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{
+				{
+					Source: result.TracerouteSource{
+						IPAddress: t.srcIP,
+						Port:      t.srcPort,
+					},
+					Destination: result.TracerouteDestination{
+						IPAddress: t.Target,
+						Port:      t.DestPort,
+					},
+					Hops: hops,
+				},
+			},
+		},
 	}
 
 	return result, nil
