@@ -107,11 +107,11 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IPAddress: icmpResult.LocalAddr.Addr().AsSlice(),
+						IpAddress: icmpResult.LocalAddr.Addr().AsSlice(),
 						Port:      icmpResult.LocalAddr.Port(),
 					},
 					Destination: result.TracerouteDestination{
-						IPAddress: p.Target.AsSlice(),
+						IpAddress: p.Target.AsSlice(),
 					},
 					Hops: hops,
 				},

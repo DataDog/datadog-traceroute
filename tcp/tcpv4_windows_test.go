@@ -53,7 +53,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.IP{},
 			expected: &result.TracerouteHop{
-				IPAddress: net.IP{},
+				IpAddress: net.IP{},
 				RTT:       0, // RTT should be zero
 				IsDest:    false,
 			},
@@ -63,7 +63,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   net.ParseIP("7.8.9.0"),
 			expected: &result.TracerouteHop{
-				IPAddress: net.ParseIP("7.8.9.0"),
+				IpAddress: net.ParseIP("7.8.9.0"),
 				IsDest:    false,
 			},
 		},
@@ -72,7 +72,7 @@ func TestSendAndReceive(t *testing.T) {
 			mockEnd:     time.Now().Add(60 * time.Minute), // end time greater than start time
 			mockHopIP:   dstIP,
 			expected: &result.TracerouteHop{
-				IPAddress: dstIP,
+				IpAddress: dstIP,
 				IsDest:    true,
 			},
 		},
@@ -137,7 +137,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &result.TracerouteHop{
-				IPAddress: net.IP{},
+				IpAddress: net.IP{},
 				RTT:       0, // RTT should be zero
 				IsDest:    false,
 			},
@@ -149,7 +149,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &result.TracerouteHop{
-				IPAddress: net.ParseIP("7.8.9.0"),
+				IpAddress: net.ParseIP("7.8.9.0"),
 				IsDest:    false,
 			},
 		},
@@ -160,7 +160,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			mockICMPType: 0,
 			mockICMPCode: 0,
 			expected: &result.TracerouteHop{
-				IPAddress: dstIP,
+				IpAddress: dstIP,
 				IsDest:    true,
 			},
 		},
