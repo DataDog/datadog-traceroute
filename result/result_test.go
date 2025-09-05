@@ -21,16 +21,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 20},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -42,17 +42,17 @@ func TestResults_Normalize(t *testing.T) {
 						{
 							RunID: "id-0",
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
 							},
 						},
 						{
 							RunID: "id-1",
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 20},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -82,16 +82,16 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
 							},
 						},
 						{
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 20},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},
@@ -103,17 +103,17 @@ func TestResults_Normalize(t *testing.T) {
 						{
 							RunID: "id-0",
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
 								{},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
 							},
 						},
 						{
 							RunID: "id-1",
 							Hops: []*TracerouteHop{
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 10},
-								{IpAddress: net.IP{10, 10, 10, 10}, RTT: 20},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 20},
 							},
 						},
 					},

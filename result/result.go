@@ -56,7 +56,7 @@ type (
 	// hop in a traceroute
 	TracerouteHop struct {
 		TTL       int     `json:"ttl"`
-		IpAddress net.IP  `json:"ip_address"`
+		IPAddress net.IP  `json:"ip_address"`
 		RTT       float64 `json:"rtt"`
 		Reachable bool    `json:"reachable"`
 
@@ -70,13 +70,13 @@ type (
 	}
 	// TracerouteSource contains result source info
 	TracerouteSource struct {
-		IpAddress net.IP `json:"ip_address"`
+		IPAddress net.IP `json:"ip_address"`
 		Port      uint16 `json:"port"`
 	}
 
 	// TracerouteDestination contains result destination info
 	TracerouteDestination struct {
-		IpAddress net.IP `json:"ip_address"`
+		IPAddress net.IP `json:"ip_address"`
 		Port      uint16 `json:"port"`
 	}
 	// Params contains destination param info
@@ -106,7 +106,7 @@ func (r *Results) normalizeTracerouteHops() {
 		hopCount := len(run.Hops)
 		for i := len(run.Hops) - 1; i >= 0; i-- {
 			hop := run.Hops[i]
-			if !hop.IpAddress.Equal(net.IP{}) {
+			if !hop.IPAddress.Equal(net.IP{}) {
 				hopCount = i + 1
 				break
 			}

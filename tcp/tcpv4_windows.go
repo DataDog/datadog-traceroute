@@ -61,11 +61,11 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IpAddress: t.srcIP,
+						IPAddress: t.srcIP,
 						Port:      t.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IpAddress: t.Target,
+						IPAddress: t.Target,
 						Port:      t.DestPort,
 					},
 					Hops: hops,
@@ -95,7 +95,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	return &result.TracerouteHop{
-		IpAddress: hopIP,
+		IPAddress: hopIP,
 		Port:      0, // TODO: fix this
 		ICMPType:  icmpType,
 		ICMPCode:  icmpCode,
@@ -146,11 +146,11 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IpAddress: t.srcIP,
+						IPAddress: t.srcIP,
 						Port:      t.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IpAddress: t.Target,
+						IPAddress: t.Target,
 						Port:      t.DestPort,
 					},
 					Hops: hops,
@@ -192,7 +192,7 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 	}
 
 	return &result.TracerouteHop{
-		IpAddress: hopIP,
+		IPAddress: hopIP,
 		Port:      0, // TODO: fix this
 		ICMPType:  0, // TODO: fix this
 		RTT:       common.ConvertDurationToMs(rtt),

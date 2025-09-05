@@ -141,11 +141,11 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 			TTL: i + 1,
 		}
 		if probe != nil {
-			hops[i].IpAddress = probe.IP.AsSlice()
+			hops[i].IPAddress = probe.IP.AsSlice()
 			hops[i].RTT = ConvertDurationToMs(probe.RTT)
 			hops[i].IsDest = probe.IsDest
 
-			if !hops[i].IpAddress.Equal(net.IP{}) {
+			if !hops[i].IPAddress.Equal(net.IP{}) {
 				hops[i].Reachable = true
 			}
 		}
