@@ -76,7 +76,7 @@ func TestSendAndReceive(t *testing.T) {
 				}
 			},
 			expected: &result.TracerouteHop{
-				IPAddress: net.ParseIP("7.8.9.0"),
+				IpAddress: net.ParseIP("7.8.9.0"),
 				ICMPType:  2,
 				ICMPCode:  3,
 				Port:      443,

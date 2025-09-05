@@ -74,11 +74,11 @@ func (u *UDPv4) Traceroute() (*result.Results, error) {
 			Runs: []result.TracerouteRun{
 				{
 					Source: result.TracerouteSource{
-						IPAddress: u.srcIP,
+						IpAddress: u.srcIP,
 						Port:      u.srcPort,
 					},
 					Destination: result.TracerouteDestination{
-						IPAddress: u.Target,
+						IpAddress: u.Target,
 						Port:      u.TargetPort,
 					},
 					Hops: hops,

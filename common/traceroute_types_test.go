@@ -138,7 +138,7 @@ func TestToHops(t *testing.T) {
 	expectedHops := []*result.TracerouteHop{
 		{
 			TTL:       1,
-			IPAddress: net.IP{10, 0, 0, 10},
+			IpAddress: net.IP{10, 0, 0, 10},
 			RTT:       10.0,
 			IsDest:    false,
 			Reachable: true,
@@ -148,7 +148,7 @@ func TestToHops(t *testing.T) {
 		},
 		{
 			TTL:       3,
-			IPAddress: net.IP{10, 0, 0, 20},
+			IpAddress: net.IP{10, 0, 0, 20},
 			RTT:       20.0,
 			Reachable: true,
 			IsDest:    true,
