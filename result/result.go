@@ -3,6 +3,8 @@ package result
 import (
 	"net"
 
+	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/reversedns"
 	"github.com/google/uuid"
 )
 
@@ -55,10 +57,11 @@ type (
 	// TracerouteHop encapsulates information about a single
 	// hop in a traceroute
 	TracerouteHop struct {
-		TTL       int     `json:"ttl"`
-		IPAddress net.IP  `json:"ip_address"`
-		RTT       float64 `json:"rtt"`
-		Reachable bool    `json:"reachable"`
+		TTL        int      `json:"ttl"`
+		IPAddress  net.IP   `json:"ip_address"`
+		RTT        float64  `json:"rtt"`
+		Reachable  bool     `json:"reachable"`
+		ReverseDns []string `json:"reverse_dns,omitempty"`
 
 		// Internal use
 		IsDest bool `json:"-"`
@@ -76,8 +79,9 @@ type (
 
 	// TracerouteDestination contains result destination info
 	TracerouteDestination struct {
-		IPAddress net.IP `json:"ip_address"`
-		Port      uint16 `json:"port"`
+		IPAddress  net.IP   `json:"ip_address"`
+		Port       uint16   `json:"port"`
+		ReverseDns []string `json:"reverse_dns,omitempty"`
 	}
 	// Params contains destination param info
 	Params struct {
@@ -86,6 +90,29 @@ type (
 		Port     int    `json:"port"`
 	}
 )
+
+// EnrichWithReverseDns enrich results with reverse dns
+func (r *Results) EnrichWithReverseDns() {
+	for i := range r.Traceroute.Runs {
+		run := &r.Traceroute.Runs[i]
+		destRDns, err := reversedns.GetReverseDnsForIP(run.Destination.IPAddress)
+		if err != nil {
+			log.Debugf("failed to get reverse dns for destination IP: %s", err)
+		} else {
+			run.Destination.ReverseDns = destRDns
+		}
+
+		for j := range run.Hops {
+			hop := run.Hops[j]
+			hopRDns, err := reversedns.GetReverseDnsForIP(hop.IPAddress)
+			if err != nil {
+				log.Debugf("failed to get reverse dns for destination IP: %s", err)
+			} else {
+				hop.ReverseDns = hopRDns
+			}
+		}
+	}
+}
 
 // Normalize results
 func (r *Results) Normalize() {

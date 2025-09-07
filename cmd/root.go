@@ -30,6 +30,7 @@ type args struct {
 	tcpmethod       string
 	port            int
 	wantV6          bool
+	reverseDns      bool
 	verbose         bool
 }
 
@@ -50,14 +51,15 @@ var rootCmd = &cobra.Command{
 		log.SetVerbose(Args.verbose)
 
 		params := runner.TracerouteParams{
-			Hostname:  args[0],
-			Port:      Args.port,
-			Protocol:  Args.protocol,
-			MaxTTL:    Args.maxTTL,
-			Delay:     Args.delay,
-			Timeout:   timeout,
-			TCPMethod: traceroute.TCPMethod(Args.tcpmethod),
-			WantV6:    Args.wantV6,
+			Hostname:   args[0],
+			Port:       Args.port,
+			Protocol:   Args.protocol,
+			MaxTTL:     Args.maxTTL,
+			Delay:      Args.delay,
+			Timeout:    timeout,
+			TCPMethod:  traceroute.TCPMethod(Args.tcpmethod),
+			WantV6:     Args.wantV6,
+			ReverseDns: Args.reverseDns,
 		}
 
 		results, err := runner.RunTraceroute(cmd.Context(), params)
@@ -98,6 +100,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.outputFile, "output-file", "o", "", "Output file name (or '-' for stdout)")
 	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", common.DefaultOutputFormat, "Output format (json)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
+	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "r", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 }
 

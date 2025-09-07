@@ -103,6 +103,9 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		Hostname: params.Hostname,
 		Port:     destinationPort,
 	}
+	if params.ReverseDns {
+		results.EnrichWithReverseDns()
+	}
 	results.Normalize()
 	return results, nil
 }

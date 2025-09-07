@@ -1,10 +1,12 @@
 package result
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/reversedns"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -140,6 +142,65 @@ func TestResults_Normalize(t *testing.T) {
 				assert.NotEmpty(t, tt.Results.Traceroute.Runs[i].RunID)
 				tt.Results.Traceroute.Runs[i].RunID = fmt.Sprintf("id-%d", i)
 			}
+			assert.Equal(t, tt.ExpectedResults, tt.Results)
+		})
+	}
+}
+
+func TestResults_EnrichWithReverseDns(t *testing.T) {
+	tests := []struct {
+		name            string
+		Results         Results
+		ExpectedResults Results
+	}{
+		{
+			name: "reverse dns for destination & hops",
+			Results: Results{
+				Traceroute: Traceroute{
+					Runs: []TracerouteRun{
+						{
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 10}},
+								{IPAddress: net.IP{10, 10, 10, 11}},
+							},
+						},
+						{
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 21}},
+								{IPAddress: net.IP{10, 10, 10, 22}},
+							},
+						},
+					},
+				},
+			},
+			ExpectedResults: Results{
+				Traceroute: Traceroute{
+					Runs: []TracerouteRun{
+						{
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 10}, ReverseDns: []string{"rdns-10.10.10.10"}},
+								{IPAddress: net.IP{10, 10, 10, 11}, ReverseDns: []string{"rdns-10.10.10.11"}},
+							},
+						},
+						{
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 21}, ReverseDns: []string{"rdns-10.10.10.21"}},
+								{IPAddress: net.IP{10, 10, 10, 22}, ReverseDns: []string{"rdns-10.10.10.22"}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reversedns.LookupAddrFn = func(_ context.Context, ip string) ([]string, error) {
+				return []string{"rdns-" + ip}, nil
+			}
+			defer func() { reversedns.LookupAddrFn = net.DefaultResolver.LookupAddr }()
+
+			tt.Results.EnrichWithReverseDns()
 			assert.Equal(t, tt.ExpectedResults, tt.Results)
 		})
 	}
