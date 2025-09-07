@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 )
 
@@ -31,9 +30,5 @@ func GetReverseDns(ipAddr string) ([]string, error) {
 		return nil, fmt.Errorf("failed to get reverse dns: %w", err)
 	}
 
-	reverseDnsNames := []string{}
-	for _, name := range rawReverseDnsNames {
-		reverseDnsNames = append(reverseDnsNames, strings.TrimRight(name, "."))
-	}
-	return reverseDnsNames, nil
+	return rawReverseDnsNames, nil
 }

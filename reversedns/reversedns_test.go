@@ -36,14 +36,6 @@ func TestGetReverseDns(t *testing.T) {
 			expectedErr:       "",
 		},
 		{
-			name:              "trim trailing dots in name",
-			ipAddress:         "1.1.1.1",
-			fakeRDns:          []string{"foo.com.", "bar.com."},
-			fakeErr:           nil,
-			expectedRDnsNames: []string{"foo.com", "bar.com"},
-			expectedErr:       "",
-		},
-		{
 			name:              "error case",
 			ipAddress:         "1.1.1.1",
 			fakeRDns:          nil,
