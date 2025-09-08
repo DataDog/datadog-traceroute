@@ -19,4 +19,5 @@ type TracerouteParams struct {
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool
 	ReverseDns                bool
+	TracerouteQueries         int
 }

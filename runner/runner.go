@@ -25,7 +25,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		destinationPort = common.DefaultPort
 	}
 
-	results, err := runTracerouteOnce(ctx, params, destinationPort)
+	results, err := runTracerouteMulti(ctx, params, destinationPort)
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +42,17 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	return results, nil
 }
 
+func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+	var results result.Results
+	for i := 0; i < params.TracerouteQueries; i++ {
+		oneResult, err := runTracerouteOnce(ctx, params, destinationPort)
+		if err != nil {
+			return nil, err
+		}
+		results.Traceroute.Runs = append(results.Traceroute.Runs, oneResult.Traceroute.Runs...)
+	}
+	return &results, nil
+}
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var results *result.Results
 	switch params.Protocol {
