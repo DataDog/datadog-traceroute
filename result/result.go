@@ -184,7 +184,9 @@ func (r *Results) normalizeE2eProbe() {
 		totalRTTs += destHop.RTT
 	}
 
-	r.E2eProbe.RTT.Avg = totalRTTs / float64(packetReceived)
+	if packetReceived > 0 {
+		r.E2eProbe.RTT.Avg = totalRTTs / float64(packetReceived)
+	}
 	r.E2eProbe.RTT.Min = minRTT
 	r.E2eProbe.RTT.Max = maxRTT
 	r.E2eProbe.PacketsSent = packetSent
