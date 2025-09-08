@@ -167,7 +167,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 }
 
 // TracerouteSequentialSocket is not supported on unix
-func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
+func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
 	// not implemented or supported on unix
 	return nil, fmt.Errorf("not implemented or supported on unix")
 }

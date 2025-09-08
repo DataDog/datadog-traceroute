@@ -17,7 +17,7 @@ import (
 )
 
 // Traceroute runs a TCP traceroute
-func (t *TCPv4) Traceroute() (*result.Results, error) {
+func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
@@ -84,23 +84,17 @@ func (t *TCPv4) Traceroute() (*result.Results, error) {
 		return nil, fmt.Errorf("SYN traceroute ToHops failed: %w", err)
 	}
 
-	result := &result.Results{
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IPAddress: t.srcIP,
-						Port:      t.srcPort,
-					},
-					Destination: result.TracerouteDestination{
-						IPAddress: t.Target,
-						Port:      t.DestPort,
-					},
-					Hops: hops,
-				},
-			},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: t.srcIP,
+			Port:      t.srcPort,
 		},
+		Destination: result.TracerouteDestination{
+			IPAddress: t.Target,
+			Port:      t.DestPort,
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }
