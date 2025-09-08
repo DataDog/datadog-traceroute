@@ -161,27 +161,36 @@ func (r *Results) normalizeTracerouteHops() {
 
 func (r *Results) normalizeE2eProbe() {
 	r.E2eProbe.RTTs = []float64{}
+	var packetSent, packetReceived int
+	var totalRTTs, minRTT, maxRTT float64
+	var RTTs []float64
 
-	// TODO: Replace with "50x e2e probe impl"
-	//       Right now, we temporarily use single Traceroute data to fill e2e probe
-	if len(r.Traceroute.Runs) == 0 {
-		return
+	for _, run := range r.Traceroute.Runs {
+		packetSent++
+		destHop := run.getDestinationHop()
+		if destHop == nil {
+			continue
+		}
+
+		packetReceived++
+		if destHop.RTT > maxRTT {
+			maxRTT = destHop.RTT
+		}
+		if destHop.RTT < minRTT || minRTT == 0 {
+			minRTT = destHop.RTT
+		}
+		RTTs = append(RTTs, destHop.RTT)
+
+		totalRTTs += destHop.RTT
 	}
-	tracerouteRun := r.Traceroute.Runs[0]
 
-	r.E2eProbe.PacketsSent = 1
-
-	destHop := tracerouteRun.getDestinationHop()
-	if destHop == nil {
-		r.E2eProbe.PacketLossPercentage = 1
-		return
-	}
-	r.E2eProbe.RTT.Avg = destHop.RTT
-	r.E2eProbe.RTT.Min = destHop.RTT
-	r.E2eProbe.RTT.Max = destHop.RTT
-	r.E2eProbe.PacketsReceived = 1
-	r.E2eProbe.PacketLossPercentage = 0
-	r.E2eProbe.RTTs = []float64{destHop.RTT}
+	r.E2eProbe.RTT.Avg = totalRTTs / float64(packetReceived)
+	r.E2eProbe.RTT.Min = minRTT
+	r.E2eProbe.RTT.Max = maxRTT
+	r.E2eProbe.PacketsSent = packetSent
+	r.E2eProbe.PacketsReceived = packetReceived
+	r.E2eProbe.PacketLossPercentage = float32(packetSent-packetReceived) / float32(packetSent)
+	r.E2eProbe.RTTs = RTTs
 }
 
 func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {

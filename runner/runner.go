@@ -69,7 +69,6 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
 	}
-	fmt.Println(results)
 	return &results, nil
 }
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
