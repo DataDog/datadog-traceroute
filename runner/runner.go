@@ -44,6 +44,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 }
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+	// TODO: TEST ME
 	var wg sync.WaitGroup
 	var results result.Results
 	var multiErr []error
