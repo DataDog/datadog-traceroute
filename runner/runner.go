@@ -66,12 +66,31 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 			resultsAndErrorsMu.Unlock()
 		}()
 	}
+	for i := 0; i < params.E2eQueries; i++ {
+		// for e2e probes, set MinTTL and MaxTTL to the same high value to only probe the destination, not each hop 
+		params.MinTTL = common.DefaultE2eProbeTTL
+		params.MaxTTL = common.DefaultE2eProbeTTL
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+			resultsAndErrorsMu.Lock()
+			if err != nil {
+				multiErr = append(multiErr, err)
+				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
+			} else {
+				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+			}
+			resultsAndErrorsMu.Unlock()
+		}()
+	}
 	wg.Wait()
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
 	}
 	return &results, nil
 }
+
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
 	var trRun *result.TracerouteRun
 	switch params.Protocol {
@@ -145,6 +164,85 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
 	return trRun, nil
+}
+
+func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
+	var trRun *result.TracerouteRun
+	switch params.Protocol {
+	case "udp":
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
+		if err != nil {
+			return 0.0, fmt.Errorf("invalid target: %w", err)
+		}
+		cfg := udp.NewUDPv4(
+			target.Addr().AsSlice(),
+			target.Port(),
+			uint16(params.TracerouteCount),
+			uint8(common.DefaultMinTTL),
+			uint8(params.MaxTTL),
+			time.Duration(params.Delay)*time.Millisecond,
+			params.Timeout)
+
+		trRun, err = cfg.Traceroute()
+		if err != nil {
+			return 0.0, fmt.Errorf("could not generate udp traceroute results: %w", err)
+		}
+
+	case "tcp":
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
+		if err != nil {
+			return 0.0, fmt.Errorf("invalid target: %w", err)
+		}
+
+		doSyn := func() (*result.TracerouteRun, error) {
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			return tr.Traceroute()
+		}
+		doSack := func() (*result.TracerouteRun, error) {
+			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), params.Timeout)
+			if err != nil {
+				return nil, fmt.Errorf("failed to make sack params: %w", err)
+			}
+			return sack.RunSackTraceroute(context.TODO(), params)
+		}
+		doSynSocket := func() (*result.TracerouteRun, error) {
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			return tr.TracerouteSequentialSocket()
+		}
+
+		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
+		if err != nil {
+			return 0.0, err
+		}
+	case "icmp":
+		target, err := parseTarget(params.Hostname, 80, params.WantV6)
+		if err != nil {
+			return 0.0, fmt.Errorf("invalid target: %w", err)
+		}
+		cfg := icmp.Params{
+			Target: target.Addr(),
+			ParallelParams: common.TracerouteParallelParams{
+				TracerouteParams: common.TracerouteParams{
+					MinTTL:            uint8(common.DefaultMinTTL),
+					MaxTTL:            uint8(params.MaxTTL),
+					TracerouteTimeout: params.Timeout,
+					PollFrequency:     100 * time.Millisecond,
+					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
+				},
+			},
+		}
+		trRun, err = icmp.RunICMPTraceroute(ctx, cfg)
+		if err != nil {
+			return 0.0, fmt.Errorf("could not generate icmp traceroute results: %w", err)
+		}
+	default:
+		return 0.0, fmt.Errorf("unknown Protocol: %q", params.Protocol)
+	}
+	destHop := trRun.GetDestinationHop()
+	if destHop == nil {
+		return 0.0, fmt.Errorf("no destination hop found in traceroute results")
+	}
+	return destHop.RTT, nil
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration) (sack.Params, error) {

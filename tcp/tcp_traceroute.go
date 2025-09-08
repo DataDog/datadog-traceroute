@@ -22,7 +22,8 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
 	}
-	conn.Close() // we don't need the UDP port here
+	conn.Close() // we don't need the UDP connection here, it was only needed to discover local address
+
 	t.srcIP = addr.IP
 	localAddr, ok := common.UnmappedAddrFromSlice(t.srcIP)
 	if !ok {
@@ -59,7 +60,7 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
+		return nil, fmt.Errorf("TCP traceroute failed to set packet filter: %w", err)
 	}
 
 	driver := newTCPDriver(t, handle.Sink, handle.Source)

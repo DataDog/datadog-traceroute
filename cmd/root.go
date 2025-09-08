@@ -59,6 +59,7 @@ var rootCmd = &cobra.Command{
 			WantV6:            Args.wantV6,
 			ReverseDns:        Args.reverseDns,
 			TracerouteQueries: Args.tracerouteQueries,
+			E2eQueries:        Args.e2eQueries,
 		}
 
 		results, err := runner.RunTraceroute(cmd.Context(), params)

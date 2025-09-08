@@ -1,6 +1,7 @@
 package result
 
 import (
+	"math"
 	"net"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -128,6 +129,10 @@ func (r *Results) normalizeTracerouteRuns() {
 }
 
 func (r *Results) normalizeTracerouteHops() {
+	if len(r.Traceroute.Runs) == 0 {
+		return
+	}
+
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := len(run.Hops)
@@ -140,6 +145,7 @@ func (r *Results) normalizeTracerouteHops() {
 		}
 		hopCounts = append(hopCounts, hopCount)
 	}
+
 	var hopsAvg float64
 	var hopsMin, hopsMax int
 	var totalHopCount int
@@ -160,42 +166,74 @@ func (r *Results) normalizeTracerouteHops() {
 }
 
 func (r *Results) normalizeE2eProbe() {
-	r.E2eProbe.RTTs = []float64{}
-	var packetSent, packetReceived int
-	var totalRTTs, minRTT, maxRTT float64
-	var RTTs []float64
+	// PacketsSent is the length of RTTs slice
+	r.E2eProbe.PacketsSent = len(r.E2eProbe.RTTs)
 
-	for _, run := range r.Traceroute.Runs {
-		packetSent++
-		destHop := run.getDestinationHop()
-		if destHop == nil {
-			continue
-		}
+	// Count received packets (non-zero RTTs) and collect valid RTTs
+	var validRTTs []float64
+	packetsReceived := 0
 
-		packetReceived++
-		if destHop.RTT > maxRTT {
-			maxRTT = destHop.RTT
+	for _, rtt := range r.E2eProbe.RTTs {
+		if rtt > 0.0 {
+			packetsReceived++
+			validRTTs = append(validRTTs, rtt)
 		}
-		if destHop.RTT < minRTT || minRTT == 0 {
-			minRTT = destHop.RTT
-		}
-		RTTs = append(RTTs, destHop.RTT)
-
-		totalRTTs += destHop.RTT
 	}
 
-	if packetReceived > 0 {
-		r.E2eProbe.RTT.Avg = totalRTTs / float64(packetReceived)
+	r.E2eProbe.PacketsReceived = packetsReceived
+
+	// Calculate packet loss percentage
+	if r.E2eProbe.PacketsSent > 0 {
+		r.E2eProbe.PacketLossPercentage = float32(r.E2eProbe.PacketsSent-r.E2eProbe.PacketsReceived) / float32(r.E2eProbe.PacketsSent)
 	}
-	r.E2eProbe.RTT.Min = minRTT
-	r.E2eProbe.RTT.Max = maxRTT
-	r.E2eProbe.PacketsSent = packetSent
-	r.E2eProbe.PacketsReceived = packetReceived
-	r.E2eProbe.PacketLossPercentage = float32(packetSent-packetReceived) / float32(packetSent)
-	r.E2eProbe.RTTs = RTTs
+
+	// Calculate RTT statistics from valid (received) RTTs only
+	if len(validRTTs) > 0 {
+		var totalRTTs float64
+		minRTT := validRTTs[0]
+		maxRTT := validRTTs[0]
+
+		for _, rtt := range validRTTs {
+			totalRTTs += rtt
+			if rtt < minRTT {
+				minRTT = rtt
+			}
+			if rtt > maxRTT {
+				maxRTT = rtt
+			}
+		}
+
+		r.E2eProbe.RTT.Avg = totalRTTs / float64(len(validRTTs))
+		r.E2eProbe.RTT.Min = minRTT
+		r.E2eProbe.RTT.Max = maxRTT
+	} else {
+		// No packets received
+		r.E2eProbe.RTT.Avg = 0.0
+		r.E2eProbe.RTT.Min = 0.0
+		r.E2eProbe.RTT.Max = 0.0
+	}
+
+	// Calculate jitter from valid RTTs only (excluding lost packets)
+	r.E2eProbe.Jitter = calculateJitter(validRTTs)
 }
 
-func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {
+// calculateJitter computes the average jitter from a slice of RTT measurements.
+// Jitter is calculated as the mean absolute deviation of consecutive RTT differences.
+func calculateJitter(rtts []float64) float64 {
+	if len(rtts) < 2 {
+		return 0.0 // Jitter requires at least 2 RTT measurements
+	}
+
+	var sumDiffs float64
+	for i := 1; i < len(rtts); i++ {
+		diff := math.Abs(rtts[i] - rtts[i-1])
+		sumDiffs += diff
+	}
+
+	return sumDiffs / float64(len(rtts)-1)
+}
+
+func (tr *TracerouteRun) GetDestinationHop() *TracerouteHop {
 	for _, hop := range tr.Hops {
 		if hop.IsDest {
 			return hop
