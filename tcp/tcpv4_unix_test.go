@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/ipv4"
 
-	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 func TestSendAndReceive(t *testing.T) {
@@ -32,7 +32,7 @@ func TestSendAndReceive(t *testing.T) {
 		ttl         int
 		sendFunc    func(rawConnWrapper, *ipv4.Header, []byte) error
 		listenFunc  func(rawConnWrapper, rawConnWrapper, time.Duration, net.IP, uint16, net.IP, uint16, uint32, uint16) packetResponse
-		expected    *common.Hop
+		expected    *result.TracerouteHop
 		errMsg      string
 	}{
 		{
@@ -75,12 +75,12 @@ func TestSendAndReceive(t *testing.T) {
 					Err:  nil,
 				}
 			},
-			expected: &common.Hop{
-				IP:       net.ParseIP("7.8.9.0"),
-				ICMPType: 2,
-				ICMPCode: 3,
-				Port:     443,
-				IsDest:   false,
+			expected: &result.TracerouteHop{
+				IPAddress: net.ParseIP("7.8.9.0"),
+				ICMPType:  2,
+				ICMPCode:  3,
+				Port:      443,
+				IsDest:    false,
 			},
 			errMsg: "",
 		},
@@ -97,8 +97,8 @@ func TestSendAndReceive(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(common.Hop{}, "RTT")))
-			assert.Greater(t, actual.RTT, time.Duration(0))
+			assert.Empty(t, cmp.Diff(test.expected, actual, cmpopts.IgnoreFields(result.TracerouteHop{}, "RTT")))
+			assert.Greater(t, actual.RTT, float64(0))
 		})
 	}
 }

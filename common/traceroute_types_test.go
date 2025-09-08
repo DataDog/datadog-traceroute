@@ -8,9 +8,13 @@ package common
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/netip"
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/result"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -121,4 +125,34 @@ func TestClipResultsMinTTL(t *testing.T) {
 
 	clipped := clipResults(2, results)
 	require.Equal(t, results[2:], clipped)
+}
+
+func TestToHops(t *testing.T) {
+	results := []*ProbeResponse{
+		{IP: netip.AddrFrom4([4]byte{10, 0, 0, 10}), TTL: 1, IsDest: false, RTT: time.Duration(10) * time.Millisecond},
+		nil,
+		{IP: netip.AddrFrom4([4]byte{10, 0, 0, 20}), TTL: 3, IsDest: true, RTT: time.Duration(20) * time.Millisecond},
+	}
+	hops, err := ToHops(TracerouteParams{MinTTL: 1}, results)
+	assert.NoError(t, err)
+	expectedHops := []*result.TracerouteHop{
+		{
+			TTL:       1,
+			IPAddress: net.IP{10, 0, 0, 10},
+			RTT:       10.0,
+			IsDest:    false,
+			Reachable: true,
+		},
+		{
+			TTL: 2,
+		},
+		{
+			TTL:       3,
+			IPAddress: net.IP{10, 0, 0, 20},
+			RTT:       20.0,
+			Reachable: true,
+			IsDest:    true,
+		},
+	}
+	assert.Equal(t, hops, expectedHops)
 }

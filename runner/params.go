@@ -1,0 +1,22 @@
+package runner
+
+import (
+	"time"
+
+	"github.com/DataDog/datadog-traceroute/traceroute"
+)
+
+type TracerouteParams struct {
+	Hostname                  string
+	Port                      int
+	Protocol                  string
+	TracerouteCount           int
+	MinTTL                    int
+	MaxTTL                    int
+	Delay                     int
+	Timeout                   time.Duration
+	TCPMethod                 traceroute.TCPMethod
+	WantV6                    bool
+	TCPSynParisTracerouteMode bool
+	ReverseDns                bool
+}

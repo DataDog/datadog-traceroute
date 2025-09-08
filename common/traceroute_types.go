@@ -8,9 +8,12 @@ package common
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"slices"
 	"time"
+
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // ReceiveProbeNoPktError is returned when ReceiveProbe() didn't find anything new.
@@ -126,17 +129,25 @@ func clipResults(minTTL uint8, results []*ProbeResponse) []*ProbeResponse {
 
 // ToHops converts a list of ProbeResponses to a Results
 // TODO remove this, and use a single type to represent results
-func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*Hop, error) {
+func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHop, error) {
 	if p.MinTTL != 1 {
 		return nil, fmt.Errorf("ToHops: processResults() requires MinTTL == 1")
 	}
-	hops := make([]*Hop, len(probes))
+	hops := make([]*result.TracerouteHop, len(probes))
 	for i, probe := range probes {
-		hops[i] = &Hop{}
+		hops[i] = &result.TracerouteHop{
+			// Using index for TTL mimics what we already do in datadog-agent.
+			// Should we rely on probe.TTL instead in the future?
+			TTL: i + 1,
+		}
 		if probe != nil {
-			hops[i].IP = probe.IP.AsSlice()
-			hops[i].RTT = probe.RTT
+			hops[i].IPAddress = probe.IP.AsSlice()
+			hops[i].RTT = ConvertDurationToMs(probe.RTT)
 			hops[i].IsDest = probe.IsDest
+
+			if !hops[i].IPAddress.Equal(net.IP{}) {
+				hops[i].Reachable = true
+			}
 		}
 	}
 	return hops, nil
