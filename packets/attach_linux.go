@@ -80,7 +80,7 @@ func SetBPFAndDrain(c syscall.RawConn, filter []bpf.RawInstruction) error {
 	if err != nil {
 		return fmt.Errorf("SetBPFAndDrain control failed: %w", err)
 	}
-	if recvErr != syscall.EAGAIN {
+	if recvErr != nil && recvErr != syscall.EAGAIN {
 		return fmt.Errorf("SetBPFAndDrain failed to drain: %w", err)
 	}
 
