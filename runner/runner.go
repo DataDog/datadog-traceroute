@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -43,14 +44,29 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 }
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+	var wg sync.WaitGroup
 	var results result.Results
+	var multiErr []error
+	mu := &sync.Mutex{}
 	for i := 0; i < params.TracerouteQueries; i++ {
-		oneResult, err := runTracerouteOnce(ctx, params, destinationPort)
-		if err != nil {
-			return nil, err
-		}
-		results.Traceroute.Runs = append(results.Traceroute.Runs, oneResult.Traceroute.Runs...)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			oneResult, err := runTracerouteOnce(ctx, params, destinationPort)
+			mu.Lock()
+			if err != nil {
+				multiErr = append(multiErr, err)
+			} else {
+				results.Traceroute.Runs = append(results.Traceroute.Runs, oneResult.Traceroute.Runs...)
+			}
+			mu.Unlock()
+		}()
 	}
+	wg.Wait()
+	if len(multiErr) > 0 {
+		return nil, errors.Join(multiErr...)
+	}
+	fmt.Println(results)
 	return &results, nil
 }
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
