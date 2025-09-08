@@ -20,13 +20,30 @@ import (
 )
 
 func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	var results *result.Results
-
 	destinationPort := params.Port
 	if destinationPort == 0 {
 		destinationPort = common.DefaultPort
 	}
 
+	results, err := runTracerouteOnce(ctx, params, destinationPort)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Params = result.Params{
+		Protocol: params.Protocol,
+		Hostname: params.Hostname,
+		Port:     destinationPort,
+	}
+	if params.ReverseDns {
+		results.EnrichWithReverseDns()
+	}
+	results.Normalize()
+	return results, nil
+}
+
+func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+	var results *result.Results
 	switch params.Protocol {
 	case "udp":
 		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
@@ -97,16 +114,6 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	default:
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
-
-	results.Params = result.Params{
-		Protocol: params.Protocol,
-		Hostname: params.Hostname,
-		Port:     destinationPort,
-	}
-	if params.ReverseDns {
-		results.EnrichWithReverseDns()
-	}
-	results.Normalize()
 	return results, nil
 }
 
