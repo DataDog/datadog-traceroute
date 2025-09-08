@@ -47,19 +47,19 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 	var wg sync.WaitGroup
 	var results result.Results
 	var multiErr []error
-	mu := &sync.Mutex{}
+	resultsAndErrorsMu := &sync.Mutex{}
 	for i := 0; i < params.TracerouteQueries; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			oneResult, err := runTracerouteOnce(ctx, params, destinationPort)
-			mu.Lock()
+			resultsAndErrorsMu.Lock()
 			if err != nil {
 				multiErr = append(multiErr, err)
 			} else {
 				results.Traceroute.Runs = append(results.Traceroute.Runs, oneResult.Traceroute.Runs...)
 			}
-			mu.Unlock()
+			resultsAndErrorsMu.Unlock()
 		}()
 	}
 	wg.Wait()
