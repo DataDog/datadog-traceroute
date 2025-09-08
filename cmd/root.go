@@ -84,10 +84,10 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.port, "port", "p", common.DefaultPort, "Destination port")
 	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "nqueries", "q", common.DefaultNumPaths, "Number of traceroute queries")
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "x", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
-	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "6", false, "IPv6")
+	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", false, "IPv6")
+	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 }
