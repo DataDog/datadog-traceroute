@@ -55,7 +55,24 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 
 		doSyn := func() (*result.Results, error) {
 			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
-			return tr.Traceroute()
+			res1, err := tr.Traceroute()
+			if err != nil {
+				return nil, fmt.Errorf("invalid traceoute: %w", err)
+			}
+
+			res2, _ := tr.Traceroute()
+			if err != nil {
+				return nil, fmt.Errorf("invalid traceoute: %w", err)
+			}
+
+			res3, err := tr.Traceroute()
+			if len(res1.Traceroute.Runs) > 0 {
+				res3.Traceroute.Runs = append(res3.Traceroute.Runs, res1.Traceroute.Runs[0])
+			}
+			if len(res2.Traceroute.Runs) > 0 {
+				res3.Traceroute.Runs = append(res3.Traceroute.Runs, res2.Traceroute.Runs[0])
+			}
+			return res3, err
 		}
 		doSack := func() (*result.Results, error) {
 			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), params.Timeout)
