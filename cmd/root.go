@@ -20,18 +20,16 @@ import (
 )
 
 type args struct {
-	protocol        string
-	tracerouteCount int
-	maxTTL          int
-	delay           int
-	outputFile      string
-	outputFormat    string
-	timeout         int
-	tcpmethod       string
-	port            int
-	wantV6          bool
-	reverseDns      bool
-	verbose         bool
+	protocol          string
+	tracerouteQueries int
+	e2eQueries        int
+	maxTTL            int
+	timeout           int
+	tcpmethod         string
+	port              int
+	wantV6            bool
+	reverseDns        bool
+	verbose           bool
 }
 
 var Args args
@@ -55,7 +53,7 @@ var rootCmd = &cobra.Command{
 			Port:       Args.port,
 			Protocol:   Args.protocol,
 			MaxTTL:     Args.maxTTL,
-			Delay:      Args.delay,
+			Delay:      common.DefaultDelay,
 			Timeout:    timeout,
 			TCPMethod:  traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:     Args.wantV6,
@@ -66,19 +64,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		switch Args.outputFormat {
-		case "json":
-			jsonStr, err := json.MarshalIndent(results, "", "  ")
-			if err != nil {
-				return fmt.Errorf("JSON marshalling failed: %v", err)
-			}
-			if err := writeOutput(string(jsonStr)); err != nil {
-				return fmt.Errorf("failed to write output: %v", err)
-			}
-		default:
-			return fmt.Errorf("unknown output format: %s", Args.outputFormat)
+		jsonStr, err := json.MarshalIndent(results, "", "  ")
+		if err != nil {
+			return fmt.Errorf("JSON marshalling failed: %v", err)
 		}
+		fmt.Println(string(jsonStr))
 		return nil
 	},
 }
@@ -90,25 +80,14 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&Args.protocol, "protocol", "p", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
-	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcpmethod", "m", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
-	rootCmd.Flags().IntVarP(&Args.tracerouteCount, "traceroute-count", "c", common.DefaultNumPaths, "Number of paths to probe")
-	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "T", common.DefaultMaxTTL, "Maximum TTL")
-	rootCmd.Flags().IntVarP(&Args.delay, "delay", "D", common.DefaultDelay, "Delay between packets (ms)")
+	rootCmd.Flags().StringVarP(&Args.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
+	rootCmd.Flags().IntVarP(&Args.port, "port", "p", common.DefaultPort, "Destination port")
+	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "nqueries", "q", common.DefaultNumPaths, "Number of traceroute queries")
+	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "x", 0, "Timeout (ms)")
-	rootCmd.Flags().IntVarP(&Args.port, "dport", "d", common.DefaultPort, "the base destination port to send packets to")
-	rootCmd.Flags().StringVarP(&Args.outputFile, "output-file", "o", "", "Output file name (or '-' for stdout)")
-	rootCmd.Flags().StringVarP(&Args.outputFormat, "output-format", "f", common.DefaultOutputFormat, "Output format (json)")
-	rootCmd.Flags().BoolVarP(&Args.wantV6, "want-ipv6", "6", false, "Try IPv6")
-	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "r", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
-}
-
-func writeOutput(data string) error {
-	if Args.outputFile == "" || Args.outputFile == "-" {
-		fmt.Println(data)
-		return nil
-	} else {
-		return os.WriteFile(Args.outputFile, []byte(data), 0644)
-	}
+	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
+	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "6", false, "IPv6")
+	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
+	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 }

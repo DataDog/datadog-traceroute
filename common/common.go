@@ -23,10 +23,10 @@ const (
 	DefaultNetworkPathTimeout = 3000
 	DefaultPort               = 33434
 	DefaultNumPaths           = 1
+	DefaultNumE2eProbes       = 50
 	DefaultMinTTL             = 1
 	DefaultMaxTTL             = 30
 	DefaultDelay              = 50 //msec
-	DefaultOutputFormat       = "json"
 	DefaultProtocol           = "udp"
 	DefaultTcpMethod          = "syn"
 )
