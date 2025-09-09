@@ -1,6 +1,7 @@
 package result
 
 import (
+	"math"
 	"net"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -195,6 +196,23 @@ func (r *Results) normalizeE2eProbe() {
 	r.E2eProbe.PacketsReceived = packetReceived
 	r.E2eProbe.PacketLossPercentage = float32(packetSent-packetReceived) / float32(packetSent)
 	r.E2eProbe.RTTs = RTTs
+
+	// compute jitter
+	// TODO: this is one way of computing jitter (https://www.rfc-editor.org/rfc/rfc4689.html#section-3.2.5)
+	//       but actual jitter computation for e2e probe will require further investigation
+	//       to choose the most suitable way to compute jitter.
+	if len(RTTs) >= 2 {
+		var totalJitter float64
+		var prevRtt float64
+		for _, rtt := range RTTs {
+			if prevRtt == 0 {
+				prevRtt = rtt
+				continue
+			}
+			totalJitter += math.Abs(rtt - prevRtt)
+		}
+		r.E2eProbe.Jitter = totalJitter / float64(len(RTTs)-1)
+	}
 }
 
 func (tr *TracerouteRun) getDestinationHop() *TracerouteHop {
