@@ -15,6 +15,7 @@ type TracerouteParams struct {
 	Delay                     int
 	Timeout                   time.Duration
 	TCPMethod                 traceroute.TCPMethod
+	DNSResolutionStrategy     traceroute.DNSResolutionStrategy
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool
 	ReverseDns                bool

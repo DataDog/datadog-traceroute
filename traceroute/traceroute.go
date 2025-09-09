@@ -27,3 +27,13 @@ const (
 	// TCPConfigSYNSocket means to use a SYN with TCP socket options to perform the traceroute (windows only)
 	TCPConfigSYNSocket TCPMethod = "syn_socket"
 )
+
+// DNSResolutionStrategy is the DNS Resolution Strategy.
+type DNSResolutionStrategy string
+
+const (
+	// DNSResStrategyFirst means choosing first IP from DNS Resolution
+	DNSResStrategyFirst DNSResolutionStrategy = "first"
+	// DNSResStrategyRandom means choosing random IP from DNS Resolution
+	DNSResStrategyRandom DNSResolutionStrategy = "random"
+)
