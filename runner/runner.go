@@ -195,9 +195,6 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
 		}
 
-		// TODO: Not sure we should shuffle
-		//rand.Shuffle(len(ips), func(i, j int) { ips[i], ips[j] = ips[j], ips[i] })
-
 		found := false
 		for _, r := range ips {
 			if wantIPv6 {
