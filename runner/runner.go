@@ -20,6 +20,11 @@ import (
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
+type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error)
+
+// runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
+var runTracerouteOnceFn = runTracerouteOnce
+
 func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
 	destinationPort := params.Port
 	if destinationPort == 0 {
@@ -44,7 +49,6 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 }
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
-	// TODO: TEST ME
 	var wg sync.WaitGroup
 	var results result.Results
 	var multiErr []error
@@ -53,10 +57,7 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// TODO: Use value instead of pointer for trRun?
-			// TODO: Use value instead of pointer for trRun?
-			// TODO: Use value instead of pointer for trRun?
-			trRun, err := runTracerouteOnce(ctx, params, destinationPort)
+			trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
 			resultsAndErrorsMu.Lock()
 			if err != nil {
 				multiErr = append(multiErr, err)
