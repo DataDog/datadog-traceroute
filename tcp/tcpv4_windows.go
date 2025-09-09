@@ -100,7 +100,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 
 // TracerouteSequential runs a traceroute sequentially where a packet is
 // sent and we wait for a response before sending the next packet
-func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
+func (t *TCPv4) TracerouteSequential() (*result.TracerouteRun, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
