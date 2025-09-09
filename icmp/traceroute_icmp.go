@@ -91,7 +91,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 }
 
 // RunICMPTraceroute fully executes a ICMP traceroute using the given parameters
-func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
+func RunICMPTraceroute(ctx context.Context, p Params) (*result.TracerouteRun, error) {
 	icmpResult, err := runICMPTraceroute(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("icmp traceroute failed: %w", err)
@@ -102,22 +102,16 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 		return nil, fmt.Errorf("icmp traceroute ToHops failed: %w", err)
 	}
 
-	result := &result.Results{
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IPAddress: icmpResult.LocalAddr.Addr().AsSlice(),
-						Port:      icmpResult.LocalAddr.Port(),
-					},
-					Destination: result.TracerouteDestination{
-						IPAddress: p.Target.AsSlice(),
-					},
-					Hops: hops,
-				},
-			},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: icmpResult.LocalAddr.Addr().AsSlice(),
+			Port:      icmpResult.LocalAddr.Port(),
 		},
+		Destination: result.TracerouteDestination{
+			IPAddress: p.Target.AsSlice(),
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }

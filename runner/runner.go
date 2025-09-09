@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -19,14 +20,61 @@ import (
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
-func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	var results *result.Results
+type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error)
 
+// runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
+var runTracerouteOnceFn = runTracerouteOnce
+
+func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
 	destinationPort := params.Port
 	if destinationPort == 0 {
 		destinationPort = common.DefaultPort
 	}
 
+	results, err := runTracerouteMulti(ctx, params, destinationPort)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Params = result.Params{
+		Protocol: params.Protocol,
+		Hostname: params.Hostname,
+		Port:     destinationPort,
+	}
+	if params.ReverseDns {
+		results.EnrichWithReverseDns()
+	}
+	results.Normalize()
+	return results, nil
+}
+
+func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+	var wg sync.WaitGroup
+	var results result.Results
+	var multiErr []error
+	resultsAndErrorsMu := &sync.Mutex{}
+	for i := 0; i < params.TracerouteQueries; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
+			resultsAndErrorsMu.Lock()
+			if err != nil {
+				multiErr = append(multiErr, err)
+			} else {
+				results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
+			}
+			resultsAndErrorsMu.Unlock()
+		}()
+	}
+	wg.Wait()
+	if len(multiErr) > 0 {
+		return nil, errors.Join(multiErr...)
+	}
+	return &results, nil
+}
+func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+	var trRun *result.TracerouteRun
 	switch params.Protocol {
 	case "udp":
 		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
@@ -42,7 +90,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 			time.Duration(params.Delay)*time.Millisecond,
 			params.Timeout)
 
-		results, err = cfg.Traceroute()
+		trRun, err = cfg.Traceroute()
 		if err != nil {
 			return nil, fmt.Errorf("could not generate udp traceroute results: %w", err)
 		}
@@ -53,23 +101,23 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 			return nil, fmt.Errorf("invalid target: %w", err)
 		}
 
-		doSyn := func() (*result.Results, error) {
+		doSyn := func() (*result.TracerouteRun, error) {
 			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.Traceroute()
 		}
-		doSack := func() (*result.Results, error) {
+		doSack := func() (*result.TracerouteRun, error) {
 			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), params.Timeout)
 			if err != nil {
 				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
 			return sack.RunSackTraceroute(context.TODO(), params)
 		}
-		doSynSocket := func() (*result.Results, error) {
+		doSynSocket := func() (*result.TracerouteRun, error) {
 			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.TracerouteSequentialSocket()
 		}
 
-		results, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
+		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
 		if err != nil {
 			return nil, err
 		}
@@ -90,24 +138,14 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 				},
 			},
 		}
-		results, err = icmp.RunICMPTraceroute(ctx, cfg)
+		trRun, err = icmp.RunICMPTraceroute(ctx, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
-
-	results.Params = result.Params{
-		Protocol: params.Protocol,
-		Hostname: params.Hostname,
-		Port:     destinationPort,
-	}
-	if params.ReverseDns {
-		results.EnrichWithReverseDns()
-	}
-	results.Normalize()
-	return results, nil
+	return trRun, nil
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration) (sack.Params, error) {
@@ -197,9 +235,9 @@ func hasPort(s string) bool {
 	return strings.Count(s, ":") == 1
 }
 
-type tracerouteImpl func() (*result.Results, error)
+type tracerouteImpl func() (*result.TracerouteRun, error)
 
-func performTCPFallback(tcpMethod traceroute.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.Results, error) {
+func performTCPFallback(tcpMethod traceroute.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.TracerouteRun, error) {
 	if tcpMethod == "" {
 		tcpMethod = "syn"
 	}

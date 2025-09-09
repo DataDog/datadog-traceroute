@@ -200,7 +200,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 }
 
 // RunSackTraceroute fully executes a SACK traceroute using the given parameters
-func RunSackTraceroute(ctx context.Context, p Params) (*result.Results, error) {
+func RunSackTraceroute(ctx context.Context, p Params) (*result.TracerouteRun, error) {
 	sackResult, err := runSackTraceroute(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("sack traceroute failed: %w", err)
@@ -211,23 +211,17 @@ func RunSackTraceroute(ctx context.Context, p Params) (*result.Results, error) {
 		return nil, fmt.Errorf("sack traceroute ToHops failed: %w", err)
 	}
 
-	result := &result.Results{
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IPAddress: sackResult.LocalAddr.Addr().AsSlice(),
-						Port:      sackResult.LocalAddr.Port(),
-					},
-					Destination: result.TracerouteDestination{
-						IPAddress: p.Target.Addr().AsSlice(),
-						Port:      p.Target.Port(),
-					},
-					Hops: hops,
-				},
-			},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: sackResult.LocalAddr.Addr().AsSlice(),
+			Port:      sackResult.LocalAddr.Port(),
 		},
+		Destination: result.TracerouteDestination{
+			IPAddress: p.Target.Addr().AsSlice(),
+			Port:      p.Target.Port(),
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }

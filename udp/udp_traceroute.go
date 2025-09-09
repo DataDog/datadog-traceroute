@@ -16,7 +16,7 @@ import (
 )
 
 // Traceroute runs a UDP traceroute
-func (u *UDPv4) Traceroute() (*result.Results, error) {
+func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
 	targetAddr, ok := common.UnmappedAddrFromSlice(u.Target)
 	if !ok {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", u.Target)
@@ -69,23 +69,17 @@ func (u *UDPv4) Traceroute() (*result.Results, error) {
 		return nil, fmt.Errorf("UDP traceroute ToHops failed: %w", err)
 	}
 
-	result := &result.Results{
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IPAddress: u.srcIP,
-						Port:      u.srcPort,
-					},
-					Destination: result.TracerouteDestination{
-						IPAddress: u.Target,
-						Port:      u.TargetPort,
-					},
-					Hops: hops,
-				},
-			},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: u.srcIP,
+			Port:      u.srcPort,
 		},
+		Destination: result.TracerouteDestination{
+			IPAddress: u.Target,
+			Port:      u.TargetPort,
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }

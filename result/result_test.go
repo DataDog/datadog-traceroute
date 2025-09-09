@@ -66,9 +66,9 @@ func TestResults_Normalize(t *testing.T) {
 				},
 				E2eProbe: E2eProbe{
 					RTTs:                 []float64{30},
-					PacketsSent:          1,
+					PacketsSent:          2,
 					PacketsReceived:      1,
-					PacketLossPercentage: 0,
+					PacketLossPercentage: 0.5,
 					RTT: E2eProbeRTT{
 						Avg: 30,
 						Min: 30,
@@ -127,7 +127,7 @@ func TestResults_Normalize(t *testing.T) {
 				},
 				E2eProbe: E2eProbe{
 					RTTs:                 []float64{},
-					PacketsSent:          1,
+					PacketsSent:          2,
 					PacketsReceived:      0,
 					PacketLossPercentage: 1,
 					RTT:                  E2eProbeRTT{},

@@ -39,7 +39,7 @@ type (
 
 // TracerouteSequential runs a traceroute sequentially where a packet is
 // sent and we wait for a response before sending the next packet
-func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
+func (t *TCPv4) TracerouteSequential() (*result.TracerouteRun, error) {
 	// Get local address for the interface that connects to this
 	// host and store in the probe
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
@@ -112,22 +112,16 @@ func (t *TCPv4) TracerouteSequential() (*result.Results, error) {
 		}
 	}
 
-	return &result.Results{
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{
-				{
-					Source: result.TracerouteSource{
-						IPAddress: t.srcIP,
-						Port:      t.srcPort,
-					},
-					Destination: result.TracerouteDestination{
-						IPAddress: t.Target,
-						Port:      t.DestPort,
-					},
-					Hops: hops,
-				},
-			},
+	return &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: t.srcIP,
+			Port:      t.srcPort,
 		},
+		Destination: result.TracerouteDestination{
+			IPAddress: t.Target,
+			Port:      t.DestPort,
+		},
+		Hops: hops,
 	}, nil
 }
 
@@ -167,7 +161,7 @@ func (t *TCPv4) sendAndReceive(rawIcmpConn rawConnWrapper, rawTCPConn rawConnWra
 }
 
 // TracerouteSequentialSocket is not supported on unix
-func (t *TCPv4) TracerouteSequentialSocket() (*result.Results, error) {
+func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
 	// not implemented or supported on unix
 	return nil, fmt.Errorf("not implemented or supported on unix")
 }
