@@ -163,7 +163,7 @@ func (r *Results) normalizeE2eProbe() {
 	r.E2eProbe.RTTs = []float64{}
 	var packetSent, packetReceived int
 	var totalRTTs, minRTT, maxRTT float64
-	var RTTs []float64
+	RTTs := []float64{}
 
 	for _, run := range r.Traceroute.Runs {
 		packetSent++
