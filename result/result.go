@@ -165,6 +165,8 @@ func (r *Results) normalizeE2eProbe() {
 	var totalRTTs, minRTT, maxRTT float64
 	RTTs := []float64{}
 
+	// TODO: Replace with "50x e2e probe impl"
+	//       Right now, we temporarily use single Traceroute data to fill e2e probe
 	for _, run := range r.Traceroute.Runs {
 		packetSent++
 		destHop := run.getDestinationHop()
