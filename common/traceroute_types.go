@@ -130,23 +130,22 @@ func clipResults(minTTL uint8, results []*ProbeResponse) []*ProbeResponse {
 // ToHops converts a list of ProbeResponses to a Results
 // TODO remove this, and use a single type to represent results
 func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHop, error) {
-	if p.MinTTL != 1 {
-		return nil, fmt.Errorf("ToHops: processResults() requires MinTTL == 1")
-	}
 	hops := make([]*result.TracerouteHop, len(probes))
 	for i, probe := range probes {
-		hops[i] = &result.TracerouteHop{
-			// Using index for TTL mimics what we already do in datadog-agent.
-			// Should we rely on probe.TTL instead in the future?
-			TTL: i + 1,
-		}
+		expectedTTL := int(p.MinTTL) + i
 		if probe != nil {
-			hops[i].IPAddress = probe.IP.AsSlice()
-			hops[i].RTT = ConvertDurationToMs(probe.RTT)
-			hops[i].IsDest = probe.IsDest
-
+			hops[i] = &result.TracerouteHop{
+				TTL:       int(probe.TTL),
+				IPAddress: probe.IP.AsSlice(),
+				RTT:       ConvertDurationToMs(probe.RTT),
+				IsDest:    probe.IsDest,
+			}
 			if !hops[i].IPAddress.Equal(net.IP{}) {
 				hops[i].Reachable = true
+			}
+		} else {
+			hops[i] = &result.TracerouteHop{
+				TTL: expectedTTL,
 			}
 		}
 	}
