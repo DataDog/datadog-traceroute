@@ -83,7 +83,7 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVarP(&Args.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
 	rootCmd.Flags().IntVarP(&Args.port, "port", "p", common.DefaultPort, "Destination port")
-	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "nqueries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries")
+	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries")
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
