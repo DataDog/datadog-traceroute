@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/netip"
 	"strconv"
@@ -84,7 +85,6 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		cfg := udp.NewUDPv4(
 			target.Addr().AsSlice(),
 			target.Port(),
-			uint16(params.TracerouteCount),
 			uint8(common.DefaultMinTTL),
 			uint8(params.MaxTTL),
 			time.Duration(params.Delay)*time.Millisecond,
@@ -102,7 +102,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		}
 
 		doSyn := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.Traceroute()
 		}
 		doSack := func() (*result.TracerouteRun, error) {
@@ -113,7 +113,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return sack.RunSackTraceroute(context.TODO(), params)
 		}
 		doSynSocket := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint16(params.TracerouteCount), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.TracerouteSequentialSocket()
 		}
 
@@ -195,6 +195,8 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
 		}
 
+		shuffleIPs(ips)
+
 		found := false
 		for _, r := range ips {
 			if wantIPv6 {
@@ -225,6 +227,10 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 	}
 
 	return netip.AddrPortFrom(ip, uint16(port)), nil
+}
+
+func shuffleIPs(ips []net.IP) {
+	rand.Shuffle(len(ips), func(i, j int) { ips[i], ips[j] = ips[j], ips[i] })
 }
 
 // hasPort returns true if the input string includes a port

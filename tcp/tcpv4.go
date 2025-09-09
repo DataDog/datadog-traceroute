@@ -25,7 +25,6 @@ type (
 		srcIP    net.IP // calculated internally
 		srcPort  uint16 // calculated internally
 		DestPort uint16
-		NumPaths uint16
 		MinTTL   uint8
 		MaxTTL   uint8
 		Delay    time.Duration // delay between sending packets (not applicable if we go the serial send/receive route)
@@ -43,7 +42,7 @@ type (
 )
 
 // NewTCPv4 initializes a new TCPv4 traceroute instance
-func NewTCPv4(target net.IP, targetPort uint16, numPaths uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration, parisTracerouteMode bool) *TCPv4 {
+func NewTCPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration, parisTracerouteMode bool) *TCPv4 {
 	buffer := gopacket.NewSerializeBufferExpectedSize(40, 0)
 
 	var baseSeqNumber uint32
@@ -60,7 +59,6 @@ func NewTCPv4(target net.IP, targetPort uint16, numPaths uint16, minTTL uint8, m
 	return &TCPv4{
 		Target:              target,
 		DestPort:            targetPort,
-		NumPaths:            numPaths,
 		MinTTL:              minTTL,
 		MaxTTL:              maxTTL,
 		Delay:               delay,
