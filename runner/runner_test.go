@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -260,7 +261,12 @@ func Test_runTracerouteMulti(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.EqualError(t, err, tt.expectedError)
 			}
-			require.Equal(t, tt.expectedResults, results)
+			expectedResultsJson, err := json.MarshalIndent(tt.expectedResults, "", "  ")
+			require.NoError(t, err)
+			actualResultsJson, err := json.MarshalIndent(results, "", "  ")
+			require.NoError(t, err)
+			assert.Equal(t, expectedResultsJson, actualResultsJson)
+			assert.Equal(t, tt.expectedResults, results)
 		})
 	}
 }
