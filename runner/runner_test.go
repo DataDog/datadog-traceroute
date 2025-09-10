@@ -2,9 +2,11 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/result"
@@ -135,10 +137,11 @@ func TestTCPFallback(t *testing.T) {
 }
 
 func Test_runTracerouteMulti(t *testing.T) {
-	var counter int
+	var counter atomic.Int32
+
 	runTracerouteOnceFnValid := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
-		destIP := fmt.Sprintf("10.10.10.%d", counter)
-		counter++
+		counter.Add(1)
+		destIP := fmt.Sprintf("10.10.10.%d", counter.Load())
 		return &result.TracerouteRun{
 			Source: result.TracerouteSource{
 				IPAddress: net.ParseIP("10.10.88.88"),
@@ -154,8 +157,8 @@ func Test_runTracerouteMulti(t *testing.T) {
 		}, nil
 	}
 	runTracerouteOnceFnError := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
-		err := errors.New(fmt.Sprintf("error running traceroute %d", counter))
-		counter++
+		counter.Add(1)
+		err := errors.New(fmt.Sprintf("error running traceroute %d", counter.Load()))
 		return nil, err
 	}
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
@@ -250,7 +253,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			counter = 1
+			counter.Store(0)
 			runTracerouteOnceFn = tt.tracerouteOnceFn
 			defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
@@ -258,7 +261,12 @@ func Test_runTracerouteMulti(t *testing.T) {
 			if tt.expectedError != "" {
 				assert.EqualError(t, err, tt.expectedError)
 			}
-			require.Equal(t, tt.expectedResults, results)
+			expectedResultsJson, err := json.MarshalIndent(tt.expectedResults, "", "  ")
+			require.NoError(t, err)
+			actualResultsJson, err := json.MarshalIndent(results, "", "  ")
+			require.NoError(t, err)
+			assert.Equal(t, expectedResultsJson, actualResultsJson)
+			assert.Equal(t, tt.expectedResults, results)
 		})
 	}
 }
