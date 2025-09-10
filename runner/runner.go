@@ -71,15 +71,11 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 	}
 
 	// e2e probes
-	// copy params and modify TTL values to only probe the destination, not each hop
-	e2eParams := params
-	e2eParams.MinTTL = common.DefaultE2eProbeTTL
-	e2eParams.MaxTTL = common.DefaultE2eProbeTTL
 	for i := 0; i < params.E2eQueries; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			e2eRtt, err := runE2eProbeOnce(ctx, e2eParams, destinationPort)
+			e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
 			resultsAndErrorsMu.Lock()
 			if err != nil {
 				multiErr = append(multiErr, err)
@@ -173,14 +169,20 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 	return trRun, nil
 }
 
+// runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.
+// It reuses runTracerouteOnce() with modified TTL parameters where MinTTL is set to the same value
+// as MaxTTL, essentially sending a single probe to the destination instead of incrementally probing
+// each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
 func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
+	params.MinTTL = params.MaxTTL
+
 	trRun, err := runTracerouteOnce(ctx, params, destinationPort)
 	if err != nil {
-		return 0.0, err
+		return 0, err
 	}
 	destHop := trRun.GetDestinationHop()
 	if destHop == nil {
-		return 0.0, fmt.Errorf("no destination hop found in traceroute results")
+		return 0, nil
 	}
 	return destHop.RTT, nil
 }

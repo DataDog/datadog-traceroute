@@ -26,7 +26,6 @@ const (
 	DefaultNumE2eProbes       = 50
 	DefaultMinTTL             = 1
 	DefaultMaxTTL             = 30
-	DefaultE2eProbeTTL        = 200
 	DefaultDelay              = 50 //msec
 	DefaultProtocol           = "udp"
 	DefaultTcpMethod          = "syn"

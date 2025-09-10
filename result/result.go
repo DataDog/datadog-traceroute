@@ -203,11 +203,6 @@ func (r *Results) normalizeE2eProbe() {
 		r.E2eProbe.RTT.Avg = totalRTTs / float64(len(validRTTs))
 		r.E2eProbe.RTT.Min = minRTT
 		r.E2eProbe.RTT.Max = maxRTT
-	} else {
-		// No packets received
-		r.E2eProbe.RTT.Avg = 0.0
-		r.E2eProbe.RTT.Min = 0.0
-		r.E2eProbe.RTT.Max = 0.0
 	}
 
 	r.E2eProbe.Jitter = calculateJitter(validRTTs)

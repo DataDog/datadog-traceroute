@@ -134,8 +134,12 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 	for i, probe := range probes {
 		expectedTTL := int(p.MinTTL) + i
 		if probe != nil {
+			// Sanity check
+			if int(probe.TTL) != expectedTTL {
+				return nil, fmt.Errorf("probe TTL mismatch: expected %d, got %d", expectedTTL, probe.TTL)
+			}
 			hops[i] = &result.TracerouteHop{
-				TTL:       int(probe.TTL),
+				TTL:       expectedTTL,
 				IPAddress: probe.IP.AsSlice(),
 				RTT:       ConvertDurationToMs(probe.RTT),
 				IsDest:    probe.IsDest,
