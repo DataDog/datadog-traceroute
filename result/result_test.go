@@ -37,6 +37,9 @@ func TestResults_Normalize(t *testing.T) {
 						},
 					},
 				},
+				E2eProbe: E2eProbe{
+					RTTs: []float64{20, 30, 40, 0, 30},
+				},
 			},
 			ExpectedResults: Results{
 				Traceroute: Traceroute{
@@ -65,14 +68,15 @@ func TestResults_Normalize(t *testing.T) {
 					},
 				},
 				E2eProbe: E2eProbe{
-					RTTs:                 []float64{30},
-					PacketsSent:          2,
-					PacketsReceived:      1,
-					PacketLossPercentage: 0.5,
+					RTTs:                 []float64{20, 30, 40, 0, 30},
+					PacketsSent:          5,
+					PacketsReceived:      4,
+					PacketLossPercentage: 0.2,
+					Jitter: 10,
 					RTT: E2eProbeRTT{
 						Avg: 30,
-						Min: 30,
-						Max: 30,
+						Min: 20,
+						Max: 40,
 					},
 				},
 			},
@@ -97,6 +101,9 @@ func TestResults_Normalize(t *testing.T) {
 							},
 						},
 					},
+				},
+				E2eProbe: E2eProbe{
+					RTTs: []float64{0, 0, 0, 0, 0},
 				},
 			},
 			ExpectedResults: Results{
@@ -126,11 +133,78 @@ func TestResults_Normalize(t *testing.T) {
 					},
 				},
 				E2eProbe: E2eProbe{
-					RTTs:                 []float64{},
-					PacketsSent:          2,
+					RTTs:                 []float64{0, 0, 0, 0, 0},
+					PacketsSent:          5,
 					PacketsReceived:      0,
 					PacketLossPercentage: 1,
 					RTT:                  E2eProbeRTT{},
+				},
+			},
+		},
+		{
+			name: "only traceroutes",
+			Results: Results{
+				Traceroute: Traceroute{
+					Runs: []TracerouteRun{
+						{
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+							},
+						},
+					},
+				},
+				E2eProbe: E2eProbe{
+					RTTs: []float64{},
+				},
+			},
+			ExpectedResults: Results{
+				Traceroute: Traceroute{
+					Runs: []TracerouteRun{
+						{
+							RunID: "id-0",
+							Hops: []*TracerouteHop{
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+							},
+						},
+					},
+					HopCount: HopCountStats{
+						Avg: 4,
+						Min: 4,
+						Max: 4,
+					},
+				},
+				E2eProbe: E2eProbe{
+					RTTs: []float64{},
+				},
+			},
+		},
+		{
+			name: "only e2e probes",
+			Results: Results{
+				Traceroute: Traceroute{},
+				E2eProbe: E2eProbe{
+					RTTs: []float64{20, 30, 40, 0, 30},
+				},
+			},
+			ExpectedResults: Results{
+				Traceroute: Traceroute{},
+				E2eProbe: E2eProbe{
+					RTTs:                 []float64{20, 30, 40, 0, 30},
+					PacketsSent:          5,
+					PacketsReceived:      4,
+					PacketLossPercentage: 0.2,
+					Jitter: 10,
+					RTT: E2eProbeRTT{
+						Avg: 30,
+						Min: 20,
+						Max: 40,
+					},
 				},
 			},
 		},
