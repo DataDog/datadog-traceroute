@@ -1,11 +1,13 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"sync/atomic"
 	"testing"
 
@@ -263,6 +265,13 @@ func Test_runTracerouteMulti(t *testing.T) {
 			results, err := runTracerouteMulti(context.Background(), tt.params, 42)
 			for _, errMsg := range tt.expectedError {
 				assert.ErrorContains(t, err, errMsg)
+			}
+			if results != nil {
+				// Sort results by destination IP for deterministic comparison
+				sort.Slice(results.Traceroute.Runs, func(i, j int) bool {
+					return bytes.Compare(results.Traceroute.Runs[i].Destination.IPAddress,
+						results.Traceroute.Runs[j].Destination.IPAddress) < 0
+				})
 			}
 			expectedResultsJson, err := json.MarshalIndent(tt.expectedResults, "", "  ")
 			require.NoError(t, err)
