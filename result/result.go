@@ -165,6 +165,10 @@ func (r *Results) normalizeTracerouteHops() {
 }
 
 func (r *Results) normalizeE2eProbe() {
+	if len(r.E2eProbe.RTTs) == 0 {
+		return
+	}
+
 	r.E2eProbe.PacketsSent = len(r.E2eProbe.RTTs)
 
 	// Count received packets (non-zero RTTs) and collect valid RTTs
