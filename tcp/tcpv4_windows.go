@@ -190,6 +190,6 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 		ICMPType:  0, // TODO: fix this
 		RTT:       common.ConvertDurationToMs(rtt),
 		IsDest:    hopIP.Equal(t.Target),
-		REachable: reachable,
+		Reachable: reachable,
 	}, nil
 }
