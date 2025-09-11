@@ -119,6 +119,7 @@ func (r *Results) EnrichWithReverseDns() {
 func (r *Results) Normalize() {
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
+	r.normalizeTracerouteHopsCount()
 	r.normalizeE2eProbe()
 }
 
@@ -129,6 +130,16 @@ func (r *Results) normalizeTracerouteRuns() {
 }
 
 func (r *Results) normalizeTracerouteHops() {
+	for i, run := range r.Traceroute.Runs {
+		for j, hop := range run.Hops {
+			if !hop.IPAddress.Equal(net.IP{}) {
+				r.Traceroute.Runs[i].Hops[j].Reachable = true
+			}
+		}
+	}
+}
+
+func (r *Results) normalizeTracerouteHopsCount() {
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := len(run.Hops)
