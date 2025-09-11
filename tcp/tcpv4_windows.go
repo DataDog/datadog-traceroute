@@ -84,8 +84,10 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	rtt := time.Duration(0)
+	reachable := false
 	if !hopIP.Equal(net.IP{}) {
 		rtt = end.Sub(start)
+		reachable = true
 	}
 
 	return &result.TracerouteHop{
@@ -95,6 +97,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 		ICMPCode:  icmpCode,
 		RTT:       common.ConvertDurationToMs(rtt),
 		IsDest:    hopIP.Equal(t.Target),
+		Reachable: reachable,
 	}, nil
 }
 
