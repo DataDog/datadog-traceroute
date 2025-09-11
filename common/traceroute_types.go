@@ -8,7 +8,6 @@ package common
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"slices"
 	"time"
@@ -143,9 +142,6 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 				IPAddress: probe.IP.AsSlice(),
 				RTT:       ConvertDurationToMs(probe.RTT),
 				IsDest:    probe.IsDest,
-			}
-			if !hops[i].IPAddress.Equal(net.IP{}) {
-				hops[i].Reachable = true
 			}
 		} else {
 			hops[i] = &result.TracerouteHop{

@@ -23,7 +23,7 @@ func main() {
 	}
 	target := netip.MustParseAddrPort(os.Args[1])
 
-	cfg := udp.NewUDPv4(target.Addr().AsSlice(), target.Port(), 1, 1, 30, 10*time.Millisecond, 1*time.Second)
+	cfg := udp.NewUDPv4(target.Addr().AsSlice(), target.Port(), 1, 30, 10*time.Millisecond, 1*time.Second)
 
 	results, err := cfg.Traceroute()
 	if err != nil {

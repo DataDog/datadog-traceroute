@@ -29,7 +29,7 @@ func main() {
 	target := netip.MustParseAddrPort(os.Args[1])
 	compatibilityMode := os.Getenv("COMPAT") == "true"
 
-	cfg := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), 1, 1, 30, 10*time.Millisecond, 1*time.Second, compatibilityMode)
+	cfg := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), 1, 30, 10*time.Millisecond, 1*time.Second, compatibilityMode)
 
 	results, err := cfg.Traceroute()
 	if err != nil {

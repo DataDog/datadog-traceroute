@@ -141,7 +141,6 @@ func TestToHops(t *testing.T) {
 			IPAddress: net.IP{10, 0, 0, 10},
 			RTT:       10.0,
 			IsDest:    false,
-			Reachable: true,
 		},
 		{
 			TTL: 2,
@@ -150,7 +149,6 @@ func TestToHops(t *testing.T) {
 			TTL:       3,
 			IPAddress: net.IP{10, 0, 0, 20},
 			RTT:       20.0,
-			Reachable: true,
 			IsDest:    true,
 		},
 	}

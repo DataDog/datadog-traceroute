@@ -26,7 +26,6 @@ type (
 		TargetPort uint16
 		srcIP      net.IP // calculated internally
 		srcPort    uint16 // calculated internally
-		NumPaths   uint16
 		MinTTL     uint8
 		MaxTTL     uint8
 		Delay      time.Duration // delay between sending packets (not applicable if we go the serial send/receive route)
@@ -42,14 +41,13 @@ type (
 )
 
 // NewUDPv4 initializes a new UDPv4 traceroute instance
-func NewUDPv4(target net.IP, targetPort uint16, numPaths uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration) *UDPv4 {
+func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration) *UDPv4 {
 	icmpParser := icmp.NewICMPUDPParser()
 	buffer := gopacket.NewSerializeBufferExpectedSize(36, 0)
 
 	return &UDPv4{
 		Target:     target,
 		TargetPort: targetPort,
-		NumPaths:   numPaths,
 		MinTTL:     minTTL,
 		MaxTTL:     maxTTL,
 		srcIP:      net.IP{}, // avoid linter error on linux as it's only used on windows

@@ -23,7 +23,7 @@ func TestCreateRawUDPBuffer(t *testing.T) {
 	dstPort := uint16(33434)
 	ttl := 4
 
-	udp := NewUDPv4(dstIP, dstPort, 1, 1, 1, 0, 0)
+	udp := NewUDPv4(dstIP, dstPort, 1, 1, 0, 0)
 	udp.srcIP = srcIP
 	udp.srcPort = srcPort
 

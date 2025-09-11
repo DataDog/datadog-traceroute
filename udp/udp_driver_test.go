@@ -35,7 +35,6 @@ func initTest(t *testing.T, ipv6 bool) (*UDPv4, *udpDriver, *packets.MockSink, *
 		ipAddress,
 		80,
 		1,
-		1,
 		30,
 		10*time.Millisecond,
 		100*time.Second,
