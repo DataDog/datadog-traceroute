@@ -94,45 +94,22 @@ type (
 
 // EnrichWithReverseDns enrich results with reverse dns
 func (r *Results) EnrichWithReverseDns() {
-	// collect unique IP addresses
-	uniqueIPs := make(map[string]net.IP)
 	for i := range r.Traceroute.Runs {
 		run := &r.Traceroute.Runs[i]
-		if run.Destination.IPAddress != nil {
-			uniqueIPs[run.Destination.IPAddress.String()] = run.Destination.IPAddress
-		}
-		for _, hop := range run.Hops {
-			if hop.IPAddress != nil {
-				uniqueIPs[hop.IPAddress.String()] = hop.IPAddress
-			}
-		}
-	}
-
-	// perform reverse DNS lookup for each unique IP address
-	rdnsResults := make(map[string][]string)
-	for ipStr, ip := range uniqueIPs {
-		rdnsResult, err := reversedns.GetReverseDnsForIP(ip)
+		destRDns, err := reversedns.GetReverseDnsForIP(run.Destination.IPAddress)
 		if err != nil {
-			log.Debugf("failed to get reverse dns for IP %s: %s", ipStr, err)
-			rdnsResults[ipStr] = nil // Store nil to indicate lookup was attempted but failed
+			log.Debugf("failed to get reverse dns for destination IP: %s", err)
 		} else {
-			rdnsResults[ipStr] = rdnsResult
+			run.Destination.ReverseDns = destRDns
 		}
-	}
 
-	// populate results
-	for i := range r.Traceroute.Runs {
-		run := &r.Traceroute.Runs[i]
-		if run.Destination.IPAddress != nil {
-			if rdnsResult, exists := rdnsResults[run.Destination.IPAddress.String()]; exists && rdnsResult != nil {
-				run.Destination.ReverseDns = rdnsResult
-			}
-		}
-		for _, hop := range run.Hops {
-			if hop.IPAddress != nil {
-				if rdnsResult, exists := rdnsResults[hop.IPAddress.String()]; exists && rdnsResult != nil {
-					hop.ReverseDns = rdnsResult
-				}
+		for j := range run.Hops {
+			hop := run.Hops[j]
+			hopRDns, err := reversedns.GetReverseDnsForIP(hop.IPAddress)
+			if err != nil {
+				log.Debugf("failed to get reverse dns for destination IP: %s", err)
+			} else {
+				hop.ReverseDns = hopRDns
 			}
 		}
 	}
