@@ -175,7 +175,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
 	params.MinTTL = params.MaxTTL
 
-	trRun, err := runTracerouteOnce(ctx, params, destinationPort)
+	trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
 	if err != nil {
 		return 0, err
 	}
