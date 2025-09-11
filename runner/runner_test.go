@@ -1,10 +1,14 @@
 package runner
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"sort"
+	"sync/atomic"
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/result"
@@ -135,10 +139,11 @@ func TestTCPFallback(t *testing.T) {
 }
 
 func Test_runTracerouteMulti(t *testing.T) {
-	var counter int
+	var counter atomic.Int32
+
 	runTracerouteOnceFnValid := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
-		destIP := fmt.Sprintf("10.10.10.%d", counter)
-		counter++
+		counter.Add(1)
+		destIP := fmt.Sprintf("10.10.10.%d", counter.Load())
 		return &result.TracerouteRun{
 			Source: result.TracerouteSource{
 				IPAddress: net.ParseIP("10.10.88.88"),
@@ -154,8 +159,8 @@ func Test_runTracerouteMulti(t *testing.T) {
 		}, nil
 	}
 	runTracerouteOnceFnError := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
-		err := errors.New(fmt.Sprintf("error running traceroute %d", counter))
-		counter++
+		counter.Add(1)
+		err := errors.New(fmt.Sprintf("error running traceroute %d", counter.Load()))
 		return nil, err
 	}
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
@@ -164,7 +169,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 		params           TracerouteParams
 		tracerouteOnceFn runTracerouteOnceFnType
 		expectedResults  *result.Results
-		expectedError    string
+		expectedError    []string
 	}{
 		{
 			name:             "1 traceroute query",
@@ -245,20 +250,35 @@ func Test_runTracerouteMulti(t *testing.T) {
 			params:           TracerouteParams{TracerouteQueries: 2},
 			tracerouteOnceFn: runTracerouteOnceFnError,
 			expectedResults:  nil,
-			expectedError:    "error running traceroute 1\nerror running traceroute 2",
+			expectedError: []string{
+				"error running traceroute 1",
+				"error running traceroute 2",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			counter = 1
+			counter.Store(0)
 			runTracerouteOnceFn = tt.tracerouteOnceFn
 			defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
 			results, err := runTracerouteMulti(context.Background(), tt.params, 42)
-			if tt.expectedError != "" {
-				assert.EqualError(t, err, tt.expectedError)
+			for _, errMsg := range tt.expectedError {
+				assert.ErrorContains(t, err, errMsg)
 			}
-			require.Equal(t, tt.expectedResults, results)
+			if results != nil {
+				// Sort results by destination IP for deterministic comparison
+				sort.Slice(results.Traceroute.Runs, func(i, j int) bool {
+					return bytes.Compare(results.Traceroute.Runs[i].Destination.IPAddress,
+						results.Traceroute.Runs[j].Destination.IPAddress) < 0
+				})
+			}
+			expectedResultsJson, err := json.MarshalIndent(tt.expectedResults, "", "  ")
+			require.NoError(t, err)
+			actualResultsJson, err := json.MarshalIndent(results, "", "  ")
+			require.NoError(t, err)
+			assert.Equal(t, expectedResultsJson, actualResultsJson)
+			assert.Equal(t, tt.expectedResults, results)
 		})
 	}
 }
