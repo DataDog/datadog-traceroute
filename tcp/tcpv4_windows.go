@@ -178,8 +178,10 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 	}
 
 	rtt := time.Duration(0)
+	reachable := false
 	if !hopIP.Equal(net.IP{}) {
 		rtt = end.Sub(start)
+		reachable = true
 	}
 
 	return &result.TracerouteHop{
@@ -188,5 +190,6 @@ func (t *TCPv4) sendAndReceive(rs winconn.RawConnWrapper, ttl int, seqNum uint32
 		ICMPType:  0, // TODO: fix this
 		RTT:       common.ConvertDurationToMs(rtt),
 		IsDest:    hopIP.Equal(t.Target),
+		REachable: reachable,
 	}, nil
 }

@@ -143,6 +143,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 				IPAddress: net.IP{},
 				RTT:       0, // RTT should be zero
 				IsDest:    false,
+				Reachable: false,
 			},
 		},
 		{
@@ -154,6 +155,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			expected: &result.TracerouteHop{
 				IPAddress: net.ParseIP("7.8.9.0"),
 				IsDest:    false,
+				Reachable: true,
 			},
 		},
 		{
@@ -165,6 +167,7 @@ func TestSendAndReceiveSocket(t *testing.T) {
 			expected: &result.TracerouteHop{
 				IPAddress: dstIP,
 				IsDest:    true,
+				Reachable: true,
 			},
 		},
 	}
