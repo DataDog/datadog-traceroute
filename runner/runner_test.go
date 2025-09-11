@@ -167,7 +167,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 		params           TracerouteParams
 		tracerouteOnceFn runTracerouteOnceFnType
 		expectedResults  *result.Results
-		expectedError    string
+		expectedError    []string
 	}{
 		{
 			name:             "1 traceroute query",
@@ -248,7 +248,10 @@ func Test_runTracerouteMulti(t *testing.T) {
 			params:           TracerouteParams{TracerouteQueries: 2},
 			tracerouteOnceFn: runTracerouteOnceFnError,
 			expectedResults:  nil,
-			expectedError:    "error running traceroute 1\nerror running traceroute 2",
+			expectedError: []string{
+				"error running traceroute 1",
+				"error running traceroute 2",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -258,8 +261,8 @@ func Test_runTracerouteMulti(t *testing.T) {
 			defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
 			results, err := runTracerouteMulti(context.Background(), tt.params, 42)
-			if tt.expectedError != "" {
-				assert.EqualError(t, err, tt.expectedError)
+			for _, errMsg := range tt.expectedError {
+				assert.ErrorContains(t, err, errMsg)
 			}
 			expectedResultsJson, err := json.MarshalIndent(tt.expectedResults, "", "  ")
 			require.NoError(t, err)
