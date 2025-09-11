@@ -140,6 +140,10 @@ func (r *Results) normalizeTracerouteHops() {
 }
 
 func (r *Results) normalizeTracerouteHopsCount() {
+	if len(r.Traceroute.Runs) == 0 {
+		return
+	}
+
 	var hopCounts []int
 	for _, run := range r.Traceroute.Runs {
 		hopCount := len(run.Hops)

@@ -148,10 +148,10 @@ func TestResults_Normalize(t *testing.T) {
 					Runs: []TracerouteRun{
 						{
 							Hops: []*TracerouteHop{
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10, Reachable: true},
 								{},
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, Reachable: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true, Reachable: true},
 							},
 						},
 					},
@@ -166,10 +166,10 @@ func TestResults_Normalize(t *testing.T) {
 						{
 							RunID: "id-0",
 							Hops: []*TracerouteHop{
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 10, Reachable: true},
 								{},
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30},
-								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, Reachable: true},
+								{IPAddress: net.IP{10, 10, 10, 10}, RTT: 30, IsDest: true, Reachable: true},
 							},
 						},
 					},
