@@ -30,7 +30,7 @@ func TestCreateRawTCPSyn(t *testing.T) {
 	packetID := uint16(41821)
 	ttl := 64
 
-	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 1, 0, 0, false)
+	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 0, 0, false)
 	tcp.srcIP = srcIP
 	tcp.srcPort = srcPort
 
@@ -69,7 +69,7 @@ func TestCreateRawTCPSynBuffer(t *testing.T) {
 	packetID := uint16(41821)
 	ttl := 64
 
-	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 1, 0, 0, false)
+	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 0, 0, false)
 	tcp.srcIP = srcIP
 	tcp.srcPort = srcPort
 
@@ -109,7 +109,7 @@ func TestCreateRawTCPSynBufferPacketID(t *testing.T) {
 	packetID := uint16(54321)
 	ttl := 64
 
-	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 1, 0, 0, false)
+	tcp := NewTCPv4(dstIP, dstPort, 1, 1, 0, 0, false)
 	tcp.srcIP = srcIP
 	tcp.srcPort = srcPort
 

@@ -10,7 +10,6 @@ type TracerouteParams struct {
 	Hostname                  string
 	Port                      int
 	Protocol                  string
-	TracerouteCount           int
 	MinTTL                    int
 	MaxTTL                    int
 	Delay                     int
