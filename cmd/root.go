@@ -20,16 +20,17 @@ import (
 )
 
 type args struct {
-	protocol          string
-	tracerouteQueries int
-	e2eQueries        int
-	maxTTL            int
-	timeout           int
-	tcpmethod         string
-	port              int
-	wantV6            bool
-	reverseDns        bool
-	verbose           bool
+	protocol              string
+	tracerouteQueries     int
+	e2eQueries            int
+	maxTTL                int
+	timeout               int
+	tcpmethod             string
+	dnsResolutionStrategy string
+	port                  int
+	wantV6                bool
+	reverseDns            bool
+	verbose               bool
 }
 
 var Args args
@@ -49,16 +50,17 @@ var rootCmd = &cobra.Command{
 		log.SetVerbose(Args.verbose)
 
 		params := runner.TracerouteParams{
-			Hostname:          args[0],
-			Port:              Args.port,
-			Protocol:          Args.protocol,
-			MaxTTL:            Args.maxTTL,
-			Delay:             common.DefaultDelay,
-			Timeout:           timeout,
-			TCPMethod:         traceroute.TCPMethod(Args.tcpmethod),
-			WantV6:            Args.wantV6,
-			ReverseDns:        Args.reverseDns,
-			TracerouteQueries: Args.tracerouteQueries,
+			Hostname:              args[0],
+			Port:                  Args.port,
+			Protocol:              Args.protocol,
+			MaxTTL:                Args.maxTTL,
+			Delay:                 common.DefaultDelay,
+			Timeout:               timeout,
+			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
+			WantV6:                Args.wantV6,
+			ReverseDns:            Args.reverseDns,
+			TracerouteQueries:     Args.tracerouteQueries,
+			DNSResolutionStrategy: traceroute.DNSResolutionStrategy(Args.dnsResolutionStrategy),
 		}
 
 		results, err := runner.RunTraceroute(cmd.Context(), params)
@@ -87,6 +89,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
+	rootCmd.Flags().StringVarP(&Args.dnsResolutionStrategy, "dns-resolution-strategy", "", common.DefaultDnsResolutionStrategy, "DNS Resolution Strategy (first, random)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", false, "IPv6")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")

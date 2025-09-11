@@ -20,15 +20,16 @@ import (
 )
 
 const (
-	DefaultNetworkPathTimeout = 3000
-	DefaultPort               = 33434
-	DefaultTracerouteQueries  = 3
-	DefaultNumE2eProbes       = 50
-	DefaultMinTTL             = 1
-	DefaultMaxTTL             = 30
-	DefaultDelay              = 50 //msec
-	DefaultProtocol           = "udp"
-	DefaultTcpMethod          = "syn"
+	DefaultNetworkPathTimeout    = 3000
+	DefaultPort                  = 33434
+	DefaultTracerouteQueries     = 3
+	DefaultNumE2eProbes          = 50
+	DefaultMinTTL                = 1
+	DefaultMaxTTL                = 30
+	DefaultDelay                 = 50 //msec
+	DefaultProtocol              = "udp"
+	DefaultTcpMethod             = "syn"
+	DefaultDnsResolutionStrategy = "first"
 )
 
 type (
