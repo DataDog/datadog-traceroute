@@ -23,7 +23,7 @@ const (
 	DefaultNetworkPathTimeout = 3000
 	DefaultPort               = 33434
 	DefaultTracerouteQueries  = 3
-	DefaultNumE2eProbes       = 50
+	DefaultNumE2eProbes       = 10
 	DefaultMinTTL             = 1
 	DefaultMaxTTL             = 30
 	DefaultDelay              = 50 //msec

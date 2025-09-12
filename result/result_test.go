@@ -72,7 +72,7 @@ func TestResults_Normalize(t *testing.T) {
 					PacketsSent:          5,
 					PacketsReceived:      4,
 					PacketLossPercentage: 0.2,
-					Jitter: 10,
+					Jitter:               10,
 					RTT: E2eProbeRTT{
 						Avg: 30,
 						Min: 20,
@@ -199,7 +199,7 @@ func TestResults_Normalize(t *testing.T) {
 					PacketsSent:          5,
 					PacketsReceived:      4,
 					PacketLossPercentage: 0.2,
-					Jitter: 10,
+					Jitter:               10,
 					RTT: E2eProbeRTT{
 						Avg: 30,
 						Min: 20,
@@ -276,6 +276,76 @@ func TestResults_EnrichWithReverseDns(t *testing.T) {
 
 			tt.Results.EnrichWithReverseDns()
 			assert.Equal(t, tt.ExpectedResults, tt.Results)
+		})
+	}
+}
+
+func TestCalculateJitter(t *testing.T) {
+	tests := []struct {
+		name     string
+		rtts     []float64
+		expected float64
+	}{
+		{
+			name:     "empty slice",
+			rtts:     []float64{},
+			expected: 0.0,
+		},
+		{
+			name:     "single RTT",
+			rtts:     []float64{10.0},
+			expected: 0.0,
+		},
+		{
+			name:     "two identical RTTs",
+			rtts:     []float64{10.0, 10.0},
+			expected: 0.0,
+		},
+		{
+			name:     "two different RTTs",
+			rtts:     []float64{10.0, 20.0},
+			expected: 10.0,
+		},
+		{
+			name:     "three RTTs with consistent increase",
+			rtts:     []float64{10.0, 20.0, 30.0},
+			expected: 10.0, // |20-10| + |30-20| = 10 + 10 = 20, divided by 2 = 10
+		},
+		{
+			name:     "three RTTs with varying differences",
+			rtts:     []float64{10.0, 25.0, 20.0},
+			expected: 10.0, // |25-10| + |20-25| = 15 + 5 = 20, divided by 2 = 10
+		},
+		{
+			name:     "RTTs with decimal values",
+			rtts:     []float64{12.1, 17.1, 22.1, 27.6, 23.1},
+			expected: 5.0, // |17.1-12.1| + |22.1-17.1| + |27.6-22.1| + |23.1-27.6| = 5 + 5 + 5.5 + 4.5 = 20, divided by 4 = 5
+		},
+		{
+			name:     "10 values equally increasing",
+			rtts:     []float64{10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+			expected: 5.0, // All differences are 5, so jitter = 5
+		},
+		{
+			name:     "10 values equally decreasing",
+			rtts:     []float64{100, 90, 80, 70, 60, 50, 40, 30, 20, 10},
+			expected: 10.0, // All differences are 10 (absolute value), so jitter = 10
+		},
+		{
+			name: "50 values",
+			rtts: []float64{10, 20, 30, 20, 10, 20, 30, 20, 10, 20,
+				10, 20, 30, 20, 10, 20, 30, 20, 10, 20,
+				10, 20, 30, 20, 10, 20, 30, 20, 10, 20,
+				10, 20, 30, 20, 10, 20, 30, 20, 10, 20,
+				10, 20, 30, 20, 10, 20, 30, 20, 10, 20},
+			expected: 10.0, // All differences are 10 (absolute value), so jitter = 10
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := calculateJitter(tt.rtts)
+			assert.Equal(t, tt.expected, result, "Jitter calculation mismatch for RTTs: %v", tt.rtts)
 		})
 	}
 }
