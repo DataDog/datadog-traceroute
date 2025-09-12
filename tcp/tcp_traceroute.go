@@ -59,7 +59,7 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
+		return nil, fmt.Errorf("TCP traceroute failed to set packet filter: %w", err)
 	}
 
 	driver := newTCPDriver(t, handle.Sink, handle.Source)
