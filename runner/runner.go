@@ -53,6 +53,8 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 	var results result.Results
 	var multiErr []error
 	resultsAndErrorsMu := &sync.Mutex{}
+
+	// regular traceroutes
 	for i := 0; i < params.TracerouteQueries; i++ {
 		wg.Add(1)
 		go func() {
@@ -67,12 +69,31 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 			resultsAndErrorsMu.Unlock()
 		}()
 	}
+
+	// e2e probes
+	for i := 0; i < params.E2eQueries; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+			resultsAndErrorsMu.Lock()
+			if err != nil {
+				multiErr = append(multiErr, err)
+				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
+			} else {
+				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+			}
+			resultsAndErrorsMu.Unlock()
+		}()
+	}
+
 	wg.Wait()
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
 	}
 	return &results, nil
 }
+
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
 	var trRun *result.TracerouteRun
 	switch params.Protocol {
@@ -84,7 +105,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		cfg := udp.NewUDPv4(
 			target.Addr().AsSlice(),
 			target.Port(),
-			uint8(common.DefaultMinTTL),
+			uint8(params.MinTTL),
 			uint8(params.MaxTTL),
 			time.Duration(params.Delay)*time.Millisecond,
 			params.Timeout)
@@ -101,18 +122,18 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		}
 
 		doSyn := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.Traceroute()
 		}
 		doSack := func() (*result.TracerouteRun, error) {
-			params, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), params.Timeout)
+			sackParams, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout)
 			if err != nil {
 				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
-			return sack.RunSackTraceroute(context.TODO(), params)
+			return sack.RunSackTraceroute(context.TODO(), sackParams)
 		}
 		doSynSocket := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(common.DefaultMinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
 			return tr.TracerouteSequentialSocket()
 		}
 
@@ -129,7 +150,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			Target: target.Addr(),
 			ParallelParams: common.TracerouteParallelParams{
 				TracerouteParams: common.TracerouteParams{
-					MinTTL:            uint8(common.DefaultMinTTL),
+					MinTTL:            uint8(params.MinTTL),
 					MaxTTL:            uint8(params.MaxTTL),
 					TracerouteTimeout: params.Timeout,
 					PollFrequency:     100 * time.Millisecond,
@@ -145,6 +166,24 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
 	return trRun, nil
+}
+
+// runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.
+// It reuses runTracerouteOnce() with modified TTL parameters where MinTTL is set to the same value
+// as MaxTTL, essentially sending a single probe to the destination instead of incrementally probing
+// each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
+func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
+	params.MinTTL = params.MaxTTL
+
+	trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
+	if err != nil {
+		return 0, err
+	}
+	destHop := trRun.GetDestinationHop()
+	if destHop == nil {
+		return 0, nil
+	}
+	return destHop.RTT, nil
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration) (sack.Params, error) {
