@@ -19,4 +19,5 @@ type TracerouteParams struct {
 	TCPSynParisTracerouteMode bool
 	ReverseDns                bool
 	TracerouteQueries         int
+	E2eQueries                int
 }

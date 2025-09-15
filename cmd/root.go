@@ -52,6 +52,7 @@ var rootCmd = &cobra.Command{
 			Hostname:          args[0],
 			Port:              Args.port,
 			Protocol:          Args.protocol,
+			MinTTL:            common.DefaultMinTTL,
 			MaxTTL:            Args.maxTTL,
 			Delay:             common.DefaultDelay,
 			Timeout:           timeout,
@@ -59,6 +60,7 @@ var rootCmd = &cobra.Command{
 			WantV6:            Args.wantV6,
 			ReverseDns:        Args.reverseDns,
 			TracerouteQueries: Args.tracerouteQueries,
+			E2eQueries:        Args.e2eQueries,
 		}
 
 		results, err := runner.RunTraceroute(cmd.Context(), params)

@@ -163,6 +163,22 @@ func Test_runTracerouteMulti(t *testing.T) {
 		err := errors.New(fmt.Sprintf("error running traceroute %d", counter.Load()))
 		return nil, err
 	}
+	runTracerouteOnceFnNoDestHop := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+		counter.Add(1)
+		destIP := fmt.Sprintf("10.10.10.%d", counter.Load())
+		return &result.TracerouteRun{
+			Source: result.TracerouteSource{
+				IPAddress: net.ParseIP("10.10.88.88"),
+				Port:      1122,
+			},
+			Destination: result.TracerouteDestination{
+				IPAddress: net.ParseIP(destIP),
+			},
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.6"), RTT: 30, IsDest: false},
+			},
+		}, nil
+	}
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 	tests := []struct {
 		name             string
@@ -253,6 +269,28 @@ func Test_runTracerouteMulti(t *testing.T) {
 			expectedError: []string{
 				"error running traceroute 1",
 				"error running traceroute 2",
+			},
+		},
+		{
+			name:             "5 e2eprobe queries",
+			params:           TracerouteParams{E2eQueries: 5},
+			tracerouteOnceFn: runTracerouteOnceFnValid,
+			expectedResults: &result.Results{
+				Traceroute: result.Traceroute{},
+				E2eProbe: result.E2eProbe{
+					RTTs: []float64{30, 30, 30, 30, 30},
+				},
+			},
+		},
+		{
+			name:             "e2eprobe doesnt reach destination",
+			params:           TracerouteParams{E2eQueries: 5},
+			tracerouteOnceFn: runTracerouteOnceFnNoDestHop,
+			expectedResults: &result.Results{
+				Traceroute: result.Traceroute{},
+				E2eProbe: result.E2eProbe{
+					RTTs: []float64{0, 0, 0, 0, 0},
+				},
 			},
 		},
 	}
