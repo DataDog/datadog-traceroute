@@ -56,9 +56,6 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}
 	udpConn.Close()
-	deadline := time.Now().Add(p.MaxTimeout())
-	ctx, cancel := context.WithDeadline(ctx, deadline)
-	defer cancel()
 
 	// get this platform's Source and Sink implementations
 	handle, err := packets.NewSourceSink(p.Target)
