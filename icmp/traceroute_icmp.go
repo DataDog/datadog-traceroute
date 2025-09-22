@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
@@ -24,12 +23,6 @@ type Params struct {
 	Target netip.Addr
 	// ParallelParams are the standard params for parallel traceroutes
 	ParallelParams common.TracerouteParallelParams
-}
-
-// MaxTimeout returns the sum of all timeouts/delays for an ICMP traceroute
-func (p Params) MaxTimeout() time.Duration {
-	ttl := time.Duration(p.ParallelParams.MaxTTL - p.ParallelParams.MinTTL)
-	return ttl * p.ParallelParams.MaxTimeout()
 }
 
 func (p Params) validate() error {
