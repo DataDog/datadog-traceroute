@@ -15,13 +15,13 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 ### Windows Server
 
-| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment |
-|------------------|:---------:|-------------------------|---------------:|---------|
-| ICMP             |    Yes    | No                      |      `tracert` |         |
-| UDP              |    Yes    | No                      |                |         |
-| TCP SYN          |    Yes    | No                      |                |         |
-| TCP SACK         |    Yes    | Yes                     |                |         |
-| TCP SYN SOCKET   |    Yes    | No                      |                |         |
+| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment                                |
+|------------------|:---------:|-------------------------|---------------:|----------------------------------------|
+| ICMP             |    Yes    | No                      |      `tracert` |                                        |
+| UDP              |    Yes    | No                      |                |                                        |
+| TCP SYN          |    Yes    | No                      |                |                                        |
+| TCP SACK         |    Yes    | Yes                     |                |                                        |
+| TCP SYN SOCKET   |    Yes    | No                      |                | no reason to use it for windows server |
 
 Note:
 - Default firewall on windows will block the ICMP responses when not using Windows Driver.
@@ -34,7 +34,7 @@ Note:
 | UDP              |    Yes    | Yes                     |                |         |
 | TCP SYN          |    Yes    | Yes                     |                |         |
 | TCP SACK         |    Yes    | Yes                     |                |         |
-| TCP SYN SOCKET   |    Yes    | Yes                     |                |         |
+| TCP SYN SOCKET   |    Yes    | No                      |                |         |
 
 ### macOS
 
