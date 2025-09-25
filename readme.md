@@ -15,23 +15,26 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 ### Windows Server
 
-| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment                                         |
-|------------------|:---------:|-------------------------|---------------:|-------------------------------------------------|
-| ICMP             |    Yes    | No                      |      `tracert` |                                                 |
-| UDP              |    Yes    | No                      |                |                                                 |
-| TCP SYN          |    Yes    | No                      |                |                                                 |
-| TCP SACK         |    Yes    | Yes                     |                |                                                 |
-| TCP SYN SOCKET   |    Yes    | No                      |                | default firewall on windows will block the ICMP |
+| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment |
+|------------------|:---------:|-------------------------|---------------:|---------|
+| ICMP             |    Yes    | No                      |      `tracert` |         |
+| UDP              |    Yes    | No                      |                |         |
+| TCP SYN          |    Yes    | No                      |                |         |
+| TCP SACK         |    Yes    | Yes                     |                |         |
+| TCP SYN SOCKET   |    Yes    | No                      |                |         |
+
+Note:
+- Default firewall on windows will block the ICMP responses when not using Windows Driver.
 
 ### Windows Client
 
-| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment                                         |
-|------------------|:---------:|-------------------------|---------------:|-------------------------------------------------|
-| ICMP             |    Yes    | Yes                     |      `tracert` |                                                 |
-| UDP              |    Yes    | Yes                     |                |                                                 |
-| TCP SYN          |    Yes    | Yes                     |                |                                                 |
-| TCP SACK         |    Yes    | Yes                     |                |                                                 |
-| TCP SYN SOCKET   |    Yes    | Yes                     |                | default firewall on windows will block the ICMP |
+| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment |
+|------------------|:---------:|-------------------------|---------------:|---------|
+| ICMP             |    Yes    | Yes                     |      `tracert` |         |
+| UDP              |    Yes    | Yes                     |                |         |
+| TCP SYN          |    Yes    | Yes                     |                |         |
+| TCP SACK         |    Yes    | Yes                     |                |         |
+| TCP SYN SOCKET   |    Yes    | Yes                     |                |         |
 
 ### macOS
 
