@@ -2,7 +2,7 @@
 
 Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
-## Support Matrix
+## Support Matrix for IPv4
 
 ### Linux
 
