@@ -20,7 +20,7 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | ICMP             |    Yes    |      `tracert` |                                                 |
 | UDP              |    Yes    |                |                                                 |
 | TCP SYN          |    Yes    |                |                                                 |
-| TCP SACK         |   Yes?    |                |                                                 |
+| TCP SACK         |    Yes    |                |                                                 |
 | TCP SYN SOCKET   |    Yes    |                | default firewall on windows will block the ICMP |
 
 * Windows driver is needed for all protocol-variant for IPv6s on server versions, and all protocol-variant on client versions.
