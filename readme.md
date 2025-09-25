@@ -15,12 +15,13 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 ### Windows
 
-| Protocol-Variant | Supported |  Traceroute CLI | Comment |
-|------------------|:---------:|----------------:|---------|
-| ICMP             |    Yes    |       `tracert` |         |
-| UDP              |    Yes    |                 |         |
-| TCP SYN          |    Yes    |                 |         |
-| TCP SACK         |   Yes?    |                 |         |
+| Protocol-Variant | Supported | Traceroute CLI | Comment                                         |
+|------------------|:---------:|---------------:|-------------------------------------------------|
+| ICMP             |    Yes    |      `tracert` |                                                 |
+| UDP              |    Yes    |                |                                                 |
+| TCP SYN          |    Yes    |                |                                                 |
+| TCP SACK         |   Yes?    |                |                                                 |
+| TCP SYN SOCKET   |    Yes    |                | default firewall on windows will block the ICMP |
 
 ### macOS
 
