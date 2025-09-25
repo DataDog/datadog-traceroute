@@ -33,8 +33,6 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | TCP SACK         |    Yes    | Yes                     |                |                                                 |
 | TCP SYN SOCKET   |    Yes    | Yes                     |                | default firewall on windows will block the ICMP |
 
-
-
 ### macOS
 
 | Protocol-Variant | Supported |  Traceroute CLI | Comment |
