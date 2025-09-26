@@ -7,6 +7,8 @@ package runner
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -15,7 +17,7 @@ import (
 const (
 	defaultExpire      = 5 * time.Minute
 	defaultPurge       = 30 * time.Second
-	defaultCacheDbFile = "/tmp/traceroute.db"
+	defaultCacheFolder = "datadog-traceroute-db"
 )
 
 // Get returns the value for 'key'.
@@ -46,7 +48,8 @@ func GetWithExpiration(key string, cb func() ([]byte, error), expire time.Durati
 
 	// Open the Badger database located in the /tmp/badger directory.
 	// It is created if it doesn't exist.
-	db, err := badger.Open(badger.DefaultOptions(defaultCacheDbFile))
+	cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
+	db, err := badger.Open(badger.DefaultOptions(cacheFolder))
 	if err != nil {
 		return nil, err
 	}
