@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/tcp"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/DataDog/datadog-traceroute/udp"
+	"github.com/dgraph-io/badger/v4"
 	externalip "github.com/glendc/go-external-ip"
 )
 
@@ -47,6 +48,68 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	}
 	results.Normalize()
 
+	ip, err := getIP()
+	if err != nil {
+		return nil, err
+	}
+
+	results.Params.PublicIP = ip.String()
+
+	return results, nil
+}
+
+func getIP() (net.IP, error) {
+	// Open the Badger database located in the /tmp/badger directory.
+	// It is created if it doesn't exist.
+	db, err := badger.Open(badger.DefaultOptions("/tmp/traceroute.db"))
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	var myIP net.IP
+	err = db.Update(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("answer"))
+		if err != nil {
+			ip, err := doGetIP()
+			fmt.Printf("Get IP: %s\n", ip.String())
+			if err != nil {
+				return err
+			}
+			myIP = ip
+
+			e := badger.NewEntry([]byte("answer"), ip).WithTTL(20 * time.Second)
+			err = txn.SetEntry(e)
+			return err
+		} else {
+			var valCopy []byte
+			err = item.Value(func(val []byte) error {
+				// This func with val would only be called if item.Value encounters no error.
+
+				// Accessing val here is valid.
+				ip := net.IP{}
+				ip = val
+				fmt.Printf("Cache value is: %s\n", ip.String())
+
+				// Copying or parsing val is valid.
+				valCopy = append([]byte{}, val...)
+
+				myIP = valCopy
+
+				return nil
+			})
+			return err
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return myIP, nil
+}
+
+func doGetIP() (net.IP, error) {
 	// Create the default consensus,
 	// using the default configuration and no logger.
 	consensus := externalip.DefaultConsensus(nil, nil)
@@ -62,9 +125,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	if err != nil {
 		return nil, err
 	}
-	results.Params.PublicIP = ip.String()
-
-	return results, nil
+	return ip, nil
 }
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
