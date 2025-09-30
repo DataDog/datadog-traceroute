@@ -3,7 +3,7 @@ module github.com/DataDog/datadog-traceroute
 go 1.24.0
 
 require (
-	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250926170745-517931a14993
+	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
