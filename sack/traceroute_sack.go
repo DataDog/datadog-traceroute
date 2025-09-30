@@ -47,6 +47,8 @@ type Params struct {
 	// Reason: Some environments don't properly translate the payload of an ICMP TTL exceeded
 	// packet meaning you can't trust the source address to correspond to your own private IP.
 	LoosenICMPSrc bool
+	// UseDriver controls whether to use driver-based packet capture (Windows)
+	UseDriver bool
 }
 
 // MaxTimeout returns the sum of all timeouts/delays for a SACK traceroute
@@ -115,7 +117,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	defer cancel()
 
 	// create the raw packet connection which watches for TCP/ICMP responses
-	handle, err := packets.NewSourceSink(p.Target.Addr())
+	handle, err := packets.NewSourceSink(p.Target.Addr(), p.UseDriver)
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to make NewSourceSink: %w", err)
 	}

@@ -120,6 +120,7 @@ func (d *SourceDriver) createPacketFilters(filter PacketFilterSpec) ([]driver.Fi
 		},
 	)
 
+	// grab the windows filter definitions
 	filterDefs, err := getWindowsFilter(filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get windows filter: %w", err)
@@ -134,7 +135,7 @@ func (d *SourceDriver) createPacketFilters(filter PacketFilterSpec) ([]driver.Fi
 // SetPacketFilter sets the packet filter for the driver.
 func (d *SourceDriver) SetPacketFilter(filter PacketFilterSpec) error {
 	// need to setup a new filter, this requires us to close the current handle
-	// and then create a new one with the correct filters
+	// and then create a new one with the correct filters, as to not catpture extra packets
 	if err := d.setupSourceDriver(); err != nil {
 		return fmt.Errorf("failed to setup source driver: %w", err)
 	}
@@ -168,6 +169,7 @@ func (d *SourceDriver) Close() error {
 	if e := d.handle.Close(); e != nil {
 		return fmt.Errorf("error closing driver DNS h: %w", e)
 	}
+	// freee buffer post handle close to make sure kenrel does not use them anymore
 	d.handle = nil
 	for _, buf := range d.readBuffers {
 		C.free(unsafe.Pointer(buf))

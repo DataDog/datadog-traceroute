@@ -38,8 +38,11 @@ func StartDriver() error {
 }
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr) (SourceSinkHandle, error) {
-	return NewSourceSinkDriver(addr)
+func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
+	if useDriver {
+		return NewSourceSinkDriver(addr)
+	}
+	return NewSourceSinkRaw(addr)
 }
 
 func NewSourceSinkDriver(addr netip.Addr) (SourceSinkHandle, error) {
@@ -59,5 +62,20 @@ func NewSourceSinkDriver(addr netip.Addr) (SourceSinkHandle, error) {
 		Source:        source,
 		Sink:          sink,
 		MustClosePort: false,
+	}, nil
+}
+
+// NewSourceSinkRaw returns a Source and Sink implementation for this platform
+// that uses a raw socket
+func NewSourceSinkRaw(addr netip.Addr) (SourceSinkHandle, error) {
+	rawConn, err := NewRawConn(addr)
+	if err != nil {
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to init rawConn: %w", err)
+	}
+
+	return SourceSinkHandle{
+		Source:        rawConn,
+		Sink:          rawConn,
+		MustClosePort: true,
 	}, nil
 }

@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
+//go:build windows
+
 package packets
 
 import (
@@ -30,121 +32,102 @@ func createFilterAddress(addr netip.Addr) driver.FilterAddress {
 	return driver.FilterAddress{}
 }
 
+// getAddressFamily determines the appropriate address family from an address
+func getAddressFamily(addr netip.Addr) uint64 {
+	if addr.Is6() {
+		return uint64(windows.AF_INET6)
+	}
+	return uint64(windows.AF_INET)
+}
+
+// createBaseFilterDefinition creates a base filter definition with common fields
+func createBaseFilterDefinition(af uint64) driver.FilterDefinition {
+	return driver.FilterDefinition{
+		FilterVersion:  driver.Signature,
+		Size:           driver.FilterDefinitionSize,
+		FilterLayer:    driver.LayerTransport,
+		Af:             af,
+		InterfaceIndex: uint64(0),
+		Direction:      driver.DirectionInbound,
+	}
+}
+
+// createTCPFilters creates filter definitions for TCP packet filtering
+func createTCPFilters(spec PacketFilterSpec) []driver.FilterDefinition {
+	af := getAddressFamily(spec.FilterConfig.Dst.Addr())
+
+	// Create capture filter
+	captureFilter := createBaseFilterDefinition(af)
+	captureFilter.Protocol = windows.IPPROTO_TCP
+	captureFilter.LocalAddress = createFilterAddress(spec.FilterConfig.Dst.Addr())
+	captureFilter.RemoteAddress = createFilterAddress(spec.FilterConfig.Src.Addr())
+	captureFilter.LocalPort = uint64(spec.FilterConfig.Dst.Port())
+	captureFilter.RemotePort = uint64(spec.FilterConfig.Src.Port())
+
+	// Create discard filter (same as capture but with Discard flag)
+	discardFilter := captureFilter
+	discardFilter.Discard = uint64(1)
+
+	return []driver.FilterDefinition{captureFilter, discardFilter}
+}
+
+// createSYNACKFilters creates filter definitions for SYNACK packet filtering
+func createSYNACKFilters(spec PacketFilterSpec) []driver.FilterDefinition {
+	af := getAddressFamily(spec.FilterConfig.Src.Addr())
+
+	// Create capture filter for SYNACK packets
+	captureFilter := createBaseFilterDefinition(af)
+	captureFilter.Protocol = windows.IPPROTO_TCP
+	captureFilter.RemoteAddress = createFilterAddress(spec.FilterConfig.Src.Addr())
+	captureFilter.RemotePort = uint64(spec.FilterConfig.Src.Port())
+
+	// Create discard filter
+	discardFilter := captureFilter
+	discardFilter.Discard = uint64(1)
+
+	return []driver.FilterDefinition{captureFilter, discardFilter}
+}
+
+// createNoneFilters creates filter definitions for capturing all packets (no specific filter)
+// this should not be used
+func createNoneFilters() []driver.FilterDefinition {
+	var filters []driver.FilterDefinition
+
+	// IPv4 filters
+	ipv4Capture := createBaseFilterDefinition(windows.AF_INET)
+	ipv4Discard := createBaseFilterDefinition(windows.AF_INET)
+	ipv4Discard.Discard = uint64(1)
+
+	// IPv6 filters
+	ipv6Capture := createBaseFilterDefinition(windows.AF_INET6)
+	ipv6Discard := createBaseFilterDefinition(windows.AF_INET6)
+	ipv6Discard.Discard = uint64(1)
+
+	filters = append(filters, ipv4Capture, ipv4Discard, ipv6Capture, ipv6Discard)
+	return filters
+}
+
+// getWindowsFilter creates appropriate filter definitions based on the filter specification
 func getWindowsFilter(spec PacketFilterSpec) ([]driver.FilterDefinition, error) {
 	switch spec.FilterType {
 	case FilterTypeICMP:
-		// don't make icmp filter, it's already created
+		// ICMP filters are already created by the driver setup
 		return []driver.FilterDefinition{}, nil
-	case FilterTypeTCP:
-		// get Af from address
-		af := uint64(windows.AF_INET)
-		if spec.FilterConfig.Dst.Addr().Is6() {
-			af = uint64(windows.AF_INET6)
-		}
-		return []driver.FilterDefinition{
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             af,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
-				LocalAddress:   createFilterAddress(spec.FilterConfig.Dst.Addr()),
-				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
-				LocalPort:      uint64(spec.FilterConfig.Dst.Port()),
-				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
-			},
-			// need to capture the discard packets
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             af,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
-				LocalAddress:   createFilterAddress(spec.FilterConfig.Dst.Addr()),
-				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
-				LocalPort:      uint64(spec.FilterConfig.Dst.Port()),
-				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
-				Discard:        uint64(1),
-			},
-		}, nil
-	case FilterTypeUDP:
-		// udp only uses installed icmp filter
-		return []driver.FilterDefinition{}, nil
-	case FilterTypeSYNACK:
-		// we have the remote filter address and port, so fill that in
-		// get af
-		af := uint64(windows.AF_INET)
-		if spec.FilterConfig.Src.Addr().Is6() {
-			af = uint64(windows.AF_INET6)
-		}
-		return []driver.FilterDefinition{
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             af,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
-				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
-				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             af,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Protocol:       windows.IPPROTO_TCP,
-				RemoteAddress:  createFilterAddress(spec.FilterConfig.Src.Addr()),
-				RemotePort:     uint64(spec.FilterConfig.Src.Port()),
-				Discard:        uint64(1),
-			},
-		}, nil
-	case FilterTypeNone:
-		return []driver.FilterDefinition{
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Discard:        uint64(1),
-			},
-			// create ipv6 filters
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-			},
-			{
-				FilterVersion:  driver.Signature,
-				Size:           driver.FilterDefinitionSize,
-				FilterLayer:    driver.LayerTransport,
-				Af:             windows.AF_INET6,
-				InterfaceIndex: uint64(0),
-				Direction:      driver.DirectionInbound,
-				Discard:        uint64(1),
-			},
-		}, nil
-	}
 
-	return nil, fmt.Errorf("invalid filter type: %d", spec.FilterType)
+	case FilterTypeTCP:
+		return createTCPFilters(spec), nil
+
+	case FilterTypeUDP:
+		// UDP only uses the pre-installed ICMP filter
+		return []driver.FilterDefinition{}, nil
+
+	case FilterTypeSYNACK:
+		return createSYNACKFilters(spec), nil
+
+	case FilterTypeNone:
+		return createNoneFilters(), nil
+
+	default:
+		return nil, fmt.Errorf("invalid filter type: %d", spec.FilterType)
+	}
 }

@@ -37,11 +37,13 @@ type (
 		// Reason: Some environments don't properly translate the payload of an ICMP TTL exceeded
 		// packet meaning you can't trust the source address to correspond to your own private IP.
 		LoosenICMPSrc bool
+		// UseDriver controls whether to use driver-based packet capture (Windows)
+		UseDriver bool
 	}
 )
 
 // NewUDPv4 initializes a new UDPv4 traceroute instance
-func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration) *UDPv4 {
+func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, delay time.Duration, timeout time.Duration, useDriver bool) *UDPv4 {
 	icmpParser := icmp.NewICMPUDPParser()
 	buffer := gopacket.NewSerializeBufferExpectedSize(36, 0)
 
@@ -56,6 +58,7 @@ func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, dela
 		Timeout:    timeout,
 		icmpParser: icmpParser,
 		buffer:     buffer,
+		UseDriver:  useDriver,
 	}
 }
 

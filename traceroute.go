@@ -7,18 +7,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/DataDog/datadog-traceroute/cmd"
-	"github.com/DataDog/datadog-traceroute/packets"
 )
 
 func main() {
-	err := packets.StartDriver()
-	if err != nil {
-		fmt.Printf("Error starting driver: %s\n", err)
-		os.Exit(1)
-	}
 	cmd.Execute()
 }

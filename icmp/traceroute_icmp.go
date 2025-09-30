@@ -23,6 +23,8 @@ type Params struct {
 	Target netip.Addr
 	// ParallelParams are the standard params for parallel traceroutes
 	ParallelParams common.TracerouteParallelParams
+	// UseDriver controls whether to use driver-based packet capture (Windows)
+	UseDriver bool
 }
 
 func (p Params) validate() error {
@@ -51,7 +53,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 	udpConn.Close()
 
 	// get this platform's Source and Sink implementations
-	handle, err := packets.NewSourceSink(p.Target)
+	handle, err := packets.NewSourceSink(p.Target, p.UseDriver)
 	if err != nil {
 		return nil, fmt.Errorf("ICMP Traceroute failed to make NewSourceSink: %w", err)
 	}

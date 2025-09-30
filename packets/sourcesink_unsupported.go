@@ -13,7 +13,7 @@ import (
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(_ netip.Addr) (SourceSinkHandle, error) {
+func NewSourceSink(_ netip.Addr, _ bool) (SourceSinkHandle, error) {
 	return SourceSinkHandle{}, fmt.Errorf("NewSourceSink: this platform is not supported")
 }
 

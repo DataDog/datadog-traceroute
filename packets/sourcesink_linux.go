@@ -13,7 +13,7 @@ import (
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr) (SourceSinkHandle, error) {
+func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
 	sink, err := NewSinkLinux(addr)
 	if err != nil {
 		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to make SinkLinux: %w", err)
