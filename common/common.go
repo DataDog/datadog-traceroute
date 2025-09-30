@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"time"
 
 	"golang.org/x/net/ipv4"
 
@@ -20,29 +19,19 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
+const (
+	DefaultNetworkPathTimeout = 3000
+	DefaultPort               = 33434
+	DefaultTracerouteQueries  = 3
+	DefaultNumE2eProbes       = 10
+	DefaultMinTTL             = 1
+	DefaultMaxTTL             = 30
+	DefaultDelay              = 50 //msec
+	DefaultProtocol           = "udp"
+	DefaultTcpMethod          = "syn"
+)
+
 type (
-	// Results encapsulates a response from the
-	// traceroute
-	Results struct {
-		Source     net.IP
-		SourcePort uint16
-		Target     net.IP
-		DstPort    uint16
-		Hops       []*Hop
-		Tags       []string
-	}
-
-	// Hop encapsulates information about a single
-	// hop in a traceroute
-	Hop struct {
-		IP       net.IP
-		Port     uint16
-		ICMPType uint8
-		ICMPCode uint8
-		RTT      time.Duration
-		IsDest   bool
-	}
-
 	// CanceledError is sent when a listener
 	// is canceled
 	CanceledError string

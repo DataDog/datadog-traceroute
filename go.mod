@@ -5,14 +5,13 @@ go 1.24.0
 require (
 	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.7.0
 	github.com/google/gopacket v1.1.19
+	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.43.0
 	golang.org/x/sync v0.15.0
 	golang.org/x/sys v0.36.0
@@ -51,6 +50,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/fx v1.24.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect

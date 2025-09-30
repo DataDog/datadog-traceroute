@@ -19,6 +19,7 @@ import (
 
 // sinkLinux is an implementation of the packet sink interface for linux
 type sinkLinux struct {
+	sock    *os.File
 	rawConn syscall.RawConn
 }
 
@@ -59,6 +60,7 @@ func NewSinkLinux(addr netip.Addr) (Sink, error) {
 	}
 
 	return &sinkLinux{
+		sock:    sock,
 		rawConn: rawConn,
 	}, nil
 }
@@ -84,10 +86,5 @@ func (p *sinkLinux) WriteTo(buf []byte, addr netip.AddrPort) error {
 
 // Close closes the socket
 func (p *sinkLinux) Close() error {
-	var closeErr error
-	err := p.rawConn.Control(func(fd uintptr) {
-		closeErr = unix.Close(int(fd))
-	})
-
-	return errors.Join(closeErr, err)
+	return p.sock.Close()
 }

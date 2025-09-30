@@ -13,15 +13,17 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Traceroute runs a TCP traceroute
-func (t *TCPv4) Traceroute() (*common.Results, error) {
+func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
 	}
-	conn.Close() // we don't need the UDP port here
+	conn.Close() // we don't need the UDP connection here, it was only needed to discover local address
+
 	t.srcIP = addr.IP
 	localAddr, ok := common.UnmappedAddrFromSlice(t.srcIP)
 	if !ok {
@@ -58,7 +60,7 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
+		return nil, fmt.Errorf("TCP traceroute failed to set packet filter: %w", err)
 	}
 
 	driver := newTCPDriver(t, handle.Sink, handle.Source)
@@ -83,14 +85,17 @@ func (t *TCPv4) Traceroute() (*common.Results, error) {
 		return nil, fmt.Errorf("SYN traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		Source:     t.srcIP,
-		SourcePort: t.srcPort,
-		Target:     t.Target,
-		DstPort:    t.DestPort,
-		Hops:       hops,
-		Tags:       []string{"tcp_method:syn", fmt.Sprintf("paris_traceroute_mode_enabled:%t", t.ParisTracerouteMode)},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: t.srcIP,
+			Port:      t.srcPort,
+		},
+		Destination: result.TracerouteDestination{
+			IPAddress: t.Target,
+			Port:      t.DestPort,
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }

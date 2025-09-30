@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // NotSupportedError means the target did not respond with the SACK Permitted
@@ -199,7 +200,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 }
 
 // RunSackTraceroute fully executes a SACK traceroute using the given parameters
-func RunSackTraceroute(ctx context.Context, p Params) (*common.Results, error) {
+func RunSackTraceroute(ctx context.Context, p Params) (*result.TracerouteRun, error) {
 	sackResult, err := runSackTraceroute(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("sack traceroute failed: %w", err)
@@ -210,14 +211,17 @@ func RunSackTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 		return nil, fmt.Errorf("sack traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		Source:     sackResult.LocalAddr.Addr().AsSlice(),
-		SourcePort: sackResult.LocalAddr.Port(),
-		Target:     p.Target.Addr().AsSlice(),
-		DstPort:    p.Target.Port(),
-		Hops:       hops,
-		Tags:       []string{"tcp_method:sack"},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: sackResult.LocalAddr.Addr().AsSlice(),
+			Port:      sackResult.LocalAddr.Port(),
+		},
+		Destination: result.TracerouteDestination{
+			IPAddress: p.Target.Addr().AsSlice(),
+			Port:      p.Target.Port(),
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }

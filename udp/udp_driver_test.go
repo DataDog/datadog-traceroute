@@ -35,7 +35,6 @@ func initTest(t *testing.T, ipv6 bool) (*UDPv4, *udpDriver, *packets.MockSink, *
 		ipAddress,
 		80,
 		1,
-		1,
 		30,
 		10*time.Millisecond,
 		100*time.Second,
@@ -85,7 +84,6 @@ func expectIDs(t *testing.T, config *UDPv4, buf []byte, ipv6 bool) {
 func mockICMPResp(t *testing.T, config *UDPv4, hopIP net.IP, ttl uint8, udpInfo packets.UDPInfo, timeExceeded bool) []byte {
 	ipLayer := &layers.IPv4{
 		Version:  4,
-		Length:   20,
 		TTL:      ttl,
 		Protocol: layers.IPProtocolICMPv4,
 		DstIP:    config.srcIP,
@@ -104,9 +102,8 @@ func mockICMPResp(t *testing.T, config *UDPv4, hopIP net.IP, ttl uint8, udpInfo 
 	}
 	innerIPLayer := &layers.IPv4{
 		Version:  4,
-		Length:   20,
 		TTL:      ttl,
-		Id:       41821,
+		Id:       41821 + uint16(ttl),
 		Protocol: layers.IPProtocolUDP,
 		SrcIP:    config.srcIP,
 		DstIP:    config.Target,
@@ -161,7 +158,13 @@ func mockICMPRespIPv6(t *testing.T, config *UDPv4, hopIP net.IP, ttl uint8, udpI
 		DstIP:      config.Target,
 	}
 
-	payload := packets.WriteUDPFirstBytes(udpInfo)
+	innerUDPLayer := &layers.UDP{
+		SrcPort: layers.UDPPort(udpInfo.SrcPort),
+		DstPort: layers.UDPPort(udpInfo.DstPort),
+	}
+	innerUDPLayer.SetNetworkLayerForChecksum(innerIPLayer)
+
+	payload := repeatMagic(magicLen + uint16(ttl))
 
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
@@ -173,6 +176,7 @@ func mockICMPRespIPv6(t *testing.T, config *UDPv4, hopIP net.IP, ttl uint8, udpI
 		// https://en.wikipedia.org/wiki/ICMPv6#Format
 		gopacket.Payload([]byte{0, 0, 0, 0}),
 		innerIPLayer,
+		innerUDPLayer,
 		gopacket.Payload(payload),
 	)
 	require.NoError(t, err)
@@ -200,17 +204,12 @@ func TestUDPDriverTwoHops(t *testing.T) {
 	// trigger the mock
 	err := driver.SendProbe(1)
 	require.NoError(t, err)
-	var checksum uint16
-	for k := range driver.sentProbes {
-		checksum = k.checksum
-		break
-	}
 	// make the source return an ICMP TTL exceeded
 	hopIP := net.ParseIP("42.42.42.42")
 	icmpResp := mockICMPResp(t, config, hopIP, 1, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, true)
 
 	mockSource.EXPECT().SetReadDeadline(gomock.Any()).DoAndReturn(func(deadline time.Time) error {
@@ -236,17 +235,11 @@ func TestUDPDriverTwoHops(t *testing.T) {
 	// send the second packet
 	driver.SendProbe(2)
 
-	for k := range driver.sentProbes {
-		if checksum != k.checksum {
-			checksum = k.checksum
-			break
-		}
-	}
 	mockSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
 	icmpResp = mockICMPResp(t, config, config.Target, 2, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, false)
 	mockRead(mockSource, icmpResp)
 
@@ -271,18 +264,13 @@ func TestUDPDriverTwoHopsIPV6(t *testing.T) {
 	// trigger the mock
 	err := driver.SendProbe(1)
 	require.NoError(t, err)
-	var checksum uint16
-	for k := range driver.sentProbes {
-		checksum = k.checksum
-		break
-	}
+
 	// make the source return an ICMP TTL exceeded
 	hopIP := net.ParseIP("2001:0db8:85a3::8a2e:0370:7334")
 	icmpResp := mockICMPRespIPv6(t, config, hopIP, 1, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		ID:       uint16(1) + config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, true)
 
 	mockSource.EXPECT().SetReadDeadline(gomock.Any()).DoAndReturn(func(deadline time.Time) error {
@@ -308,18 +296,11 @@ func TestUDPDriverTwoHopsIPV6(t *testing.T) {
 	// send the second packet
 	driver.SendProbe(2)
 
-	for k := range driver.sentProbes {
-		if checksum != k.checksum {
-			checksum = k.checksum
-			break
-		}
-	}
 	mockSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
 	icmpResp = mockICMPRespIPv6(t, config, config.Target, 2, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		ID:       uint16(2) + config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, false)
 	mockRead(mockSource, icmpResp)
 
@@ -344,15 +325,10 @@ func TestUDPDriverICMPMismatchedIP(t *testing.T) {
 	badConfig := *config
 	badConfig.srcIP = net.ParseIP("8.8.8.8")
 
-	var checksum uint16
-	for k := range driver.sentProbes {
-		checksum = k.checksum
-		break
-	}
 	icmpResp := mockICMPResp(t, &badConfig, hopIP, 1, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, true)
 	mockRead(mockSource, icmpResp)
 
@@ -364,14 +340,10 @@ func TestUDPDriverICMPMismatchedIP(t *testing.T) {
 	hopIP = net.ParseIP("42.42.42.42")
 	badConfig = *config
 	badConfig.Target = net.ParseIP("8.8.8.8")
-	for k := range driver.sentProbes {
-		checksum = k.checksum
-		break
-	}
 	icmpResp = mockICMPResp(t, &badConfig, hopIP, 1, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, true)
 
 	mockRead(mockSource, icmpResp)
@@ -389,17 +361,12 @@ func TestUDPDriverICMPMismatchedUDPInfo(t *testing.T) {
 	err := driver.SendProbe(1)
 	require.NoError(t, err)
 
-	// *** get back an ICMP TTL exceeded, but for the wrong seq num
+	// *** get back an ICMP TTL exceeded, but for the wrong srcPort
 	hopIP := net.ParseIP("42.42.42.42")
-	var checksum uint16
-	for k := range driver.sentProbes {
-		checksum = k.checksum
-		break
-	}
-	icmpResp := mockICMPResp(t, config, hopIP, 2, packets.UDPInfo{
-		SrcPort:  config.srcPort,
+	icmpResp := mockICMPResp(t, config, hopIP, 1, packets.UDPInfo{
+		SrcPort:  config.srcPort + 1,
 		DstPort:  config.TargetPort,
-		Checksum: checksum + 1,
+		Checksum: 1234,
 	}, true)
 
 	mockRead(mockSource, icmpResp)
@@ -408,24 +375,11 @@ func TestUDPDriverICMPMismatchedUDPInfo(t *testing.T) {
 	require.Nil(t, probeResp)
 	require.ErrorIs(t, err, common.ErrPacketDidNotMatchTraceroute)
 
-	// *** get back an ICMP TTL exceeded, but for the wrong srcPort
-	icmpResp = mockICMPResp(t, config, hopIP, 1, packets.UDPInfo{
-		SrcPort:  config.srcPort + 1,
-		DstPort:  config.TargetPort,
-		Checksum: checksum,
-	}, true)
-
-	mockRead(mockSource, icmpResp)
-
-	probeResp, err = driver.ReceiveProbe(1 * time.Second)
-	require.Nil(t, probeResp)
-	require.ErrorIs(t, err, common.ErrPacketDidNotMatchTraceroute)
-
 	// *** get back an ICMP TTL exceeded, but for the wrong dstPort
 	icmpResp = mockICMPResp(t, config, hopIP, 1, packets.UDPInfo{
 		SrcPort:  config.srcPort,
 		DstPort:  config.TargetPort + 1,
-		Checksum: checksum,
+		Checksum: 1234,
 	}, true)
 	mockRead(mockSource, icmpResp)
 

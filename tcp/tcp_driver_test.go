@@ -31,7 +31,6 @@ func initTest(t *testing.T) (*TCPv4, *tcpDriver, *packets.MockSink, *packets.Moc
 		net.ParseIP("1.2.3.4"),
 		80,
 		1,
-		1,
 		30,
 		10*time.Millisecond,
 		1*time.Second,

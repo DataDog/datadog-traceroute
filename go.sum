@@ -2,8 +2,6 @@ github.com/DataDog/datadog-agent/comp/core/telemetry v0.61.0 h1:XRm+96G2uveQmRQe
 github.com/DataDog/datadog-agent/comp/core/telemetry v0.61.0/go.mod h1:OqtdBmyPGJ3M0Kk1l+gPdOGGshUc6wT66e078q9d1MA=
 github.com/DataDog/datadog-agent/comp/def v0.61.0 h1:0XJNBZBw3P5Y4ndxaxwS/PZXbb+8cKSCmy+QHE8OXng=
 github.com/DataDog/datadog-agent/comp/def v0.61.0/go.mod h1:JV+/hnXYHt2jIBQGGYmg9BPtCJX8N7bY8pJmFfulNGA=
-github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250926170745-517931a14993 h1:+IRwq7gDw99BCe/qF9pGdeFB42pIh8zXtdauPw6VyhQ=
-github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250926170745-517931a14993/go.mod h1:X4ORXI2MYNAfJxLRyhZqw3gXaXiYWrmlxnrWa3TT4FY=
 github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b h1:n1jtpCScE+4LqwM4FYqU5K/uWZtS44J1LKFV6GC3Z2U=
 github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b/go.mod h1:X4ORXI2MYNAfJxLRyhZqw3gXaXiYWrmlxnrWa3TT4FY=
 github.com/DataDog/datadog-agent/pkg/telemetry v0.0.0-20250825145935-495d9886bae6 h1:Q8aR3ReXYPC88wQlEZVYb5ckEyw+EqBG4kGIOsrxRoc=
@@ -40,6 +38,8 @@ github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 github.com/google/gopacket v1.1.19 h1:ves8RnFZPGiFnTS0uPQStjwru6uO6h+nlr9j6fL7kF8=
 github.com/google/gopacket v1.1.19/go.mod h1:iJ8V8n6KS+z2U1A8pUwu8bW5SyEMkXJB8Yo/Vo+TKTo=
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=

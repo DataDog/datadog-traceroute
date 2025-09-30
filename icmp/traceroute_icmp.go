@@ -10,11 +10,11 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Params is the ICMP traceroute parameters
@@ -23,12 +23,6 @@ type Params struct {
 	Target netip.Addr
 	// ParallelParams are the standard params for parallel traceroutes
 	ParallelParams common.TracerouteParallelParams
-}
-
-// MaxTimeout returns the sum of all timeouts/delays for an ICMP traceroute
-func (p Params) MaxTimeout() time.Duration {
-	ttl := time.Duration(p.ParallelParams.MaxTTL - p.ParallelParams.MinTTL)
-	return ttl * p.ParallelParams.MaxTimeout()
 }
 
 func (p Params) validate() error {
@@ -55,9 +49,6 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}
 	udpConn.Close()
-	deadline := time.Now().Add(p.MaxTimeout())
-	ctx, cancel := context.WithDeadline(ctx, deadline)
-	defer cancel()
 
 	// get this platform's Source and Sink implementations
 	handle, err := packets.NewSourceSink(p.Target)
@@ -90,7 +81,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 }
 
 // RunICMPTraceroute fully executes a ICMP traceroute using the given parameters
-func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
+func RunICMPTraceroute(ctx context.Context, p Params) (*result.TracerouteRun, error) {
 	icmpResult, err := runICMPTraceroute(ctx, p)
 	if err != nil {
 		return nil, fmt.Errorf("icmp traceroute failed: %w", err)
@@ -101,13 +92,16 @@ func RunICMPTraceroute(ctx context.Context, p Params) (*common.Results, error) {
 		return nil, fmt.Errorf("icmp traceroute ToHops failed: %w", err)
 	}
 
-	result := &common.Results{
-		Source:     icmpResult.LocalAddr.Addr().AsSlice(),
-		SourcePort: icmpResult.LocalAddr.Port(),
-		Target:     p.Target.AsSlice(),
-		Hops:       hops,
-		Tags:       []string{"icmp"},
+	trRun := &result.TracerouteRun{
+		Source: result.TracerouteSource{
+			IPAddress: icmpResult.LocalAddr.Addr().AsSlice(),
+			Port:      icmpResult.LocalAddr.Port(),
+		},
+		Destination: result.TracerouteDestination{
+			IPAddress: p.Target.AsSlice(),
+		},
+		Hops: hops,
 	}
 
-	return result, nil
+	return trRun, nil
 }
