@@ -13,7 +13,7 @@ import (
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr) (SourceSinkHandle, error) {
+func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
 	sink, err := NewSinkDarwin(addr)
 	if err != nil {
 		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to make SinkLinux: %w", err)
@@ -30,4 +30,10 @@ func NewSourceSink(addr netip.Addr) (SourceSinkHandle, error) {
 		Sink:          sink,
 		MustClosePort: false,
 	}, nil
+}
+
+// StartDriver starts the driver
+// as there is no driver for this platform, this is a no-op
+func StartDriver() error {
+	return nil
 }

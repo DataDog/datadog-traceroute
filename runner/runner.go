@@ -108,7 +108,8 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			uint8(params.MinTTL),
 			uint8(params.MaxTTL),
 			time.Duration(params.Delay)*time.Millisecond,
-			params.Timeout)
+			params.Timeout,
+			params.UseWindowsDriver)
 
 		trRun, err = cfg.Traceroute()
 		if err != nil {
@@ -122,7 +123,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		}
 
 		doSyn := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
 			return tr.Traceroute()
 		}
 		doSack := func() (*result.TracerouteRun, error) {
@@ -133,7 +134,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return sack.RunSackTraceroute(context.TODO(), sackParams)
 		}
 		doSynSocket := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode)
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
 			return tr.TracerouteSequentialSocket()
 		}
 
@@ -157,6 +158,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
 				},
 			},
+			UseWindowsDriver: params.UseWindowsDriver,
 		}
 		trRun, err = icmp.RunICMPTraceroute(ctx, cfg)
 		if err != nil {

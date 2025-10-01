@@ -38,6 +38,7 @@ func initTest(t *testing.T, ipv6 bool) (*UDPv4, *udpDriver, *packets.MockSink, *
 		30,
 		10*time.Millisecond,
 		100*time.Second,
+		false,
 	)
 	config.srcIP = net.ParseIP("5.6.7.8")
 	if ipv6 {
