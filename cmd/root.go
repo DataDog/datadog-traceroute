@@ -31,7 +31,7 @@ type args struct {
 	wantV6            bool
 	reverseDns        bool
 	verbose           bool
-	useDriver         bool
+	useWindowsDriver  bool
 }
 
 var Args args
@@ -63,11 +63,11 @@ var rootCmd = &cobra.Command{
 			ReverseDns:        Args.reverseDns,
 			TracerouteQueries: Args.tracerouteQueries,
 			E2eQueries:        Args.e2eQueries,
-			UseDriver:         Args.useDriver,
+			UseWindowsDriver:  Args.useWindowsDriver,
 		}
 
 		// Start the driver if it's configured to be used.
-		if params.UseDriver {
+		if params.UseWindowsDriver {
 			err := packets.StartDriver()
 			if err != nil {
 				return fmt.Errorf("failed to start driver: %w", err)
@@ -104,5 +104,5 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
-	rootCmd.Flags().BoolVarP(&Args.useDriver, "use-driver", "", false, "Use Windows driver for traceroute (Windows only)")
+	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
 }

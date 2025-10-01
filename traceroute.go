@@ -6,9 +6,7 @@
 // Package traceroute adds traceroute functionality to the agent
 package main
 
-import (
-	"github.com/DataDog/datadog-traceroute/cmd"
-)
+import "github.com/DataDog/datadog-traceroute/cmd"
 
 func main() {
 	cmd.Execute()

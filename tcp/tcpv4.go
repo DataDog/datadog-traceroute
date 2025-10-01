@@ -35,11 +35,11 @@ type (
 		// Reason: Some environments don't properly translate the payload of an ICMP TTL exceeded
 		// packet meaning you can't trust the source address to correspond to your own private IP.
 		LoosenICMPSrc bool
-		// UseDriver controls whether to use driver-based packet capture (Windows)
-		UseDriver     bool
-		buffer        gopacket.SerializeBuffer
-		baseSeqNumber uint32
-		basePacketID  uint16
+		// UseWindowsDriver controls whether to use driver-based packet capture (Windows)
+		UseWindowsDriver bool
+		buffer           gopacket.SerializeBuffer
+		baseSeqNumber    uint32
+		basePacketID     uint16
 	}
 )
 
@@ -66,7 +66,7 @@ func NewTCPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, dela
 		Delay:               delay,
 		Timeout:             timeout,
 		ParisTracerouteMode: parisTracerouteMode,
-		UseDriver:           useDriver,
+		UseWindowsDriver:    useDriver,
 		buffer:              buffer,
 		baseSeqNumber:       baseSeqNumber,
 		basePacketID:        basePacketID,

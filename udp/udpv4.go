@@ -37,8 +37,8 @@ type (
 		// Reason: Some environments don't properly translate the payload of an ICMP TTL exceeded
 		// packet meaning you can't trust the source address to correspond to your own private IP.
 		LoosenICMPSrc bool
-		// UseDriver controls whether to use driver-based packet capture (Windows)
-		UseDriver bool
+		// UseWindowsDriver controls whether to use driver-based packet capture (Windows)
+		UseWindowsDriver bool
 	}
 )
 
@@ -58,7 +58,7 @@ func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, dela
 		Timeout:    timeout,
 		icmpParser: icmpParser,
 		buffer:     buffer,
-		UseDriver:  useDriver,
+		UseWindowsDriver:  useDriver,
 	}
 }
 

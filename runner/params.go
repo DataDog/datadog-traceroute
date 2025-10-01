@@ -20,5 +20,5 @@ type TracerouteParams struct {
 	ReverseDns                bool
 	TracerouteQueries         int
 	E2eQueries                int
-	UseDriver                 bool
+	UseWindowsDriver          bool
 }
