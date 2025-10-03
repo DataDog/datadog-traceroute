@@ -45,6 +45,9 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		results.EnrichWithReverseDns()
 	}
 	results.Normalize()
+	if params.SkipPrivateHops {
+		results.RemovePrivateHops()
+	}
 	return results, nil
 }
 

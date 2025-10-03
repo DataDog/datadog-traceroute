@@ -32,6 +32,7 @@ type args struct {
 	reverseDns        bool
 	verbose           bool
 	useWindowsDriver  bool
+	skipPrivateHops   bool
 }
 
 var Args args
@@ -64,6 +65,7 @@ var rootCmd = &cobra.Command{
 			TracerouteQueries: Args.tracerouteQueries,
 			E2eQueries:        Args.e2eQueries,
 			UseWindowsDriver:  Args.useWindowsDriver,
+			SkipPrivateHops:   Args.skipPrivateHops,
 		}
 
 		// Start the driver if it's configured to be used.
@@ -105,4 +107,5 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
+	rootCmd.Flags().BoolVarP(&Args.skipPrivateHops, "skip-private-hops", "", false, "Skip private hops")
 }
