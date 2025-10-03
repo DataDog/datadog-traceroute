@@ -21,4 +21,5 @@ type TracerouteParams struct {
 	TracerouteQueries         int
 	E2eQueries                int
 	UseWindowsDriver          bool
+	SkipPrivateHops           bool
 }
