@@ -25,7 +25,7 @@ type args struct {
 	tracerouteQueries int
 	e2eQueries        int
 	maxTTL            int
-	timeout           int
+	timeout           float32
 	tcpmethod         string
 	port              int
 	wantV6            bool
@@ -103,7 +103,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", false, "IPv6")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
+	rootCmd.Flags().Float32VarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
