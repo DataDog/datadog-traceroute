@@ -130,7 +130,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return tr.Traceroute()
 		}
 		doSack := func() (*result.TracerouteRun, error) {
-			sackParams, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout)
+			sackParams, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout, params.UseWindowsDriver)
 			if err != nil {
 				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
@@ -191,7 +191,7 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 	return destHop.RTT, nil
 }
 
-func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration) (sack.Params, error) {
+func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration, useWindowsDriver bool) (sack.Params, error) {
 	targetAddr, ok := netip.AddrFromSlice(target)
 	if !ok {
 		return sack.Params{}, fmt.Errorf("invalid target IP")
@@ -211,6 +211,7 @@ func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8
 		FinTimeout:       500 * time.Second,
 		ParallelParams:   parallelParams,
 		LoosenICMPSrc:    true,
+		UseWindowsDriver: useWindowsDriver,
 	}
 	return params, nil
 }
