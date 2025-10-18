@@ -17,21 +17,29 @@ import (
 const (
 	defaultExpire      = 5 * time.Minute
 	defaultPurge       = 30 * time.Second
-	defaultCacheFolder = "datadog-traceroute-db"
+	defaultCacheFolder = "datadog-traceroute-badgerDb"
 )
 
-// Get returns the value for 'key'.
-//
-// cache hit:
-//
-//	pull the value from the cache and returns it.
-//
-// cache miss:
-//
-//	call 'cb' function to get a new value. If the callback doesn't return an error the returned value is
-//	cached with no expiration date and returned.
-func Get(key string, cb func() ([]byte, error)) ([]byte, error) {
-	return GetWithExpiration(key, cb, 0)
+type Cache struct {
+	badgerDb *badger.DB
+}
+
+func NewCache() (*Cache, error) {
+	// Open the Badger database located in the /tmp/badger directory.
+	// It is created if it doesn't exist.
+	cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
+	db, err := badger.Open(badger.DefaultOptions(cacheFolder)) //.WithInMemory(true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Cache{
+		badgerDb: db,
+	}, nil
+}
+
+func (c *Cache) Close() error {
+	return c.badgerDb.Close()
 }
 
 // GetWithExpiration returns the value for 'key'.
@@ -44,20 +52,9 @@ func Get(key string, cb func() ([]byte, error)) ([]byte, error) {
 //
 //	call 'cb' function to get a new value. If the callback doesn't return an error the returned value is
 //	cached with the given expire duration and returned.
-func GetWithExpiration(key string, cb func() ([]byte, error), expire time.Duration) ([]byte, error) {
-
-	// Open the Badger database located in the /tmp/badger directory.
-	// It is created if it doesn't exist.
-	cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
-	db, err := badger.Open(badger.DefaultOptions(cacheFolder)) //.WithInMemory(true)
-	if err != nil {
-		return nil, err
-	}
-
-	defer db.Close()
-
+func (c *Cache) GetWithExpiration(key string, cb func() ([]byte, error), expire time.Duration) ([]byte, error) {
 	var myIP []byte
-	err = db.Update(func(txn *badger.Txn) error {
+	err := c.badgerDb.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
 		if err != nil {
 

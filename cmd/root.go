@@ -75,9 +75,14 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		tr := traceroute.NewTraceroute()
+		tr, err := traceroute.NewTraceroute()
+		if err != nil {
+			// TODO: TEST ME
+			return err
+		}
 		results, err := tr.RunTraceroute(cmd.Context(), params)
 		if err != nil {
+			// TODO: TEST ME
 			return err
 		}
 		jsonStr, err := json.MarshalIndent(results, "", "  ")

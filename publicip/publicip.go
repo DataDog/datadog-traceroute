@@ -11,8 +11,22 @@ import (
 
 const defaultPublicIPCacheExpiration = 60 * time.Second
 
-func GetIP() (net.IP, error) {
-	myIP, err := cache.GetWithExpiration("public_ip", func() ([]byte, error) {
+type PublicIPFetcher struct {
+	cache *cache.Cache
+}
+
+func NewPublicIPFetcher() (*PublicIPFetcher, error) {
+	cache, err := cache.NewCache()
+	if err != nil {
+		return nil, err
+	}
+	return &PublicIPFetcher{
+		cache: cache,
+	}, nil
+}
+
+func (p *PublicIPFetcher) GetIP() (net.IP, error) {
+	myIP, err := p.cache.GetWithExpiration("public_ip", func() ([]byte, error) {
 		ip, err := doGetIP()
 		fmt.Printf("[CACHE] Get IP: %s\n", ip.String())
 		if err != nil {

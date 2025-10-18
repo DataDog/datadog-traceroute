@@ -9,10 +9,17 @@ import (
 )
 
 type Traceroute struct {
+	publicIPFetcher *publicip.PublicIPFetcher
 }
 
-func NewTraceroute() *Traceroute {
-	return &Traceroute{}
+func NewTraceroute() (*Traceroute, error) {
+	fetcher, err := publicip.NewPublicIPFetcher()
+	if err != nil {
+		return nil, err
+	}
+	return &Traceroute{
+		publicIPFetcher: fetcher,
+	}, nil
 }
 
 func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
@@ -40,7 +47,7 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if params.SkipPrivateHops {
 		results.RemovePrivateHops()
 	}
-	ip, err := publicip.GetIP()
+	ip, err := t.publicIPFetcher.GetIP()
 	if err != nil {
 		return nil, err
 	}
