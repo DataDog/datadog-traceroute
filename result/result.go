@@ -12,9 +12,11 @@ import (
 type (
 	// Results all the results from a single test run
 	Results struct {
-		Params     Params     `json:"params"`
-		Traceroute Traceroute `json:"traceroute"`
-		E2eProbe   E2eProbe   `json:"e2e_probe"`
+		Protocol    string      `json:"protocol"`
+		Source      Source      `json:"source"`
+		Destination Destination `json:"destination"`
+		Traceroute  Traceroute  `json:"traceroute"`
+		E2eProbe    E2eProbe    `json:"e2e_probe"`
 	}
 
 	// E2eProbe contains e2e probe results
@@ -84,11 +86,13 @@ type (
 		Port       uint16   `json:"port"`
 		ReverseDns []string `json:"reverse_dns,omitempty"`
 	}
-	// Params contains destination param info
-	Params struct {
-		Protocol string `json:"protocol"`
+	// Destination contains destination param info
+	Destination struct {
 		Hostname string `json:"hostname"`
 		Port     int    `json:"port"`
+	}
+	// Source contains source info
+	Source struct {
 		PublicIP string `json:"public_ip"`
 	}
 )

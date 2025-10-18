@@ -36,8 +36,8 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		return nil, err
 	}
 
-	results.Params = result.Params{
-		Protocol: params.Protocol,
+	results.Protocol = params.Protocol
+	results.Destination = result.Destination{
 		Hostname: params.Hostname,
 		Port:     destinationPort,
 	}
@@ -53,7 +53,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 		return nil, err
 	}
 
-	results.Params.PublicIP = ip.String()
+	results.Source.PublicIP = ip.String()
 
 	return results, nil
 }
