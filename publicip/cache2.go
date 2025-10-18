@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package traceroute
+package publicip
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ func GetWithExpiration(key string, cb func() ([]byte, error), expire time.Durati
 	// Open the Badger database located in the /tmp/badger directory.
 	// It is created if it doesn't exist.
 	cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
-	db, err := badger.Open(badger.DefaultOptions(cacheFolder))
+	db, err := badger.Open(badger.DefaultOptions(cacheFolder)) //.WithInMemory(true)
 	if err != nil {
 		return nil, err
 	}

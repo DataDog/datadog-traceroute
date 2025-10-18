@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -48,7 +49,7 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	if params.SkipPrivateHops {
 		results.RemovePrivateHops()
 	}
-	ip, err := getIP()
+	ip, err := publicip.GetIP()
 	if err != nil {
 		return nil, err
 	}

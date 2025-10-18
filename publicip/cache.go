@@ -1,4 +1,4 @@
-package traceroute
+package publicip
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 const defaultPublicIPCacheExpiration = 60 * time.Second
 
-func getIP() (net.IP, error) {
+func GetIP() (net.IP, error) {
 	myIP, err := GetWithExpiration("public_ip", func() ([]byte, error) {
 		ip, err := doGetIP()
 		fmt.Printf("[CACHE] Get IP: %s\n", ip.String())
