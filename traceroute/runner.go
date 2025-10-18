@@ -24,32 +24,6 @@ type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, 
 // runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
 var runTracerouteOnceFn = runTracerouteOnce
 
-func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	destinationPort := params.Port
-	if destinationPort == 0 {
-		destinationPort = common.DefaultPort
-	}
-
-	results, err := runTracerouteMulti(ctx, params, destinationPort)
-	if err != nil {
-		return nil, err
-	}
-
-	results.Params = result.Params{
-		Protocol: params.Protocol,
-		Hostname: params.Hostname,
-		Port:     destinationPort,
-	}
-	if params.ReverseDns {
-		results.EnrichWithReverseDns()
-	}
-	results.Normalize()
-	if params.SkipPrivateHops {
-		results.RemovePrivateHops()
-	}
-	return results, nil
-}
-
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
 	var results result.Results
