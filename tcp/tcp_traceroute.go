@@ -45,7 +45,7 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 	}
 
 	// get this platform's Source and Sink implementations
-	handle, err := packets.NewSourceSink(targetAddr)
+	handle, err := packets.NewSourceSink(targetAddr, t.UseWindowsDriver)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to make NewSourceSink: %w", err)
 	}

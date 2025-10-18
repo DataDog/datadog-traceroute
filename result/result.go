@@ -123,6 +123,19 @@ func (r *Results) Normalize() {
 	r.normalizeE2eProbe()
 }
 
+// RemovePrivateHops results
+func (r *Results) RemovePrivateHops() {
+	for i, run := range r.Traceroute.Runs {
+		for j, hop := range run.Hops {
+			if hop.IPAddress.IsPrivate() {
+				r.Traceroute.Runs[i].Hops[j] = &TracerouteHop{
+					TTL: run.Hops[j].TTL,
+				}
+			}
+		}
+	}
+}
+
 func (r *Results) normalizeTracerouteRuns() {
 	for i := range r.Traceroute.Runs {
 		r.Traceroute.Runs[i].RunID = uuid.New().String()

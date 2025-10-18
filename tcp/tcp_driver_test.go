@@ -35,6 +35,7 @@ func initTest(t *testing.T) (*TCPv4, *tcpDriver, *packets.MockSink, *packets.Moc
 		10*time.Millisecond,
 		1*time.Second,
 		false,
+		false,
 	)
 	config.srcIP = net.ParseIP("5.6.7.8")
 	config.srcPort = 12345
