@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build windows
+
 package winconn
 
 import (
@@ -17,7 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
-)
+) 
 
 //revive:disable:var-naming These names are intended to match the Windows API names
 
