@@ -20,15 +20,28 @@ const (
 	defaultCacheFolder = "datadog-traceroute-badgerDb"
 )
 
+type CacheType string
+
+const (
+	CacheInMemory CacheType = "in-memory"
+	CacheDisk     CacheType = "disk"
+)
+
 type Cache struct {
 	badgerDb *badger.DB
 }
 
-func NewCache() (*Cache, error) {
+func NewCache(cacheType CacheType) (*Cache, error) {
 	// Open the Badger database located in the /tmp/badger directory.
 	// It is created if it doesn't exist.
-	cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
-	db, err := badger.Open(badger.DefaultOptions(cacheFolder)) //.WithInMemory(true)
+	var options badger.Options
+	if cacheType == CacheDisk {
+		cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
+		options = badger.DefaultOptions(cacheFolder)
+	} else {
+		options = badger.DefaultOptions("").WithInMemory(true)
+	}
+	db, err := badger.Open(options)
 	if err != nil {
 		return nil, err
 	}

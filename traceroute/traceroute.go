@@ -3,6 +3,7 @@ package traceroute
 import (
 	"context"
 
+	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -12,11 +13,12 @@ type Traceroute struct {
 	publicIPFetcher *publicip.PublicIPFetcher
 }
 
-func NewTraceroute() (*Traceroute, error) {
-	fetcher, err := publicip.NewPublicIPFetcher()
+func NewTraceroute(cacheType cache.CacheType) (*Traceroute, error) {
+	cache, err := cache.NewCache(cacheType)
 	if err != nil {
 		return nil, err
 	}
+	fetcher := publicip.NewPublicIPFetcher(cache)
 	return &Traceroute{
 		publicIPFetcher: fetcher,
 	}, nil

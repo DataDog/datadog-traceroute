@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/traceroute"
@@ -75,7 +76,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		tr, err := traceroute.NewTraceroute()
+		tr, err := traceroute.NewTraceroute(cache.CacheInMemory)
 		if err != nil {
 			// TODO: TEST ME
 			return err

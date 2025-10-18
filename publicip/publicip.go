@@ -15,14 +15,10 @@ type PublicIPFetcher struct {
 	cache *cache.Cache
 }
 
-func NewPublicIPFetcher() (*PublicIPFetcher, error) {
-	cache, err := cache.NewCache()
-	if err != nil {
-		return nil, err
-	}
+func NewPublicIPFetcher(cache *cache.Cache) *PublicIPFetcher {
 	return &PublicIPFetcher{
 		cache: cache,
-	}, nil
+	}
 }
 
 func (p *PublicIPFetcher) GetIP() (net.IP, error) {
