@@ -5,13 +5,14 @@ import (
 	"net"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/cache"
 	externalip "github.com/glendc/go-external-ip"
 )
 
 const defaultPublicIPCacheExpiration = 60 * time.Second
 
 func GetIP() (net.IP, error) {
-	myIP, err := GetWithExpiration("public_ip", func() ([]byte, error) {
+	myIP, err := cache.GetWithExpiration("public_ip", func() ([]byte, error) {
 		ip, err := doGetIP()
 		fmt.Printf("[CACHE] Get IP: %s\n", ip.String())
 		if err != nil {
@@ -30,6 +31,8 @@ func GetIP() (net.IP, error) {
 func doGetIP() (net.IP, error) {
 	// Create the default consensus,
 	// using the default configuration and no logger.
+
+	// TODO: fork externalip repository or copy the code in datadog-traceroute
 	consensus := externalip.DefaultConsensus(nil, nil)
 
 	// By default Ipv4 or Ipv6 is returned,

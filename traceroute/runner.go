@@ -13,7 +13,6 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
-	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -24,40 +23,6 @@ type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, 
 
 // runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
 var runTracerouteOnceFn = runTracerouteOnce
-
-// TODO: Create a class with stateful in-memory cache
-func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	destinationPort := params.Port
-	if destinationPort == 0 {
-		destinationPort = common.DefaultPort
-	}
-
-	results, err := runTracerouteMulti(ctx, params, destinationPort)
-	if err != nil {
-		return nil, err
-	}
-
-	results.Protocol = params.Protocol
-	results.Destination = result.Destination{
-		Hostname: params.Hostname,
-		Port:     destinationPort,
-	}
-	if params.ReverseDns {
-		results.EnrichWithReverseDns()
-	}
-	results.Normalize()
-	if params.SkipPrivateHops {
-		results.RemovePrivateHops()
-	}
-	ip, err := publicip.GetIP()
-	if err != nil {
-		return nil, err
-	}
-
-	results.Source.PublicIP = ip.String()
-
-	return results, nil
-}
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
