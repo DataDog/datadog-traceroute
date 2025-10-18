@@ -6,44 +6,45 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 ### Linux
 
-| Protocol-Variant | Supported |  Traceroute CLI | Comment |
-|------------------|:---------:|----------------:|---------|
-| ICMP             |    Yes    | `traceroute -I` |         |
-| UDP              |    Yes    |    `traceroute` |         |
-| TCP SYN          |    Yes    | `tcptraceroute` |         |
-| TCP SACK         |    Yes    |                 |         |
+| Protocol-Variant | Supported |  Traceroute CLI |
+|------------------|:---------:|----------------:|
+| ICMP             |    Yes    | `traceroute -I` |
+| UDP              |    Yes    |    `traceroute` |
+| TCP SYN          |    Yes    | `tcptraceroute` |
+| TCP SACK         |    Yes    |                 |
 
-### Windows Server
+### Windows
 
-| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment                                |
-|------------------|:---------:|-------------------------|---------------:|----------------------------------------|
-| ICMP             |    Yes    | No                      |      `tracert` |                                        |
-| UDP              |    Yes    | No                      |                |                                        |
-| TCP SYN          |    Yes    | No                      |                |                                        |
-| TCP SACK         |    Yes    | Yes                     |                |                                        |
-| TCP SYN SOCKET   |    Yes    | No                      |                | no reason to use it for windows server |
+*Windows Server:*
 
-Note:
-- Default firewall on windows will block the ICMP responses when not using Windows Driver.
+| Protocol-Variant |       Supported       | Traceroute CLI |
+|------------------|:---------------------:|---------------:|
+| ICMP             |          Yes          |      `tracert` |
+| UDP              |          Yes          |                |
+| TCP SYN          |          Yes          |                |
+| TCP SACK         | Yes (req. win driver) |                |
 
-### Windows Client
+*Windows Client:*
 
-| Protocol-Variant | Supported | Windows Driver required | Traceroute CLI | Comment |
-|------------------|:---------:|-------------------------|---------------:|---------|
-| ICMP             |    Yes    | Yes                     |      `tracert` |         |
-| UDP              |    Yes    | Yes                     |                |         |
-| TCP SYN          |    Yes    | Yes                     |                |         |
-| TCP SACK         |    Yes    | Yes                     |                |         |
-| TCP SYN SOCKET   |    Yes    | No                      |                |         |
+| Protocol-Variant |         Supported          | Traceroute CLI |
+|------------------|:--------------------------:|---------------:|
+| ICMP             |   Yes (req. win driver)    |      `tracert` |
+| UDP              |   Yes (req. win driver)    |                |
+| TCP SYN          |   Yes (req. win driver)    |                |
+| TCP SACK         |   Yes (req. win driver)    |                |
+| TCP SYN SOCKET   |            Yes             |                |
+
+Note: Default firewall on windows can block the ICMP responses when not using Windows Driver.
+Note2: TCP syn_socket is only useful for Windows Client without Windows Driver.
 
 ### macOS
 
-| Protocol-Variant | Supported |  Traceroute CLI | Comment |
-|------------------|:---------:|----------------:|---------|
-| ICMP             |    Yes    | `traceroute -I` |         |
-| UDP              |    Yes    |    `traceroute` |         |
-| TCP SYN          |    Yes    | `tcptraceroute` |         |
-| TCP SACK         |    Yes    |                 |         |
+| Protocol-Variant | Supported |  Traceroute CLI |
+|------------------|:---------:|----------------:|
+| ICMP             |    Yes    | `traceroute -I` |
+| UDP              |    Yes    |    `traceroute` |
+| TCP SYN          |    Yes    | `tcptraceroute` |
+| TCP SACK         |    Yes    |                 |
 
 
 ## IPv6 Support

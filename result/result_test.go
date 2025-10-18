@@ -349,3 +349,48 @@ func TestCalculateJitter(t *testing.T) {
 		})
 	}
 }
+
+func TestResults_RemovePrivateHops(t *testing.T) {
+	result := Results{
+		Traceroute: Traceroute{
+			Runs: []TracerouteRun{
+				{
+					Hops: []*TracerouteHop{
+						{TTL: 1, IPAddress: net.IP{10, 10, 10, 11}},
+						{TTL: 2, IPAddress: net.IP{10, 10, 10, 12}},
+						{TTL: 3, IPAddress: net.IP{222, 10, 10, 13}},
+					},
+				},
+				{
+					Hops: []*TracerouteHop{
+						{TTL: 1, IPAddress: net.IP{172, 16, 0, 0}},
+						{TTL: 2, IPAddress: net.IP{192, 168, 0, 1}},
+						{TTL: 3, IPAddress: net.IP{10, 240, 6, 54}},
+					},
+				},
+			},
+		},
+	}
+	expectedResults := Results{
+		Traceroute: Traceroute{
+			Runs: []TracerouteRun{
+				{
+					Hops: []*TracerouteHop{
+						{TTL: 1},
+						{TTL: 2},
+						{TTL: 3, IPAddress: net.IP{222, 10, 10, 13}},
+					},
+				},
+				{
+					Hops: []*TracerouteHop{
+						{TTL: 1},
+						{TTL: 2},
+						{TTL: 3},
+					},
+				},
+			},
+		},
+	}
+	result.RemovePrivateHops()
+	assert.Equal(t, expectedResults, result)
+}

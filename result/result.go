@@ -89,6 +89,7 @@ type (
 		Protocol string `json:"protocol"`
 		Hostname string `json:"hostname"`
 		Port     int    `json:"port"`
+		PublicIP string `json:"public_ip"`
 	}
 )
 
@@ -121,6 +122,19 @@ func (r *Results) Normalize() {
 	r.normalizeTracerouteHops()
 	r.normalizeTracerouteHopsCount()
 	r.normalizeE2eProbe()
+}
+
+// RemovePrivateHops results
+func (r *Results) RemovePrivateHops() {
+	for i, run := range r.Traceroute.Runs {
+		for j, hop := range run.Hops {
+			if hop.IPAddress.IsPrivate() {
+				r.Traceroute.Runs[i].Hops[j] = &TracerouteHop{
+					TTL: run.Hops[j].TTL,
+				}
+			}
+		}
+	}
 }
 
 func (r *Results) normalizeTracerouteRuns() {

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'main'
+      - 'mq-working-branch-*'
     tags:
       - 'v*'
   pull_request:
