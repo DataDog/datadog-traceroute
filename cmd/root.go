@@ -33,6 +33,7 @@ type args struct {
 	verbose           bool
 	useWindowsDriver  bool
 	skipPrivateHops   bool
+	cacheType         string
 }
 
 var Args args
@@ -76,7 +77,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		tr, err := traceroute.NewTraceroute(cache.CacheInMemory)
+		tr, err := traceroute.NewTraceroute(cache.CacheType(Args.cacheType))
 		if err != nil {
 			// TODO: TEST ME
 			return err
@@ -114,4 +115,5 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
 	rootCmd.Flags().BoolVarP(&Args.skipPrivateHops, "skip-private-hops", "", false, "Skip private hops")
+	rootCmd.Flags().StringVarP(&Args.cacheType, "cache", "", "in-memory", "Cache type: in-memory, disk)")
 }

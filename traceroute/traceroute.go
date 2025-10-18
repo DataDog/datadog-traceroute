@@ -14,11 +14,11 @@ type Traceroute struct {
 }
 
 func NewTraceroute(cacheType cache.CacheType) (*Traceroute, error) {
-	cache, err := cache.NewCache(cacheType)
+	cacheInst, err := cache.NewCache(cacheType)
 	if err != nil {
 		return nil, err
 	}
-	fetcher := publicip.NewPublicIPFetcher(cache)
+	fetcher := publicip.NewPublicIPFetcher(cacheInst)
 	return &Traceroute{
 		publicIPFetcher: fetcher,
 	}, nil

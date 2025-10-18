@@ -23,8 +23,8 @@ const (
 type CacheType string
 
 const (
-	CacheInMemory CacheType = "in-memory"
-	CacheDisk     CacheType = "disk"
+	InMemory CacheType = "in-memory"
+	Disk     CacheType = "disk"
 )
 
 type Cache struct {
@@ -35,7 +35,7 @@ func NewCache(cacheType CacheType) (*Cache, error) {
 	// Open the Badger database located in the /tmp/badger directory.
 	// It is created if it doesn't exist.
 	var options badger.Options
-	if cacheType == CacheDisk {
+	if cacheType == Disk {
 		cacheFolder := filepath.Join(os.TempDir(), defaultCacheFolder)
 		options = badger.DefaultOptions(cacheFolder)
 	} else {
