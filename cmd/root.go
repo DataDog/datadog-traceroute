@@ -13,7 +13,6 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
-	"github.com/DataDog/datadog-traceroute/runner"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/spf13/cobra"
 
@@ -51,7 +50,7 @@ var rootCmd = &cobra.Command{
 
 		log.SetVerbose(Args.verbose)
 
-		params := runner.TracerouteParams{
+		params := traceroute.TracerouteParams{
 			Hostname:          args[0],
 			Port:              Args.port,
 			Protocol:          Args.protocol,
@@ -76,8 +75,14 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		results, err := runner.RunTraceroute(cmd.Context(), params)
+		tr, err := traceroute.NewTraceroute()
 		if err != nil {
+			// TODO: TEST ME
+			return err
+		}
+		results, err := tr.RunTraceroute(cmd.Context(), params)
+		if err != nil {
+			// TODO: TEST ME
 			return err
 		}
 		jsonStr, err := json.MarshalIndent(results, "", "  ")
