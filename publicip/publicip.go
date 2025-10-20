@@ -9,20 +9,16 @@ import (
 	externalip "github.com/glendc/go-external-ip"
 )
 
-const defaultPublicIPCacheExpiration = 60 * time.Second
+const defaultPublicIPCacheExpiration = 2 * time.Hour
 
-type PublicIPFetcher struct {
-	cache *cache.Cache
-}
+type PublicIPFetcher struct{}
 
-func NewPublicIPFetcher(cache *cache.Cache) *PublicIPFetcher {
-	return &PublicIPFetcher{
-		cache: cache,
-	}
+func NewPublicIPFetcher() *PublicIPFetcher {
+	return &PublicIPFetcher{}
 }
 
 func (p *PublicIPFetcher) GetIP() (net.IP, error) {
-	myIP, err := p.cache.GetWithExpiration("public_ip", func() ([]byte, error) {
+	myIP, err := cache.GetWithExpiration("public_ip", func() ([]byte, error) {
 		ip, err := doGetIP()
 		fmt.Printf("[CACHE] Get IP: %s\n", ip.String())
 		if err != nil {

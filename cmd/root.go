@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/traceroute"
@@ -33,7 +32,6 @@ type args struct {
 	verbose           bool
 	useWindowsDriver  bool
 	skipPrivateHops   bool
-	cacheType         string
 }
 
 var Args args
@@ -77,12 +75,17 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		tr, err := traceroute.NewTraceroute(cache.CacheType(Args.cacheType))
+		tr, err := traceroute.NewTraceroute()
 		if err != nil {
 			// TODO: TEST ME
 			return err
 		}
 		results, err := tr.RunTraceroute(cmd.Context(), params)
+		if err != nil {
+			// TODO: TEST ME
+			return err
+		}
+		results, err = tr.RunTraceroute(cmd.Context(), params)
 		if err != nil {
 			// TODO: TEST ME
 			return err
@@ -115,5 +118,4 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
 	rootCmd.Flags().BoolVarP(&Args.skipPrivateHops, "skip-private-hops", "", false, "Skip private hops")
-	rootCmd.Flags().StringVarP(&Args.cacheType, "cache", "", "in-memory", "Cache type: in-memory, disk)")
 }
