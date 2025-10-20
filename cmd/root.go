@@ -85,11 +85,6 @@ var rootCmd = &cobra.Command{
 			// TODO: TEST ME
 			return err
 		}
-		results, err = tr.RunTraceroute(cmd.Context(), params)
-		if err != nil {
-			// TODO: TEST ME
-			return err
-		}
 		jsonStr, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
 			return fmt.Errorf("JSON marshalling failed: %v", err)
