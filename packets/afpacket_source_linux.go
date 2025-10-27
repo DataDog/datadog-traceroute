@@ -32,7 +32,7 @@ var ethPAllNetwork = htons(uint16(unix.ETH_P_ALL))
 func NewAFPacketSource() (Source, error) {
 	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_NONBLOCK, int(ethPAllNetwork))
 	if err != nil {
-		return nil, fmt.Errorf("NewAFPacketSource failed to create socket: %s", err)
+		return nil, fmt.Errorf("NewAFPacketSource failed to create socket: %w", err)
 	}
 
 	sock := os.NewFile(uintptr(fd), "")
