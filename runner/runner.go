@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -73,8 +74,11 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 		}()
 	}
 
+	e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
+	log.Tracef("e2e query delay: %d sec", e2eQueriesDelay.Milliseconds())
 	// e2e probes
 	for i := 0; i < params.E2eQueries; i++ {
+		log.Tracef("send e2e probe #%d", i+1)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -88,6 +92,7 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 			}
 			resultsAndErrorsMu.Unlock()
 		}()
+		time.Sleep(e2eQueriesDelay)
 	}
 
 	wg.Wait()
