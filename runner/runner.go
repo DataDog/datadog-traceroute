@@ -74,27 +74,33 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 		}()
 	}
 
-	e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
-	log.Tracef("e2e query delay: %d sec", e2eQueriesDelay.Milliseconds())
-	// e2e probes
-	for i := 0; i < params.E2eQueries; i++ {
-		log.Tracef("send e2e probe #%d", i+1)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
-			resultsAndErrorsMu.Lock()
-			if err != nil {
-				multiErr = append(multiErr, err)
-				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
-			} else {
-				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+	if params.E2eQueries > 0 {
+		// e2eQueriesDelay is currently calculated based on "MaxTTL * Timeout / e2e queries"
+		// but should be replaced by "Timeout / e2e queries" once we change the meaning of Timeout param to be global vs per call.
+		// Related Jira ticket: CNM-4763
+		e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
+		log.Tracef("e2e query delay: %d sec", e2eQueriesDelay.Milliseconds())
+		// e2e probes
+		for i := 0; i < params.E2eQueries; i++ {
+			log.Tracef("send e2e probe #%d", i+1)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+				resultsAndErrorsMu.Lock()
+				if err != nil {
+					multiErr = append(multiErr, err)
+					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
+				} else {
+					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+				}
+				resultsAndErrorsMu.Unlock()
+			}()
+			if i < (params.E2eQueries - 1) { // don't add delay for last query
+				time.Sleep(e2eQueriesDelay)
 			}
-			resultsAndErrorsMu.Unlock()
-		}()
-		time.Sleep(e2eQueriesDelay)
+		}
 	}
-
 	wg.Wait()
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
