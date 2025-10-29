@@ -77,7 +77,7 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 	if params.E2eQueries > 0 {
 		// e2eQueriesDelay is currently calculated based on "MaxTTL * Timeout / e2e queries"
 		// but should be replaced by "Timeout / e2e queries" once we change the meaning of Timeout param to be global vs per call.
-		// Related Jira ticket: CNM-4763
+		// Related Jira ticket: CNM-4763 datadog-traceroute library should provide global timeout option instead of per call
 		e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
 		log.Tracef("e2e query delay: %d sec", e2eQueriesDelay.Milliseconds())
 		// e2e probes
