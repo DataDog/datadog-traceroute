@@ -59,10 +59,11 @@ After merging changes to `main` create a release by:
 
 1. Navigate to the [Releases](https://github.com/DataDog/datadog-traceroute/releases) page
 2. Click "Draft a new release"
-3. In the "Choose a tag" drop down, type in the next version number
+3. You can "Select a tag" using the dropdown or "Create a new tag"
    
-   Generally you can add one to the last version number.  Make sure to include the `v` prefix. For example, if the last release was v0.1.29, your release should be v0.1.30.
-   
+   When creating a new tag, make sure to include the `v` prefix.
+   For example, if the last release was v0.1.29, your release should be v0.1.30.
+
 5. The release title should be the same as the version tag
 6. Use "Generate release notes" to fill in the release description
 7. Click "Publish release"
