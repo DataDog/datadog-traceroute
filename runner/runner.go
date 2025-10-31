@@ -80,6 +80,14 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 		// Related Jira ticket: CNM-4763 datadog-traceroute library should provide global timeout option instead of per call
 		e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
 		log.Tracef("e2e query delay: %d msec", e2eQueriesDelay.Milliseconds())
+
+		// Don't use SACK for e2e probes because some servers don't properly reply with SACK responses,
+		// even if they respond with the SACK permitted option during the handshake, which can result in
+		// e2e probe failures.
+		if params.Protocol == "tcp" && (params.TCPMethod == traceroute.TCPConfigSACK || params.TCPMethod == traceroute.TCPConfigPreferSACK) {
+			params.TCPMethod = traceroute.TCPConfigSYN
+		}
+
 		// e2e probes
 		for i := 0; i < params.E2eQueries; i++ {
 			log.Tracef("send e2e probe #%d", i+1)
