@@ -237,11 +237,15 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 		if err != nil {
 			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTT: %w", err)}
 		}
+
 		return &common.ProbeResponse{
 			TTL:    uint8(relSeq),
 			IP:     ipPair.SrcAddr,
 			RTT:    rtt,
-			IsDest: false,
+			// Note that some servers don't properly reply with SACK responses, even if they respond with the
+			// SACK permitted option during the handshake.  In these cases an ICMP TTL Exceeded response from
+			// the destination indicates that we've reached the destination.
+			IsDest: ipPair.SrcAddr.Compare(s.params.Target.Addr()) == 0,
 		}, nil
 	default:
 		return nil, errPacketDidNotMatchTraceroute
