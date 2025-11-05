@@ -27,7 +27,7 @@ jobs:
 
   integration_tests:
     runs-on: ${{ matrix.os }}
-    needs: unit_tests # Only run if unit tests pass
+    #needs: unit_tests # Only run if unit tests pass
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
