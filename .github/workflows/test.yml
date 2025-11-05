@@ -73,6 +73,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -87,27 +90,15 @@ jobs:
         run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
 
       # Test different protocols against localhost (safer for CI)
-      - name: Test UDP traceroute to localhost (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+      - name: Test UDP traceroute to localhost
+        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
-      - name: Test UDP traceroute to localhost (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+      - name: Test TCP traceroute to localhost
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP traceroute to localhost (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP traceroute to localhost (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test ICMP on Unix-like systems
+      - name: Test ICMP traceroute to localhost
         if: matrix.os != 'windows-latest'
         run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --timeout 1000 127.0.0.1
         continue-on-error: true # May still fail in CI environment
@@ -118,6 +109,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -132,34 +126,16 @@ jobs:
         run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
 
       # Test different protocols against reliable public endpoints
-      - name: Test UDP traceroute to Google DNS (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto udp 8.8.8.8
+      - name: Test UDP traceroute to Google DNS
+        run: $SUDO_CMD $EXECUTABLE --proto udp 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
-      - name: Test UDP traceroute to Google DNS (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto udp 8.8.8.8
+      - name: Test TCP traceroute to GitHub
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 github.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP traceroute to GitHub (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --port 443 github.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP traceroute to GitHub (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --port 443 github.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP traceroute to Cloudflare DNS (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --port 53 1.1.1.1
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP traceroute to Cloudflare DNS (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --port 53 1.1.1.1
+      - name: Test TCP traceroute to Cloudflare DNS
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 53 1.1.1.1
         continue-on-error: true # May fail due to permissions
 
   advanced_protocol_tests:
@@ -168,6 +144,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -182,32 +161,14 @@ jobs:
         run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
 
       # Test advanced TCP methods against reliable endpoints
-      - name: Test TCP SACK traceroute to GitHub (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --tcp-method sack --port 443 github.com
+      - name: Test TCP SACK traceroute to GitHub
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 github.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP SACK traceroute to GitHub (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --tcp-method sack --port 443 github.com
+      - name: Test TCP SACK traceroute to Google
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 google.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP SACK traceroute to Google (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --tcp-method sack --port 443 google.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP SACK traceroute to Google (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --tcp-method sack --port 443 google.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP prefer_sack traceroute to Microsoft (Unix with sudo)
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto tcp --tcp-method prefer_sack --port 443 microsoft.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP prefer_sack traceroute to Microsoft (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --proto tcp --tcp-method prefer_sack --port 443 microsoft.com
+      - name: Test TCP prefer_sack traceroute to Microsoft
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 microsoft.com
         continue-on-error: true # May fail due to permissions
