@@ -3,14 +3,14 @@ name: test
 on:
   push:
     branches:
-      - 'main'
-      - 'mq-working-branch-*'
+      - "main"
+      - "mq-working-branch-*"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
 
 jobs:
-  run_tests:
+  unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -24,3 +24,101 @@ jobs:
           go-version: 1.24.6
       - run: go mod tidy
       - run: go test -tags=test -v ./...
+
+  integration_tests:
+    runs-on: ${{ matrix.os }}
+    needs: unit_tests # Only run if unit tests pass
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+
+      # Test CLI help and version commands (safe on all platforms)
+      - name: Test CLI help
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --help
+
+      - name: Test CLI version
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} version
+
+      #
+      # Test different protocols against localhost (safer for CI)
+      #
+      - name: Test UDP traceroute to localhost
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP traceroute to localhost
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
+        continue-on-error: true # May fail due to permissions
+
+      #
+      # Test different protocols against 8.8.8.8
+      #
+      - name: Test UDP traceroute to 8.8.8.8
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP traceroute to 8.8.8.8
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to 8.8.8.8
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method prefer_sack --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to 8.8.8.8
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method sack --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      #
+      # Test different protocols against intake.synthetics.datadoghq.com
+      #
+      - name: Test UDP traceroute to intake.synthetics.datadoghq.com
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP traceroute to intake.synthetics.datadoghq.com
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to intake.synthetics.datadoghq.com
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method prefer_sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to intake.synthetics.datadoghq.com
+        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      #
+      # Test invalid arguments (should fail gracefully)
+      #
+      - name: Test invalid protocol
+        run: |
+          if ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto invalid 127.0.0.1; then
+            echo "ERROR: Should have failed with invalid protocol"
+            exit 1
+          else
+            echo "SUCCESS: Correctly rejected invalid protocol"
+          fi
+
+      # Platform-specific tests
+      - name: Test Windows driver flag (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --windows-driver --help
+        continue-on-error: true
+
+      - name: Test ICMP on Unix-like systems
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --timeout 1000 127.0.0.1
+        continue-on-error: true # May still fail in CI environment
