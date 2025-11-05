@@ -25,9 +25,9 @@ jobs:
       - run: go mod tidy
       - run: go test -tags=test -v ./...
 
-  integration_tests:
+  basic_functionality_tests:
+    name: "Basic CLI Tests"
     runs-on: ${{ matrix.os }}
-    #needs: unit_tests # Only run if unit tests pass
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -51,9 +51,42 @@ jobs:
       - name: Test CLI version
         run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} version
 
-      #
+      # Test invalid arguments (should fail gracefully)
+      - name: Test invalid protocol
+        run: |
+          if ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto invalid 127.0.0.1; then
+            echo "ERROR: Should have failed with invalid protocol"
+            exit 1
+          else
+            echo "SUCCESS: Correctly rejected invalid protocol"
+          fi
+
+      # Platform-specific tests
+      - name: Test Windows driver flag (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --windows-driver --help
+        continue-on-error: true
+
+  localhost_tests:
+    name: "Localhost Network Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+
       # Test different protocols against localhost (safer for CI)
-      #
       - name: Test UDP traceroute to localhost (Unix with sudo)
         if: matrix.os != 'windows-latest'
         run: sudo ./datadog-traceroute --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
@@ -74,9 +107,31 @@ jobs:
         run: ./datadog-traceroute.exe --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
-      #
+      - name: Test ICMP on Unix-like systems
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --timeout 1000 127.0.0.1
+        continue-on-error: true # May still fail in CI environment
+
+  public_endpoint_tests:
+    name: "Public Endpoint Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+
       # Test different protocols against reliable public endpoints
-      #
       - name: Test UDP traceroute to Google DNS (Unix with sudo)
         if: matrix.os != 'windows-latest'
         run: sudo ./datadog-traceroute --proto udp 8.8.8.8
@@ -107,9 +162,26 @@ jobs:
         run: ./datadog-traceroute.exe --proto tcp --port 53 1.1.1.1
         continue-on-error: true # May fail due to permissions
 
-      #
+  advanced_protocol_tests:
+    name: "Advanced TCP Methods"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+
       # Test advanced TCP methods against reliable endpoints
-      #
       - name: Test TCP SACK traceroute to GitHub (Unix with sudo)
         if: matrix.os != 'windows-latest'
         run: sudo ./datadog-traceroute --proto tcp --tcp-method sack --port 443 github.com
@@ -139,26 +211,3 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: ./datadog-traceroute.exe --proto tcp --tcp-method prefer_sack --port 443 microsoft.com
         continue-on-error: true # May fail due to permissions
-
-      #
-      # Test invalid arguments (should fail gracefully)
-      #
-      - name: Test invalid protocol
-        run: |
-          if ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto invalid 127.0.0.1; then
-            echo "ERROR: Should have failed with invalid protocol"
-            exit 1
-          else
-            echo "SUCCESS: Correctly rejected invalid protocol"
-          fi
-
-      # Platform-specific tests
-      - name: Test Windows driver flag (Windows only)
-        if: matrix.os == 'windows-latest'
-        run: ./datadog-traceroute.exe --windows-driver --help
-        continue-on-error: true
-
-      - name: Test ICMP on Unix-like systems
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --timeout 1000 127.0.0.1
-        continue-on-error: true # May still fail in CI environment
