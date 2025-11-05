@@ -178,6 +178,12 @@ func Test_runTracerouteMulti(t *testing.T) {
 			},
 		}, nil
 	}
+	runTracerouteOnceFnSYN := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+		assert.Equal(t, "tcp", params.Protocol)
+		assert.Equal(t, traceroute.TCPConfigSYN, params.TCPMethod)
+		return &result.TracerouteRun{}, nil
+	}
+
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 	tests := []struct {
 		name             string
@@ -289,6 +295,51 @@ func Test_runTracerouteMulti(t *testing.T) {
 				Traceroute: result.Traceroute{},
 				E2eProbe: result.E2eProbe{
 					RTTs: []float64{0, 0, 0, 0, 0},
+				},
+			},
+		},
+		{
+			name: "e2eprobe with sack method uses syn",
+			params: TracerouteParams{
+				E2eQueries: 1,
+				Protocol:   "tcp",
+				TCPMethod:  "sack",
+			},
+			tracerouteOnceFn: runTracerouteOnceFnSYN,
+			expectedResults: &result.Results{
+				Traceroute: result.Traceroute{},
+				E2eProbe: result.E2eProbe{
+					RTTs: []float64{0},
+				},
+			},
+		},
+		{
+			name: "e2eprobe with prefer_sack method uses syn",
+			params: TracerouteParams{
+				E2eQueries: 1,
+				Protocol:   "tcp",
+				TCPMethod:  "prefer_sack",
+			},
+			tracerouteOnceFn: runTracerouteOnceFnSYN,
+			expectedResults: &result.Results{
+				Traceroute: result.Traceroute{},
+				E2eProbe: result.E2eProbe{
+					RTTs: []float64{0},
+				},
+			},
+		},
+		{
+			name: "e2eprobe with syn method uses syn",
+			params: TracerouteParams{
+				E2eQueries: 1,
+				Protocol:   "tcp",
+				TCPMethod:  "syn",
+			},
+			tracerouteOnceFn: runTracerouteOnceFnSYN,
+			expectedResults: &result.Results{
+				Traceroute: result.Traceroute{},
+				E2eProbe: result.E2eProbe{
+					RTTs: []float64{0},
 				},
 			},
 		},

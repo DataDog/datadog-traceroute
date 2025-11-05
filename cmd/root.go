@@ -87,7 +87,7 @@ var rootCmd = &cobra.Command{
 		}
 		jsonStr, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
-			return fmt.Errorf("JSON marshalling failed: %v", err)
+			return fmt.Errorf("JSON marshalling failed: %w", err)
 		}
 		fmt.Println(string(jsonStr))
 		return nil
