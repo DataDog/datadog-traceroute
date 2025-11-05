@@ -54,50 +54,110 @@ jobs:
       #
       # Test different protocols against localhost (safer for CI)
       #
-      - name: Test UDP traceroute to localhost
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+      - name: Test UDP traceroute to localhost (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP traceroute to localhost
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
+      - name: Test UDP traceroute to localhost (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP traceroute to localhost (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP traceroute to localhost (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
       #
       # Test different protocols against 8.8.8.8
       #
-      - name: Test UDP traceroute to 8.8.8.8
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 8.8.8.8
+      - name: Test UDP traceroute to 8.8.8.8 (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto udp --max-ttl 5 --timeout 1000 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP traceroute to 8.8.8.8
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 8.8.8.8
+      - name: Test UDP traceroute to 8.8.8.8 (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto udp --max-ttl 5 --timeout 1000 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP prefer_sack traceroute to 8.8.8.8
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method prefer_sack --max-ttl 5 --timeout 1000 8.8.8.8
+      - name: Test TCP traceroute to 8.8.8.8 (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --max-ttl 5 --timeout 1000 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP sack traceroute to 8.8.8.8
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method sack --max-ttl 5 --timeout 1000 8.8.8.8
+      - name: Test TCP traceroute to 8.8.8.8 (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to 8.8.8.8 (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --tcp-method prefer_sack --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to 8.8.8.8 (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --tcp-method prefer_sack --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to 8.8.8.8 (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --tcp-method sack --max-ttl 5 --timeout 1000 8.8.8.8
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to 8.8.8.8 (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --tcp-method sack --max-ttl 5 --timeout 1000 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
       #
       # Test different protocols against intake.synthetics.datadoghq.com
       #
-      - name: Test UDP traceroute to intake.synthetics.datadoghq.com
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto udp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+      - name: Test UDP traceroute to intake.synthetics.datadoghq.com (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto udp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP traceroute to intake.synthetics.datadoghq.com
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+      - name: Test UDP traceroute to intake.synthetics.datadoghq.com (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto udp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP prefer_sack traceroute to intake.synthetics.datadoghq.com
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method prefer_sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+      - name: Test TCP traceroute to intake.synthetics.datadoghq.com (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
         continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP sack traceroute to intake.synthetics.datadoghq.com
-        run: ./datadog-traceroute${{ matrix.os == 'windows-latest' && '.exe' || '' }} --proto tcp --tcp_method sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+      - name: Test TCP traceroute to intake.synthetics.datadoghq.com (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to intake.synthetics.datadoghq.com (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --tcp-method prefer_sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP prefer_sack traceroute to intake.synthetics.datadoghq.com (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --tcp-method prefer_sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to intake.synthetics.datadoghq.com (Unix with sudo)
+        if: matrix.os != 'windows-latest'
+        run: sudo ./datadog-traceroute --proto tcp --tcp-method sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
+        continue-on-error: true # May fail due to permissions
+
+      - name: Test TCP sack traceroute to intake.synthetics.datadoghq.com (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ./datadog-traceroute.exe --proto tcp --tcp-method sack --max-ttl 5 --timeout 1000 intake.synthetics.datadoghq.com
         continue-on-error: true # May fail due to permissions
 
       #
