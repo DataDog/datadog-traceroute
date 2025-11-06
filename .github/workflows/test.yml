@@ -96,16 +96,16 @@ jobs:
 
       # Test different protocols against localhost (safer for CI)
       - name: Test UDP traceroute to localhost
-        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --timeout 1000 127.0.0.1
+        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
       - name: Test TCP traceroute to localhost
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --timeout 1000 127.0.0.1
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
         continue-on-error: true # May fail due to permissions
 
       - name: Test ICMP traceroute to localhost
         if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --timeout 1000 127.0.0.1
+        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
         continue-on-error: true # May still fail in CI environment
 
   public_endpoint_tests:
@@ -133,15 +133,15 @@ jobs:
 
       # Test different protocols against reliable public endpoints
       - name: Test UDP traceroute to Google DNS
-        run: $SUDO_CMD $EXECUTABLE --proto udp 8.8.8.8
+        run: $SUDO_CMD $EXECUTABLE --proto udp --traceroute-queries 3 --e2e-queries 10 --timeout 1000 8.8.8.8
         continue-on-error: true # May fail due to permissions
 
       - name: Test TCP traceroute to GitHub
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 github.com
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
         continue-on-error: true # May fail due to permissions
 
       - name: Test TCP traceroute to Cloudflare DNS
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 53 1.1.1.1
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 53 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 1.1.1.1
         continue-on-error: true # May fail due to permissions
 
   advanced_protocol_tests:
@@ -169,13 +169,13 @@ jobs:
 
       # Test advanced TCP methods against reliable endpoints
       - name: Test TCP SACK traceroute to GitHub
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 github.com
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
         continue-on-error: true # May fail due to permissions
 
       - name: Test TCP SACK traceroute to Google
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 google.com
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 google.com
         continue-on-error: true # May fail due to permissions
 
       - name: Test TCP prefer_sack traceroute to Microsoft
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 microsoft.com
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 microsoft.com
         continue-on-error: true # May fail due to permissions
