@@ -100,16 +100,15 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      # Test different protocols against localhost (safer for CI)
+      # Test different protocols against localhost
+      - name: Test ICMP traceroute to localhost
+        run: $SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
+
       - name: Test UDP traceroute to localhost
         run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
 
       - name: Test TCP traceroute to localhost
         run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
-
-      - name: Test ICMP traceroute to localhost
-        if: matrix.os != 'windows-latest'
-        run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
 
   public_endpoint_tests:
     name: "Public Endpoint Tests"
@@ -141,10 +140,8 @@ jobs:
       - name: Test TCP traceroute to GitHub
         run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
 
-      # Test advanced TCP methods against reliable endpoints
-      - name: Test TCP SACK traceroute to GitHub
+      - name: Test TCP sack traceroute to GitHub
         run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
 
-      # Test advanced TCP methods against reliable endpoints
-      - name: Test TCP SACK traceroute to GitHub
+      - name: Test TCP prefer_sack traceroute to GitHub
         run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
