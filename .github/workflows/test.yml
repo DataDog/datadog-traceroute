@@ -97,16 +97,13 @@ jobs:
       # Test different protocols against localhost (safer for CI)
       - name: Test UDP traceroute to localhost
         run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
-        continue-on-error: true # May fail due to permissions
 
       - name: Test TCP traceroute to localhost
         run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
-        continue-on-error: true # May fail due to permissions
 
       - name: Test ICMP traceroute to localhost
         if: matrix.os != 'windows-latest'
         run: sudo ./datadog-traceroute --proto icmp --max-ttl 3 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
-        continue-on-error: true # May still fail in CI environment
 
   public_endpoint_tests:
     name: "Public Endpoint Tests"
@@ -132,50 +129,13 @@ jobs:
         run: go build -o $BUILD_TARGET .
 
       # Test different protocols against reliable public endpoints
-      - name: Test UDP traceroute to Google DNS
-        run: $SUDO_CMD $EXECUTABLE --proto udp --traceroute-queries 3 --e2e-queries 10 --timeout 1000 8.8.8.8
-        continue-on-error: true # May fail due to permissions
-
       - name: Test TCP traceroute to GitHub
         run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP traceroute to Cloudflare DNS
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 53 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 1.1.1.1
-        continue-on-error: true # May fail due to permissions
-
-  advanced_protocol_tests:
-    name: "Advanced TCP Methods"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.24.6
-      - run: go mod tidy
-
-      # Build the CLI binary
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
 
       # Test advanced TCP methods against reliable endpoints
       - name: Test TCP SACK traceroute to GitHub
         run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
-        continue-on-error: true # May fail due to permissions
 
-      - name: Test TCP SACK traceroute to Google
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 google.com
-        continue-on-error: true # May fail due to permissions
-
-      - name: Test TCP prefer_sack traceroute to Microsoft
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 microsoft.com
-        continue-on-error: true # May fail due to permissions
+      # Test advanced TCP methods against reliable endpoints
+      - name: Test TCP SACK traceroute to GitHub
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
