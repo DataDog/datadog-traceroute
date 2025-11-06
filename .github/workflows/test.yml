@@ -34,7 +34,7 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ./$BUILD_TARGET
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -80,7 +80,7 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ./$BUILD_TARGET
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -117,7 +117,7 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ./$BUILD_TARGET
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -153,7 +153,7 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ./$BUILD_TARGET
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v2
         with:
