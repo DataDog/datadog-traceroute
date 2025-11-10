@@ -110,6 +110,49 @@ jobs:
       - name: Test TCP traceroute to localhost
         run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
 
+  fake_network_tests:
+    name: "Fake Network Tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SUDO_CMD: sudo
+      BUILD_TARGET: datadog-traceroute
+      EXECUTABLE: ./datadog-traceroute
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Setup fake network environment
+      - name: Setup fake network
+        run: sudo bash testutils/router_setup.sh
+
+      # Test different protocols against fake network
+      - name: Test ICMP traceroute to fake network
+        run: $SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+
+      - name: Test UDP traceroute to fake network
+        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+
+      - name: Test TCP traceroute to fake network
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+
+      - name: Test TCP sack traceroute to fake network
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+
+      - name: Test TCP prefer_sack traceroute to fake network
+        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+
   public_endpoint_tests:
     name: "Public Endpoint Tests"
     runs-on: ${{ matrix.os }}
