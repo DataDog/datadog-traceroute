@@ -51,6 +51,7 @@ var rootCmd = &cobra.Command{
 
 		log.SetVerbose(Args.verbose)
 
+		// JMWDIFF  setup params, call runner.RunTraceroute
 		params := runner.TracerouteParams{
 			Hostname:          args[0],
 			Port:              Args.port,

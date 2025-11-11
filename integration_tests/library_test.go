@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	testTimeout = 500 * time.Millisecond
-	testMaxTTL  = 5
+	localhostTimeout = 500 * time.Millisecond
+	localhostMaxTTL  = 5
+	publicEndpointTimeout = 1000 * time.Millisecond // JMWNAME
+	publicEndpointMaxTTL = 30 // JMWNAME
 )
 
 // TestLocalhostICMP tests ICMP traceroute to localhost as a library
@@ -33,14 +35,15 @@ func TestLocalhostICMP(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	// JMWDIFF how are these different from just running datadog-traceroute CLI commands?  setup params, call runner.RunTraceroute
 	params := runner.TracerouteParams{
 		Hostname:          "127.0.0.1",
 		Port:              0,
 		Protocol:          "icmp",
 		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            testMaxTTL,
+		MaxTTL:            localhostMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           testTimeout,
+		Timeout:           localhostTimeout,
 		WantV6:            false,
 		ReverseDns:        false,
 		TracerouteQueries: 3,
@@ -67,9 +70,9 @@ func TestLocalhostUDP(t *testing.T) {
 		Port:              0,
 		Protocol:          "udp",
 		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            testMaxTTL,
+		MaxTTL:            localhostMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           testTimeout,
+		Timeout:           localhostTimeout,
 		WantV6:            false,
 		ReverseDns:        false,
 		TracerouteQueries: 3,
@@ -96,9 +99,9 @@ func TestLocalhostTCP(t *testing.T) {
 		Port:              0,
 		Protocol:          "tcp",
 		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            testMaxTTL,
+		MaxTTL:            localhostMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           testTimeout,
+		Timeout:           localhostTimeout,
 		TCPMethod:         traceroute.TCPConfigSYN,
 		WantV6:            false,
 		ReverseDns:        false,
@@ -128,7 +131,7 @@ func TestPublicEndpointTCP(t *testing.T) {
 		MinTTL:            common.DefaultMinTTL,
 		MaxTTL:            common.DefaultMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           1000 * time.Millisecond,
+		Timeout:           publicEndpointTimeout,
 		TCPMethod:         traceroute.TCPConfigSYN,
 		WantV6:            false,
 		ReverseDns:        false,
@@ -158,7 +161,7 @@ func TestPublicEndpointTCPSACK(t *testing.T) {
 		MinTTL:            common.DefaultMinTTL,
 		MaxTTL:            common.DefaultMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           1000 * time.Millisecond,
+		Timeout:           publicEndpointTimeout,
 		TCPMethod:         traceroute.TCPConfigSACK,
 		WantV6:            false,
 		ReverseDns:        false,
@@ -188,7 +191,7 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 		MinTTL:            common.DefaultMinTTL,
 		MaxTTL:            common.DefaultMaxTTL,
 		Delay:             common.DefaultDelay,
-		Timeout:           1000 * time.Millisecond,
+		Timeout:           publicEndpointTimeout,
 		TCPMethod:         traceroute.TCPConfigPreferSACK,
 		WantV6:            false,
 		ReverseDns:        false,
@@ -221,12 +224,12 @@ func validateLocalhostResults(t *testing.T, results *result.Results, protocol st
 		assert.NotEmpty(t, run.Hops, "Run %d should have at least one hop", i)
 
 		// For localhost, we expect a very short path (typically 1 hop)
-		assert.LessOrEqual(t, len(run.Hops), testMaxTTL, "Run %d should not exceed max TTL", i)
+		assert.LessOrEqual(t, len(run.Hops), localhostMaxTTL, "Run %d should not exceed max TTL", i)
 
 		// Validate hop information
 		for j, hop := range run.Hops {
 			assert.NotZero(t, hop.TTL, "Run %d, Hop %d should have a TTL", i, j)
-			assert.LessOrEqual(t, hop.TTL, testMaxTTL, "Run %d, Hop %d TTL should not exceed max TTL", i, j)
+			assert.LessOrEqual(t, hop.TTL, localhostMaxTTL, "Run %d, Hop %d TTL should not exceed max TTL", i, j)
 
 			// At least some hops should be reachable
 			if hop.Reachable {
