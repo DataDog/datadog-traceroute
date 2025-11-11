@@ -102,13 +102,22 @@ jobs:
 
       # Test different protocols against localhost
       - name: Test ICMP traceroute to localhost
-        run: $SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test UDP traceroute to localhost
-        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test TCP traceroute to localhost
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
   fake_network_tests:
     name: "Fake Network Tests"
@@ -139,21 +148,36 @@ jobs:
 
       # Test different protocols against fake network
       - name: Test ICMP traceroute to fake network
-        run: $SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test UDP traceroute to fake network
-        run: $SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test TCP traceroute to fake network
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       # JMW confirm that this fails
       # sack traceroute failed: SACK not supported for this target/source: sack traceroute failed to dial: failed to dial 198.51.100.2:33434: dial tcp 198.51.100.2:33434: connect: connection refused
       #- name: Test TCP sack traceroute to fake network
-      #  run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+      #  run: |
+      #    OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+      #    echo "$OUTPUT"
+      #    bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test TCP prefer_sack traceroute to fake network
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
   public_endpoint_tests:
     name: "Public Endpoint Tests"
@@ -183,13 +207,24 @@ jobs:
 
       # Test different protocols against reliable public endpoints
       - name: Test TCP traceroute to GitHub
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
+      # JMW confirm success on linux, mac, failure on windows
+      # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
       - name: Test TCP sack traceroute to GitHub
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
       - name: Test TCP prefer_sack traceroute to GitHub
-        run: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
   # Temporarily disabled - TODO: re-enable integration tests
   # integration_tests:
