@@ -1,4 +1,5 @@
 /datadog-traceroute
+.dir-locals.el
 .idea
 .vscode
 vendor

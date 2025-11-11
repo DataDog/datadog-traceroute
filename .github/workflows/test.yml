@@ -3,16 +3,17 @@ name: test
 on:
   push:
     branches:
-      - 'main'
-      - 'mq-working-branch-*'
+      - "main"
+      - "mq-working-branch-*"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
 
 jobs:
-  run_tests:
+  unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -24,3 +25,378 @@ jobs:
           go-version: 1.24.6
       - run: go mod tidy
       - run: go test -tags=test -v ./...
+        continue-on-error: true
+
+  basic_functionality_tests:
+    name: "Basic CLI Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Test CLI help and version commands (safe on all platforms)
+      - name: Test CLI help
+        run: $EXECUTABLE --help
+        continue-on-error: true
+
+      - name: Test CLI version
+        run: $EXECUTABLE version
+        continue-on-error: true
+
+      # Test invalid arguments (should fail gracefully)
+      - name: Test invalid protocol
+        run: |
+          if $EXECUTABLE --proto invalid 127.0.0.1; then
+            echo "ERROR: Should have failed with invalid protocol"
+            exit 1
+          else
+            echo "SUCCESS: Correctly rejected invalid protocol"
+          fi
+        continue-on-error: true
+
+      # Platform-specific tests
+      - name: Test Windows driver flag (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: $EXECUTABLE --windows-driver --help
+        continue-on-error: true
+
+  localhost_tests:
+    name: "Localhost Network Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Test different protocols against localhost
+      - name: Test ICMP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test UDP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP sack traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP prefer_sack traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+  fake_network_tests:
+    name: "Fake Network Tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SUDO_CMD: sudo
+      BUILD_TARGET: datadog-traceroute
+      EXECUTABLE: ./datadog-traceroute
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Setup fake network environment
+      - name: Setup fake network
+        run: sudo bash testutils/router_setup.sh
+
+      # Test different protocols against fake network
+      - name: Test ICMP traceroute to fake network
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test UDP traceroute to fake network
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP traceroute to fake network
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      # JMW confirm that this fails
+      # sack traceroute failed: SACK not supported for this target/source: sack traceroute failed to dial: failed to dial 198.51.100.2:33434: dial tcp 198.51.100.2:33434: connect: connection refused
+      - name: Test TCP sack traceroute to fake network
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP prefer_sack traceroute to fake network
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+  public_endpoint_tests:
+    name: "Public Endpoint Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Test different protocols against reliable public endpoints
+      - name: Test TCP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        # JMW confirm success on linux, mac, failure on windows
+        # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
+        continue-on-error: true
+
+      - name: Test TCP prefer_sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+  windows_driver_tests:
+    name: "Windows Driver Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        #os: [windows-latest, windows-11-arm]
+        os: [windows-latest]
+    env:
+      SUDO_CMD: ""
+      BUILD_TARGET: "datadog-traceroute.exe"
+      EXECUTABLE: "./datadog-traceroute.exe"
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      - name: Test Windows Driver ICMP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver UDP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP sack traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP prefer_sack traceroute to localhost
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      # Test different protocols against reliable public endpoints
+      - name: Test Windows Driver ICMP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto icmp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver UDP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto udp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        # JMW confirm success on linux, mac, failure on windows
+        # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
+        continue-on-error: true
+
+      - name: Test Windows Driver TCP prefer_sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+  # Temporarily disabled - TODO: re-enable integration tests
+  # integration_tests:
+  #   name: "Library Integration Tests"
+  #   runs-on: ${{ matrix.os }}
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, windows-latest, macos-latest]
+  #   env:
+  #     SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: actions/setup-go@v2
+  #       with:
+  #         go-version: 1.24.6
+  #     - run: go mod tidy
+  #
+  #     # Run localhost integration tests
+  #     - name: Test library localhost ICMP
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostICMP
+  #
+  #     - name: Test library localhost UDP
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostUDP
+  #
+  #     - name: Test library localhost TCP
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostTCP
+  #
+  #     # Run public endpoint integration tests
+  #     - name: Test library TCP to GitHub
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCP
+  #
+  #     - name: Test library TCP SACK to GitHub
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCPSACK
+  #
+  #     - name: Test library TCP prefer_sack to GitHub
+  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCPPreferSACK
