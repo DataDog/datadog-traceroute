@@ -26,6 +26,7 @@ type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, 
 // runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
 var runTracerouteOnceFn = runTracerouteOnce
 
+// TODO: Create a class with stateful in-memory cache
 func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
 	destinationPort := params.Port
 	if destinationPort == 0 {
@@ -49,6 +50,13 @@ func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Result
 	if params.SkipPrivateHops {
 		results.RemovePrivateHops()
 	}
+	ip, err := getIP()
+	if err != nil {
+		return nil, err
+	}
+
+	results.Params.PublicIP = ip.String()
+
 	return results, nil
 }
 

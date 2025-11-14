@@ -89,6 +89,7 @@ type (
 		Protocol string `json:"protocol"`
 		Hostname string `json:"hostname"`
 		Port     int    `json:"port"`
+		PublicIP string `json:"public_ip"`
 	}
 )
 
