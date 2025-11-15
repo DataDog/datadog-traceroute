@@ -1,4 +1,4 @@
-package runner
+package traceroute
 
 import (
 	"context"
@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
-	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/DataDog/datadog-traceroute/udp"
 )
 
@@ -25,32 +24,6 @@ type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, 
 
 // runTracerouteOnceFn is declared for testing purpose (to be replaced by mock impl during tests)
 var runTracerouteOnceFn = runTracerouteOnce
-
-func RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	destinationPort := params.Port
-	if destinationPort == 0 {
-		destinationPort = common.DefaultPort
-	}
-
-	results, err := runTracerouteMulti(ctx, params, destinationPort)
-	if err != nil {
-		return nil, err
-	}
-
-	results.Params = result.Params{
-		Protocol: params.Protocol,
-		Hostname: params.Hostname,
-		Port:     destinationPort,
-	}
-	if params.ReverseDns {
-		results.EnrichWithReverseDns()
-	}
-	results.Normalize()
-	if params.SkipPrivateHops {
-		results.RemovePrivateHops()
-	}
-	return results, nil
-}
 
 func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
@@ -300,18 +273,18 @@ func hasPort(s string) bool {
 
 type tracerouteImpl func() (*result.TracerouteRun, error)
 
-func performTCPFallback(tcpMethod traceroute.TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.TracerouteRun, error) {
+func performTCPFallback(tcpMethod TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.TracerouteRun, error) {
 	if tcpMethod == "" {
 		tcpMethod = "syn"
 	}
 	switch tcpMethod {
-	case traceroute.TCPConfigSYN:
+	case TCPConfigSYN:
 		return doSyn()
-	case traceroute.TCPConfigSACK:
+	case TCPConfigSACK:
 		return doSack()
-	case traceroute.TCPConfigSYNSocket:
+	case TCPConfigSYNSocket:
 		return doSynSocket()
-	case traceroute.TCPConfigPreferSACK:
+	case TCPConfigPreferSACK:
 		results, err := doSack()
 		var sackNotSupportedErr *sack.NotSupportedError
 		if errors.As(err, &sackNotSupportedErr) {

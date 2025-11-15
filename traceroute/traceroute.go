@@ -1,29 +1,56 @@
 package traceroute
 
-// Protocol defines supported network protocols
-// Please define new protocols based on the Keyword from:
-// https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
-type Protocol string
+import (
+	"context"
 
-const (
-	// ProtocolTCP is the TCP protocol.
-	ProtocolTCP Protocol = "TCP"
-	// ProtocolUDP is the UDP protocol.
-	ProtocolUDP Protocol = "UDP"
-	// ProtocolICMP is the ICMP protocol.
-	ProtocolICMP Protocol = "ICMP"
+	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/publicip"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
-// TCPMethod is the method used to run a TCP traceroute.
-type TCPMethod string
+type Traceroute struct {
+	publicIPFetcher *publicip.PublicIPFetcher
+}
 
-const (
-	// TCPConfigSYN means to only perform SYN traceroutes
-	TCPConfigSYN TCPMethod = "syn"
-	// TCPConfigSACK means to only perform SACK traceroutes
-	TCPConfigSACK TCPMethod = "sack"
-	// TCPConfigPreferSACK means to try SACK, and fall back to SYN if the remote doesn't support SACK
-	TCPConfigPreferSACK TCPMethod = "prefer_sack"
-	// TCPConfigSYNSocket means to use a SYN with TCP socket options to perform the traceroute (windows only)
-	TCPConfigSYNSocket TCPMethod = "syn_socket"
-)
+func NewTraceroute() (*Traceroute, error) {
+	fetcher := publicip.NewPublicIPFetcher()
+	return &Traceroute{
+		publicIPFetcher: fetcher,
+	}, nil
+}
+
+func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
+	// TODO: TEST ME
+
+	destinationPort := params.Port
+	if destinationPort == 0 {
+		destinationPort = common.DefaultPort
+	}
+
+	results, err := runTracerouteMulti(ctx, params, destinationPort)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Protocol = params.Protocol
+	results.Destination = result.Destination{
+		Hostname: params.Hostname,
+		Port:     destinationPort,
+	}
+	if params.ReverseDns {
+		results.EnrichWithReverseDns()
+	}
+	results.Normalize()
+	if params.SkipPrivateHops {
+		results.RemovePrivateHops()
+	}
+	ip, err := t.publicIPFetcher.GetIP()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: TEST ME
+	results.Source.PublicIP = ip.String()
+
+	return results, nil
+}
