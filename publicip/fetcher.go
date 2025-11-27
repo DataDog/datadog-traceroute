@@ -14,6 +14,24 @@ import (
 	"github.com/cenkalti/backoff/v5"
 )
 
+// APIURIs is the URIs of the services.
+var APIURIs = []string{
+	"https://api.ipify.org",
+	//"http://myexternalip.com/raw",
+	//"http://ipinfo.io/ip",
+	//"http://ipecho.net/plain",
+	//"http://icanhazip.com",
+	//"http://ifconfig.me/ip",
+	//"http://ident.me",
+	//"http://checkip.amazonaws.com",
+	//"http://bot.whatismyipaddress.com",
+	//"http://whatismyip.akamai.com",
+	//"http://wgetip.com",
+	//"http://ip.appspot.com",
+	//"http://ip.tyk.nu",
+	//"https://shtuff.it/myip/short",
+}
+
 func Get() (net.IP, error) {
 	// TODO: TEST ME
 	for _, d := range APIURIs {
@@ -34,45 +52,6 @@ func GetIPBy(dest string) (net.IP, error) {
 	expBackoff.InitialInterval = 500 * time.Millisecond
 	expBackoff.MaxInterval = 3 * time.Second
 
-	//client := &http.Client{}
-
-	//req, err := http.NewRequest("GET", dest, nil)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//for tries := 0; tries < MaxTries; tries++ {
-	//	resp, err := client.Do(req)
-	//	if err != nil {
-	//		d := b.Duration()
-	//		time.Sleep(d)
-	//		continue
-	//	}
-	//
-	//	defer resp.Body.Close()
-	//
-	//	body, err := ioutil.ReadAll(resp.Body)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	if resp.StatusCode != 200 {
-	//		return nil, errors.New(dest + " status code " + strconv.Itoa(resp.StatusCode) + ", body: " + string(body))
-	//	}
-	//
-	//	tb := strings.TrimSpace(string(body))
-	//	ip := net.ParseIP(tb)
-	//	if ip == nil {
-	//		return nil, errors.New("IP address not valid: " + tb)
-	//	}
-	//	return ip, nil
-	//}
-	//client := &http.Client{}
-	//req, err := http.NewRequest("GET", "https://api.ipify.org", nil)
-	//if err != nil {
-	//	return nil, errors.New("failed to create new request: " + err.Error())
-	//}
-
 	operation := func() (net.IP, error) {
 		resp, err := http.Get(dest)
 		if err != nil {
@@ -83,18 +62,6 @@ func GetIPBy(dest string) (net.IP, error) {
 		if err != nil {
 			return nil, errors.New("failed to read content: " + err.Error())
 		}
-
-		//fmt.Printf("[GetIPBy] client.Do: %v\n", req)
-		//resp, err := client.Do(req)
-		//if err != nil {
-		//	return nil, errors.New("failed to fetch req: " + err.Error())
-		//}
-		//defer resp.Body.Close()
-		//
-		//body, err := io.ReadAll(resp.Body)
-		//if err != nil {
-		//	return nil, errors.New("failed to read content: " + err.Error())
-		//}
 
 		// In case on non-retriable error, return Permanent error to stop retrying.
 		// For this HTTP example, client errors are non-retriable.
