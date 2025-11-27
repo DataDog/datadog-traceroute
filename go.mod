@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
-	github.com/glendc/go-external-ip v0.1.0
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/golang/mock v1.6.0
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
