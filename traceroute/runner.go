@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -72,23 +73,34 @@ func runTracerouteMulti(ctx context.Context, params TracerouteParams, destinatio
 		}()
 	}
 
-	// e2e probes
-	for i := 0; i < params.E2eQueries; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
-			resultsAndErrorsMu.Lock()
-			if err != nil {
-				multiErr = append(multiErr, err)
-				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
-			} else {
-				results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
-			}
-			resultsAndErrorsMu.Unlock()
-		}()
-	}
+	if params.E2eQueries > 0 {
+		// e2eQueriesDelay is currently calculated based on "MaxTTL * Timeout / e2e queries"
+		// but should be replaced by "Timeout / e2e queries" once we change the meaning of Timeout param to be global vs per call.
+		// Related Jira ticket: CNM-4763 datadog-traceroute library should provide global timeout option instead of per call
+		e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
+		log.Tracef("e2e query delay: %d msec", e2eQueriesDelay.Milliseconds())
 
+		// e2e probes
+		for i := 0; i < params.E2eQueries; i++ {
+			log.Tracef("send e2e probe #%d", i+1)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+				resultsAndErrorsMu.Lock()
+				if err != nil {
+					multiErr = append(multiErr, err)
+					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
+				} else {
+					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+				}
+				resultsAndErrorsMu.Unlock()
+			}()
+			if i < (params.E2eQueries - 1) { // don't add delay for last query
+				time.Sleep(e2eQueriesDelay)
+			}
+		}
+	}
 	wg.Wait()
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
@@ -178,6 +190,13 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 // each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
 func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
 	params.MinTTL = params.MaxTTL
+
+	// Don't use SACK for e2e probes because some servers don't properly reply with SACK responses,
+	// even if they respond with the SACK permitted option during the handshake, which can result in
+	// e2e probe failures.
+	if params.Protocol == "tcp" && (params.TCPMethod == traceroute.TCPConfigSACK || params.TCPMethod == traceroute.TCPConfigPreferSACK) {
+		params.TCPMethod = traceroute.TCPConfigSYN
+	}
 
 	trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
 	if err != nil {
