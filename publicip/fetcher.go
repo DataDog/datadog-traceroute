@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -32,12 +32,12 @@ var APIURIs = []string{
 	//"https://shtuff.it/myip/short",
 }
 
-func Get() (net.IP, error) {
+func GetPublicIP(client *http.Client) (net.IP, error) {
 	// TODO: TEST ME
 	for _, d := range APIURIs {
-		ip, err := GetIPBy(d)
+		ip, err := doGetPublicIP(client, d)
 		if err != nil {
-			fmt.Printf("[Get] error fetching: %s, %s\n", d, err.Error())
+			fmt.Printf("[GetPublicIP] error fetching: %s, %s\n", d, err.Error())
 			continue
 			//return nil, err
 		}
@@ -46,19 +46,70 @@ func Get() (net.IP, error) {
 	return nil, errors.New("no IP found")
 }
 
-func GetIPBy(dest string) (net.IP, error) {
+func doGetPublicIP(client *http.Client, dest string) (net.IP, error) {
 	// TODO: TEST ME
 	expBackoff := backoff.NewExponentialBackOff()
 	expBackoff.InitialInterval = 500 * time.Millisecond
 	expBackoff.MaxInterval = 3 * time.Second
 
+	//client := &http.Client{}
+
+	//req, err := http.NewRequest("GET", dest, nil)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//for tries := 0; tries < MaxTries; tries++ {
+	//	resp, err := client.Do(req)
+	//	if err != nil {
+	//		d := b.Duration()
+	//		time.Sleep(d)
+	//		continue
+	//	}
+	//
+	//	defer resp.Body.Close()
+	//
+	//	body, err := ioutil.ReadAll(resp.Body)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	if resp.StatusCode != 200 {
+	//		return nil, errors.New(dest + " status code " + strconv.Itoa(resp.StatusCode) + ", body: " + string(body))
+	//	}
+	//
+	//	tb := strings.TrimSpace(string(body))
+	//	ip := net.ParseIP(tb)
+	//	if ip == nil {
+	//		return nil, errors.New("IP address not valid: " + tb)
+	//	}
+	//	return ip, nil
+	//}
+
+	req, err := http.NewRequest("GET", dest, nil)
+	if err != nil {
+		return nil, errors.New("failed to create new request: " + err.Error())
+	}
+
 	operation := func() (net.IP, error) {
-		resp, err := http.Get(dest)
+		//resp, err := http.GetPublicIP(dest)
+		//if err != nil {
+		//	return nil, errors.New("failed to fetch req: " + err.Error())
+		//}
+		//defer resp.Body.Close()
+		//body, err := ioutil.ReadAll(resp.Body)
+		//if err != nil {
+		//	return nil, errors.New("failed to read content: " + err.Error())
+		//}
+
+		fmt.Printf("[doGetPublicIP] client.Do: %v\n", req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, errors.New("failed to fetch req: " + err.Error())
 		}
 		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
+
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, errors.New("failed to read content: " + err.Error())
 		}
