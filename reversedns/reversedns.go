@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/DataDog/datadog-traceroute/log"
 )
 
@@ -51,12 +52,17 @@ func GetReverseDnsForIPs(ips []net.IP) (map[string][]string, error) {
 
 // GetReverseDns returns the hostname for the given IP address as a string.
 func GetReverseDns(ipAddr string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), reverseDnsDefaultTimeout)
-	defer cancel()
-	rawReverseDnsNames, err := LookupAddrFn(ctx, ipAddr)
+	resultDns, err := cache.GetWithExpiration(ipAddr, func() ([]string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), reverseDnsDefaultTimeout)
+		defer cancel()
+		rawReverseDnsNames, err := LookupAddrFn(ctx, ipAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get reverse dns: %w", err)
+		}
+		return rawReverseDnsNames, nil
+	}, 10*time.Minute)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reverse dns: %w", err)
+		return nil, err
 	}
-
-	return rawReverseDnsNames, nil
+	return resultDns, nil
 }
