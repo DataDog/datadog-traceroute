@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -14,30 +13,21 @@ import (
 	"github.com/cenkalti/backoff/v5"
 )
 
-// APIURIs is the URIs of the services.
-var APIURIs = []string{
-	"https://api.ipify.org",
-	//"http://myexternalip.com/raw",
-	//"http://ipinfo.io/ip",
-	//"http://ipecho.net/plain",
-	//"http://icanhazip.com",
-	//"http://ifconfig.me/ip",
-	//"http://ident.me",
-	//"http://checkip.amazonaws.com",
-	//"http://bot.whatismyipaddress.com",
-	//"http://whatismyip.akamai.com",
-	//"http://wgetip.com",
-	//"http://ip.appspot.com",
-	//"http://ip.tyk.nu",
-	//"https://shtuff.it/myip/short",
+// ipCheckers list of reliable public IP checkers
+var ipCheckers = []string{
+	"https://icanhazip.com/",         // owned by cloudflare
+	"https://ipinfo.io/ip",           // same as our GeoIP info provider
+	"https://checkip.amazonaws.com/", // Amazon
+	"https://api.ipify.org/",         // Dedicated Public IP info and GeoIP info provider
+	"https://whatismyip.akamai.com/", // Akamai is a CDN Provider
 }
 
 func GetPublicIP(client *http.Client) (net.IP, error) {
 	// TODO: TEST ME
-	for _, d := range APIURIs {
-		ip, err := doGetPublicIP(client, d)
+	for _, ipChecker := range ipCheckers {
+		ip, err := doGetPublicIP(client, ipChecker)
 		if err != nil {
-			log.Debugf("[GetPublicIP] error fetching: %s, %s\n", d, err.Error())
+			log.Debugf("error fetching: %s, %s\n", ipChecker, err.Error())
 			continue
 		}
 		return ip, nil
@@ -72,15 +62,6 @@ func doGetPublicIP(client *http.Client, dest string) (net.IP, error) {
 		// For this HTTP example, client errors are non-retriable.
 		if resp.StatusCode == 400 {
 			return nil, backoff.Permanent(errors.New("bad request"))
-		}
-
-		// If we are being rate limited, return a RetryAfter to specify how long to wait.
-		// This will also reset the backoff policy.
-		if resp.StatusCode == 429 {
-			seconds, err := strconv.ParseInt(resp.Header.Get("Retry-After"), 10, 64)
-			if err == nil {
-				return nil, backoff.RetryAfter(int(seconds))
-			}
 		}
 
 		tb := strings.TrimSpace(string(body))
