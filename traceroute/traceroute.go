@@ -13,11 +13,11 @@ type Traceroute struct {
 	publicIPFetcher *publicip.PublicIPFetcher
 }
 
-func NewTraceroute() (*Traceroute, error) {
+func NewTraceroute() *Traceroute {
 	fetcher := publicip.NewPublicIPFetcher()
 	return &Traceroute{
 		publicIPFetcher: fetcher,
-	}, nil
+	}
 }
 
 func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
