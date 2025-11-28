@@ -3,6 +3,7 @@ package result
 import (
 	"math"
 	"net"
+	"sync"
 
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/reversedns"
@@ -107,14 +108,25 @@ func (r *Results) EnrichWithReverseDns() {
 		}
 	}
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	for ip := range ips {
-		destRDns, err := reversedns.GetReverseDnsForIP(net.IP(ip))
-		if err != nil {
-			log.Debugf("failed to get reverse dns for IP %s: %s", ip, err)
-		} else {
-			ips[ip] = destRDns
-		}
+		wg.Add(1)
+		go func(ipAddr string) {
+			defer wg.Done()
+			destRDns, err := reversedns.GetReverseDnsForIP(net.IP(ipAddr))
+			if err != nil {
+				log.Debugf("failed to get reverse dns for IP %s: %s", ipAddr, err)
+			} else {
+				mu.Lock()
+				ips[ipAddr] = destRDns
+				mu.Unlock()
+			}
+		}(ip)
 	}
+
+	wg.Wait()
 
 	for i := range r.Traceroute.Runs {
 		run := &r.Traceroute.Runs[i]
