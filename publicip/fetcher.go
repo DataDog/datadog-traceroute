@@ -42,30 +42,7 @@ func getPublicIPUsingIPChecker(client *http.Client, backoffPolicy *backoff.Expon
 	}
 
 	operation := func() (net.IP, error) {
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, errors.New("failed to fetch req: " + err.Error())
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errors.New("failed to read content: " + err.Error())
-		}
-
-		// In case on non-retriable error, return Permanent error to stop retrying.
-		// For this HTTP example, client errors are non-retriable.
-		if resp.StatusCode == 400 {
-			return nil, backoff.Permanent(errors.New("bad request"))
-		}
-
-		tb := strings.TrimSpace(string(body))
-		ip := net.ParseIP(tb)
-		if ip == nil {
-			return nil, errors.New("IP address not valid: " + tb)
-		}
-		// Return successful response.
-		return ip, nil
+		return handleRequest(client, req)
 	}
 	result, err := backoff.Retry(context.TODO(), operation, backoff.WithBackOff(backoffPolicy))
 	if err != nil {
@@ -73,4 +50,31 @@ func getPublicIPUsingIPChecker(client *http.Client, backoffPolicy *backoff.Expon
 	}
 
 	return result, nil
+}
+
+func handleRequest(client *http.Client, req *http.Request) (net.IP, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.New("failed to fetch req: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.New("failed to read content: " + err.Error())
+	}
+
+	// In case on non-retriable error, return Permanent error to stop retrying.
+	// For this HTTP example, client errors are non-retriable.
+	if resp.StatusCode == 400 {
+		return nil, backoff.Permanent(errors.New("bad request"))
+	}
+
+	tb := strings.TrimSpace(string(body))
+	ip := net.ParseIP(tb)
+	if ip == nil {
+		return nil, errors.New("IP address not valid: " + tb)
+	}
+	// Return successful response.
+	return ip, nil
 }
