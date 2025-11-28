@@ -1,12 +1,12 @@
 package publicip
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/cache"
+	"github.com/DataDog/datadog-traceroute/log"
 )
 
 const defaultPublicIPCacheExpiration = 2 * time.Hour
@@ -22,9 +22,9 @@ func NewPublicIPFetcher() *PublicIPFetcher {
 }
 
 func (p *PublicIPFetcher) GetIP() (net.IP, error) {
-	myIP, err := cache.GetWithExpiration("public_ip", func() ([]byte, error) {
+	myIP, err := cache.GetWithExpiration("source_public_ip", func() ([]byte, error) {
 		ip, err := GetPublicIP(p.client)
-		fmt.Printf("[CACHE] GetPublicIP IP: %s\n", ip.String())
+		log.Debugf("Public IP fetched: %s", ip.String())
 		if err != nil {
 			return nil, err
 		}
