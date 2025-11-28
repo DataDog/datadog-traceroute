@@ -53,7 +53,7 @@ func GetReverseDnsForIPs(ips []net.IP) (map[string][]string, error) {
 
 // GetReverseDns returns the hostname for the given IP address as a string.
 func GetReverseDns(ipAddr string) ([]string, error) {
-	resultDns, err := cache.GetWithExpiration(ipAddr, func() ([]string, error) {
+	resultDns, err := cache.GetWithExpiration("reverse-dns-"+ipAddr, func() ([]string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), reverseDnsDefaultTimeout)
 		defer cancel()
 		rawReverseDnsNames, err := LookupAddrFn(ctx, ipAddr)
