@@ -13,6 +13,7 @@ import (
 )
 
 const reverseDnsDefaultTimeout = 5 * time.Second
+const reverseDnsCacheTLL = 1 * time.Hour
 
 // LookupAddrFn is defined as variable to ease testing
 var LookupAddrFn = net.DefaultResolver.LookupAddr
@@ -60,7 +61,7 @@ func GetReverseDns(ipAddr string) ([]string, error) {
 			return nil, fmt.Errorf("failed to get reverse dns: %w", err)
 		}
 		return rawReverseDnsNames, nil
-	}, 10*time.Minute)
+	}, reverseDnsCacheTLL)
 	if err != nil {
 		return nil, err
 	}
