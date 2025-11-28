@@ -11,7 +11,14 @@ import (
 	"github.com/cenkalti/backoff/v5"
 )
 
+//go:generate mockgen -source=$GOFILE -package=$GOPACKAGE -destination=publicip_mockgen.go
+
 const defaultPublicIPCacheExpiration = 2 * time.Hour
+
+// Fetcher is an interface for fetching the public IP address
+type Fetcher interface {
+	GetIP(ctx context.Context) (net.IP, error)
+}
 
 type PublicIPFetcher struct {
 	client        *http.Client
