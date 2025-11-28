@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/cenkalti/backoff/v5"
@@ -22,10 +21,10 @@ var ipCheckers = []string{
 	"https://whatismyip.akamai.com/", // Akamai is a CDN Provider
 }
 
-func GetPublicIP(client *http.Client) (net.IP, error) {
+func GetPublicIP(client *http.Client, backoffPolicy *backoff.ExponentialBackOff) (net.IP, error) {
 	// TODO: TEST ME
 	for _, ipChecker := range ipCheckers {
-		ip, err := getPublicIPUsingIPChecker(client, ipChecker)
+		ip, err := getPublicIPUsingIPChecker(client, backoffPolicy, ipChecker)
 		if err != nil {
 			log.Debugf("error fetching: %s, %s\n", ipChecker, err.Error())
 			continue
@@ -35,12 +34,8 @@ func GetPublicIP(client *http.Client) (net.IP, error) {
 	return nil, errors.New("no IP found")
 }
 
-func getPublicIPUsingIPChecker(client *http.Client, dest string) (net.IP, error) {
+func getPublicIPUsingIPChecker(client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
 	// TODO: TEST ME
-	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = 500 * time.Millisecond
-	expBackoff.MaxInterval = 3 * time.Second
-
 	req, err := http.NewRequest("GET", dest, nil)
 	if err != nil {
 		return nil, errors.New("failed to create new request: " + err.Error())
@@ -72,7 +67,7 @@ func getPublicIPUsingIPChecker(client *http.Client, dest string) (net.IP, error)
 		// Return successful response.
 		return ip, nil
 	}
-	result, err := backoff.Retry(context.TODO(), operation, backoff.WithBackOff(expBackoff))
+	result, err := backoff.Retry(context.TODO(), operation, backoff.WithBackOff(backoffPolicy))
 	if err != nil {
 		return nil, errors.New("backoff retry error: " + err.Error())
 	}
