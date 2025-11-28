@@ -3,7 +3,6 @@ package publicip
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -52,57 +51,12 @@ func doGetPublicIP(client *http.Client, dest string) (net.IP, error) {
 	expBackoff.InitialInterval = 500 * time.Millisecond
 	expBackoff.MaxInterval = 3 * time.Second
 
-	//client := &http.Client{}
-
-	//req, err := http.NewRequest("GET", dest, nil)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//for tries := 0; tries < MaxTries; tries++ {
-	//	resp, err := client.Do(req)
-	//	if err != nil {
-	//		d := b.Duration()
-	//		time.Sleep(d)
-	//		continue
-	//	}
-	//
-	//	defer resp.Body.Close()
-	//
-	//	body, err := ioutil.ReadAll(resp.Body)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	if resp.StatusCode != 200 {
-	//		return nil, errors.New(dest + " status code " + strconv.Itoa(resp.StatusCode) + ", body: " + string(body))
-	//	}
-	//
-	//	tb := strings.TrimSpace(string(body))
-	//	ip := net.ParseIP(tb)
-	//	if ip == nil {
-	//		return nil, errors.New("IP address not valid: " + tb)
-	//	}
-	//	return ip, nil
-	//}
-
 	req, err := http.NewRequest("GET", dest, nil)
 	if err != nil {
 		return nil, errors.New("failed to create new request: " + err.Error())
 	}
 
 	operation := func() (net.IP, error) {
-		//resp, err := http.GetPublicIP(dest)
-		//if err != nil {
-		//	return nil, errors.New("failed to fetch req: " + err.Error())
-		//}
-		//defer resp.Body.Close()
-		//body, err := ioutil.ReadAll(resp.Body)
-		//if err != nil {
-		//	return nil, errors.New("failed to read content: " + err.Error())
-		//}
-
-		fmt.Printf("[doGetPublicIP] client.Do: %v\n", req)
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, errors.New("failed to fetch req: " + err.Error())
@@ -139,7 +93,6 @@ func doGetPublicIP(client *http.Client, dest string) (net.IP, error) {
 	}
 	result, err := backoff.Retry(context.TODO(), operation, backoff.WithBackOff(expBackoff))
 	if err != nil {
-		fmt.Println("Errorx:", err)
 		return nil, errors.New("backoff retry error: " + err.Error())
 	}
 
