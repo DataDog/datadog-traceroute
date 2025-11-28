@@ -1,6 +1,7 @@
 package publicip
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"time"
@@ -17,7 +18,7 @@ type PublicIPFetcher struct {
 
 func NewPublicIPFetcher() *PublicIPFetcher {
 	return &PublicIPFetcher{
-		client: &http.Client{},
+		client: buildHttpClient(),
 	}
 }
 
@@ -36,4 +37,16 @@ func (p *PublicIPFetcher) GetIP() (net.IP, error) {
 	}
 
 	return myIP, nil
+}
+
+func buildHttpClient() *http.Client {
+	myDialer := net.Dialer{}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Note: we are forcing IPv4 for now to get shorter public_ip
+		//       but if needed we can remove this custom `transport` and support both IPv4 and IPv6
+		return myDialer.DialContext(ctx, "tcp4", addr)
+	}
+	client := &http.Client{Transport: transport}
+	return client
 }
