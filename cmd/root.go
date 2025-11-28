@@ -13,7 +13,6 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
-	"github.com/DataDog/datadog-traceroute/runner"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/spf13/cobra"
 
@@ -21,18 +20,19 @@ import (
 )
 
 type args struct {
-	protocol          string
-	tracerouteQueries int
-	e2eQueries        int
-	maxTTL            int
-	timeout           int
-	tcpmethod         string
-	port              int
-	wantV6            bool
-	reverseDns        bool
-	verbose           bool
-	useWindowsDriver  bool
-	skipPrivateHops   bool
+	protocol              string
+	tracerouteQueries     int
+	e2eQueries            int
+	maxTTL                int
+	timeout               int
+	tcpmethod             string
+	port                  int
+	wantV6                bool
+	reverseDns            bool
+	collectSourcePublicIP bool
+	verbose               bool
+	useWindowsDriver      bool
+	skipPrivateHops       bool
 }
 
 var Args args
@@ -51,21 +51,22 @@ var rootCmd = &cobra.Command{
 
 		log.SetVerbose(Args.verbose)
 
-		params := runner.TracerouteParams{
-			Hostname:          args[0],
-			Port:              Args.port,
-			Protocol:          Args.protocol,
-			MinTTL:            common.DefaultMinTTL,
-			MaxTTL:            Args.maxTTL,
-			Delay:             common.DefaultDelay,
-			Timeout:           timeout,
-			TCPMethod:         traceroute.TCPMethod(Args.tcpmethod),
-			WantV6:            Args.wantV6,
-			ReverseDns:        Args.reverseDns,
-			TracerouteQueries: Args.tracerouteQueries,
-			E2eQueries:        Args.e2eQueries,
-			UseWindowsDriver:  Args.useWindowsDriver,
-			SkipPrivateHops:   Args.skipPrivateHops,
+		params := traceroute.TracerouteParams{
+			Hostname:              args[0],
+			Port:                  Args.port,
+			Protocol:              Args.protocol,
+			MinTTL:                common.DefaultMinTTL,
+			MaxTTL:                Args.maxTTL,
+			Delay:                 common.DefaultDelay,
+			Timeout:               timeout,
+			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
+			WantV6:                Args.wantV6,
+			ReverseDns:            Args.reverseDns,
+			CollectSourcePublicIP: Args.collectSourcePublicIP,
+			TracerouteQueries:     Args.tracerouteQueries,
+			E2eQueries:            Args.e2eQueries,
+			UseWindowsDriver:      Args.useWindowsDriver,
+			SkipPrivateHops:       Args.skipPrivateHops,
 		}
 
 		// Start the driver if it's configured to be used.
@@ -76,9 +77,10 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		results, err := runner.RunTraceroute(cmd.Context(), params)
+		tr := traceroute.NewTraceroute()
+		results, err := tr.RunTraceroute(cmd.Context(), params)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to run traceroute: %w", err)
 		}
 		jsonStr, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
@@ -105,6 +107,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", false, "IPv6")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", false, "Enrich IPs with Reverse DNS names")
+	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", false, "Enrich with Source Public IP")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", false, "Use Windows driver for traceroute (Windows only)")
 	rootCmd.Flags().BoolVarP(&Args.skipPrivateHops, "skip-private-hops", "", false, "Skip private hops")
