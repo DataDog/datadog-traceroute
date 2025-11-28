@@ -16,6 +16,7 @@ type TracerouteParams struct {
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool
 	ReverseDns                bool
+	CollectSourcePublicIP     bool
 	TracerouteQueries         int
 	E2eQueries                int
 	UseWindowsDriver          bool

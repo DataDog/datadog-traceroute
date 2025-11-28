@@ -45,14 +45,15 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		results.RemovePrivateHops()
 	}
 
-	// TODO: should be done concurrently
-	ip, err := t.publicIPFetcher.GetIP()
-	if err != nil {
-		return nil, err
+	if params.CollectSourcePublicIP {
+		// TODO: should be done concurrently
+		ip, err := t.publicIPFetcher.GetIP()
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO: TEST ME
+		results.Source.PublicIP = ip.String()
 	}
-
-	// TODO: TEST ME
-	results.Source.PublicIP = ip.String()
-
 	return results, nil
 }
