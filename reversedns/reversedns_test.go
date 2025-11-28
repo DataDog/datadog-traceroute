@@ -6,6 +6,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,6 +47,8 @@ func TestGetReverseDns(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cache.Cache.Flush()
+
 			LookupAddrFn = func(_ context.Context, _ string) ([]string, error) {
 				return tt.fakeRDns, tt.fakeErr
 			}
@@ -88,6 +91,8 @@ func TestGetReverseDnsForIP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cache.Cache.Flush()
+
 			LookupAddrFn = func(_ context.Context, _ string) ([]string, error) {
 				return tt.fakeRDns, tt.fakeErr
 			}

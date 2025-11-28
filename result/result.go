@@ -4,7 +4,6 @@ import (
 	"math"
 	"net"
 
-	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/reversedns"
 	"github.com/google/uuid"
 )
@@ -99,23 +98,25 @@ type (
 
 // EnrichWithReverseDns enrich results with reverse dns
 func (r *Results) EnrichWithReverseDns() {
+	var ips []net.IP
+	for _, run := range r.Traceroute.Runs {
+		ips = append(ips, run.Destination.IPAddress)
+		for _, hop := range run.Hops {
+			ips = append(ips, hop.IPAddress)
+		}
+	}
+
+	ipToDnsMap, err := reversedns.GetReverseDnsForIPs(ips)
+	if err != nil {
+		return
+	}
 	for i := range r.Traceroute.Runs {
 		run := &r.Traceroute.Runs[i]
-		destRDns, err := reversedns.GetReverseDnsForIP(run.Destination.IPAddress)
-		if err != nil {
-			log.Debugf("failed to get reverse dns for destination IP: %s", err)
-		} else {
-			run.Destination.ReverseDns = destRDns
-		}
+		run.Destination.ReverseDns = ipToDnsMap[string(run.Destination.IPAddress)]
 
 		for j := range run.Hops {
 			hop := run.Hops[j]
-			hopRDns, err := reversedns.GetReverseDnsForIP(hop.IPAddress)
-			if err != nil {
-				log.Debugf("failed to get reverse dns for destination IP: %s", err)
-			} else {
-				hop.ReverseDns = hopRDns
-			}
+			hop.ReverseDns = ipToDnsMap[string(hop.IPAddress)]
 		}
 	}
 }
