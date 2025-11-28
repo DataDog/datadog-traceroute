@@ -15,7 +15,7 @@ var LookupAddrFn = net.DefaultResolver.LookupAddr
 
 // GetReverseDnsForIP returns the reverse DNS for the given IP address as a net.IP.
 func GetReverseDnsForIP(ipAddress net.IP) ([]string, error) {
-	if ipAddress == nil {
+	if len(ipAddress) == 0 {
 		return nil, errors.New("invalid nil IP address")
 	}
 	return GetReverseDns(ipAddress.String())

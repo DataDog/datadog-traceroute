@@ -99,23 +99,30 @@ type (
 
 // EnrichWithReverseDns enrich results with reverse dns
 func (r *Results) EnrichWithReverseDns() {
+	var ips = make(map[string][]string)
+	for _, run := range r.Traceroute.Runs {
+		ips[string(run.Destination.IPAddress)] = nil
+		for _, hop := range run.Hops {
+			ips[string(hop.IPAddress)] = nil
+		}
+	}
+
+	for ip := range ips {
+		destRDns, err := reversedns.GetReverseDnsForIP(net.IP(ip))
+		if err != nil {
+			log.Debugf("failed to get reverse dns for IP %s: %s", ip, err)
+		} else {
+			ips[ip] = destRDns
+		}
+	}
+
 	for i := range r.Traceroute.Runs {
 		run := &r.Traceroute.Runs[i]
-		destRDns, err := reversedns.GetReverseDnsForIP(run.Destination.IPAddress)
-		if err != nil {
-			log.Debugf("failed to get reverse dns for destination IP: %s", err)
-		} else {
-			run.Destination.ReverseDns = destRDns
-		}
+		run.Destination.ReverseDns = ips[string(run.Destination.IPAddress)]
 
 		for j := range run.Hops {
 			hop := run.Hops[j]
-			hopRDns, err := reversedns.GetReverseDnsForIP(hop.IPAddress)
-			if err != nil {
-				log.Debugf("failed to get reverse dns for destination IP: %s", err)
-			} else {
-				hop.ReverseDns = hopRDns
-			}
+			hop.ReverseDns = ips[string(hop.IPAddress)]
 		}
 	}
 }
