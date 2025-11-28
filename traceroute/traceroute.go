@@ -13,7 +13,7 @@ import (
 )
 
 type Traceroute struct {
-	publicIPFetcher *publicip.PublicIPFetcher
+	publicIPFetcher publicip.Fetcher
 }
 
 func NewTraceroute() *Traceroute {
@@ -24,8 +24,6 @@ func NewTraceroute() *Traceroute {
 }
 
 func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
-	// TODO: TEST ME
-
 	destinationPort := params.Port
 	if destinationPort == 0 {
 		destinationPort = common.DefaultPort
@@ -111,8 +109,6 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// TODO: should be done concurrently
-			// TODO: TEST ME
 			ip, err := t.publicIPFetcher.GetIP(ctx)
 			if err != nil {
 				log.Debugf("Error getting IP: %s", err)

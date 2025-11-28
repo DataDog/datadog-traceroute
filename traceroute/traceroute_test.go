@@ -11,7 +11,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +40,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 	}
 	runTracerouteOnceFnError := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
 		counter.Add(1)
-		err := errors.New(fmt.Sprintf("error running traceroute %d", counter.Load()))
+		err := fmt.Errorf("error running traceroute %d", counter.Load())
 		return nil, err
 	}
 	runTracerouteOnceFnNoDestHop := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
@@ -68,6 +70,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 		name             string
 		params           TracerouteParams
 		tracerouteOnceFn runTracerouteOnceFnType
+		setupMockFetcher func(*gomock.Controller) publicip.Fetcher
 		expectedResults  *result.Results
 		expectedError    []string
 	}{
@@ -222,6 +225,76 @@ func Test_runTracerouteMulti(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "public IP enrichment",
+			params: TracerouteParams{
+				TracerouteQueries:     1,
+				CollectSourcePublicIP: true,
+			},
+			tracerouteOnceFn: runTracerouteOnceFnValid,
+			setupMockFetcher: func(ctrl *gomock.Controller) publicip.Fetcher {
+				mockFetcher := publicip.NewMockFetcher(ctrl)
+				mockFetcher.EXPECT().GetIP(gomock.Any()).Return(net.ParseIP("8.8.8.8"), nil)
+				return mockFetcher
+			},
+			expectedResults: &result.Results{
+				Source: result.Source{
+					PublicIP: "8.8.8.8",
+				},
+				Traceroute: result.Traceroute{
+					Runs: []result.TracerouteRun{
+						{
+							Source: result.TracerouteSource{
+								IPAddress: net.ParseIP("10.10.88.88"),
+								Port:      1122,
+							},
+							Destination: result.TracerouteDestination{
+								IPAddress: net.ParseIP("10.10.10.1"),
+							},
+							Hops: []*result.TracerouteHop{
+								{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10},
+								{IPAddress: net.ParseIP("1.2.3.5"), RTT: 30, IsDest: true},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "public IP enrichment error",
+			params: TracerouteParams{
+				TracerouteQueries:     1,
+				CollectSourcePublicIP: true,
+			},
+			tracerouteOnceFn: runTracerouteOnceFnValid,
+			setupMockFetcher: func(ctrl *gomock.Controller) publicip.Fetcher {
+				mockFetcher := publicip.NewMockFetcher(ctrl)
+				mockFetcher.EXPECT().GetIP(gomock.Any()).Return(nil, errors.New("failed to fetch public IP"))
+				return mockFetcher
+			},
+			expectedResults: &result.Results{
+				Source: result.Source{
+					PublicIP: "",
+				},
+				Traceroute: result.Traceroute{
+					Runs: []result.TracerouteRun{
+						{
+							Source: result.TracerouteSource{
+								IPAddress: net.ParseIP("10.10.88.88"),
+								Port:      1122,
+							},
+							Destination: result.TracerouteDestination{
+								IPAddress: net.ParseIP("10.10.10.1"),
+							},
+							Hops: []*result.TracerouteHop{
+								{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10},
+								{IPAddress: net.ParseIP("1.2.3.5"), RTT: 30, IsDest: true},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -230,6 +303,13 @@ func Test_runTracerouteMulti(t *testing.T) {
 			defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
 			traceroute := NewTraceroute()
+			if tt.setupMockFetcher != nil {
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+				mockFetcher := tt.setupMockFetcher(ctrl)
+				traceroute.publicIPFetcher = mockFetcher
+			}
+
 			results, err := traceroute.runTracerouteMulti(context.Background(), tt.params, 42)
 			for _, errMsg := range tt.expectedError {
 				assert.ErrorContains(t, err, errMsg)
