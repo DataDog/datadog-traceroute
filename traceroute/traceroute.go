@@ -49,16 +49,6 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		results.RemovePrivateHops()
 	}
 
-	if params.CollectSourcePublicIP {
-		// TODO: should be done concurrently
-		// TODO: TEST ME
-		ip, err := t.publicIPFetcher.GetIP(ctx)
-		if err != nil {
-			log.Debugf("Error getting IP: %s", err)
-		} else {
-			results.Source.PublicIP = ip.String()
-		}
-	}
 	return results, nil
 }
 
@@ -115,6 +105,26 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 			}
 		}
 	}
+
+	if params.CollectSourcePublicIP {
+		log.Trace("collect public ip")
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// TODO: should be done concurrently
+			// TODO: TEST ME
+			ip, err := t.publicIPFetcher.GetIP(ctx)
+			if err != nil {
+				log.Debugf("Error getting IP: %s", err)
+				return
+			}
+
+			resultsAndErrorsMu.Lock()
+			defer resultsAndErrorsMu.Unlock()
+			results.Source.PublicIP = ip.String()
+		}()
+	}
+
 	wg.Wait()
 	if len(multiErr) > 0 {
 		return nil, errors.Join(multiErr...)
