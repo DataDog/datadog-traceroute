@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	go build -o datadog-traceroute .
+	go build .
 
 .PHONY: test
 test:
