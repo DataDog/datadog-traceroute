@@ -180,7 +180,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 	}
 	runTracerouteOnceFnSYN := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
 		assert.Equal(t, "tcp", params.Protocol)
-		assert.Equal(t, traceroute.TCPConfigSYN, params.TCPMethod)
+		assert.Equal(t, TCPConfigSYN, params.TCPMethod)
 		return &result.TracerouteRun{}, nil
 	}
 
