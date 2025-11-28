@@ -22,7 +22,6 @@ var ipCheckers = []string{
 }
 
 func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff) (net.IP, error) {
-	// TODO: TEST ME
 	for _, ipChecker := range ipCheckers {
 		ip, err := getPublicIPUsingIPChecker(ctx, client, backoffPolicy, ipChecker)
 		if err != nil {
@@ -35,7 +34,6 @@ func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backof
 }
 
 func getPublicIPUsingIPChecker(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
-	// TODO: TEST ME
 	req, err := http.NewRequest("GET", dest, nil)
 	if err != nil {
 		return nil, errors.New("failed to create new request: " + err.Error())

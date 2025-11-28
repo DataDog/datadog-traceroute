@@ -306,3 +306,168 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPublicIP(t *testing.T) {
+	// Save original ipCheckers and restore after tests
+	originalIPCheckers := ipCheckers
+	defer func() { ipCheckers = originalIPCheckers }()
+
+	tests := []struct {
+		name           string
+		serverConfigs  []serverConfig // Configuration for each mock server
+		wantIP         string
+		wantErr        bool
+		wantErrMsg     string
+		contextTimeout time.Duration
+	}{
+		{
+			name: "success on first checker",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "192.0.2.1"},
+				{statusCode: http.StatusOK, body: "192.0.2.2"},
+				{statusCode: http.StatusOK, body: "192.0.2.3"},
+			},
+			wantIP: "192.0.2.1",
+		},
+		{
+			name: "success on second checker (first fails)",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "invalid"},
+				{statusCode: http.StatusOK, body: "192.0.2.2"},
+				{statusCode: http.StatusOK, body: "192.0.2.3"},
+			},
+			wantIP: "192.0.2.2",
+		},
+		{
+			name: "success on last checker",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "not-an-ip"},
+				{statusCode: http.StatusOK, body: "also-not-an-ip"},
+				{statusCode: http.StatusOK, body: "still-not-an-ip"},
+				{statusCode: http.StatusOK, body: "nope"},
+				{statusCode: http.StatusOK, body: "2001:db8::1"},
+			},
+			wantIP: "2001:db8::1",
+		},
+		{
+			name: "all checkers fail with invalid IPs",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "invalid1"},
+				{statusCode: http.StatusOK, body: "invalid2"},
+				{statusCode: http.StatusOK, body: "invalid3"},
+			},
+			wantErr:    true,
+			wantErrMsg: "no IP found",
+		},
+		{
+			name: "all checkers fail with errors",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusBadRequest, body: "error"},
+				{statusCode: http.StatusBadRequest, body: "error"},
+				{statusCode: http.StatusBadRequest, body: "error"},
+			},
+			wantErr:    true,
+			wantErrMsg: "no IP found",
+		},
+		{
+			name: "mixed failures - invalid IP and HTTP errors",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "not-valid"},
+				{statusCode: http.StatusBadRequest, body: "192.0.2.1"},
+				{statusCode: http.StatusOK, body: ""},
+			},
+			wantErr:    true,
+			wantErrMsg: "no IP found",
+		},
+		{
+			name: "success with IPv4",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "  203.0.113.5\n"},
+				{statusCode: http.StatusOK, body: "192.0.2.1"},
+			},
+			wantIP: "203.0.113.5",
+		},
+		{
+			name: "success with IPv6",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "2001:db8:85a3::8a2e:370:7334"},
+			},
+			wantIP: "2001:db8:85a3::8a2e:370:7334",
+		},
+		{
+			name:          "empty server list",
+			serverConfigs: []serverConfig{},
+			wantErr:       true,
+			wantErrMsg:    "no IP found",
+		},
+		{
+			name: "first checker succeeds with whitespace handling",
+			serverConfigs: []serverConfig{
+				{statusCode: http.StatusOK, body: "\n\t  198.51.100.1  \t\n"},
+			},
+			wantIP: "198.51.100.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock servers
+			servers := make([]*httptest.Server, len(tt.serverConfigs))
+			checkerURLs := make([]string, len(tt.serverConfigs))
+
+			for i, config := range tt.serverConfigs {
+				cfg := config // Capture for closure
+				servers[i] = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if cfg.delay > 0 {
+						time.Sleep(cfg.delay)
+					}
+					w.WriteHeader(cfg.statusCode)
+					w.Write([]byte(cfg.body))
+				}))
+				checkerURLs[i] = servers[i].URL
+			}
+
+			// Clean up servers
+			defer func() {
+				for _, server := range servers {
+					server.Close()
+				}
+			}()
+
+			// Override the global ipCheckers with our test URLs
+			ipCheckers = checkerURLs
+
+			client := &http.Client{}
+			backoffPolicy := backoff.NewExponentialBackOff()
+			backoffPolicy.InitialInterval = 1 * time.Millisecond
+			backoffPolicy.MaxInterval = 5 * time.Millisecond
+
+			timeout := 1 * time.Second
+			if tt.contextTimeout > 0 {
+				timeout = tt.contextTimeout
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			gotIP, err := GetPublicIP(ctx, client, backoffPolicy)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tt.wantErrMsg)
+				assert.Nil(t, gotIP)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, net.ParseIP(tt.wantIP), gotIP)
+		})
+	}
+}
+
+// serverConfig holds configuration for a mock HTTP server
+type serverConfig struct {
+	statusCode int
+	body       string
+	delay      time.Duration
+}
