@@ -29,9 +29,9 @@ func NewPublicIPFetcher() *PublicIPFetcher {
 	}
 }
 
-func (p *PublicIPFetcher) GetIP() (net.IP, error) {
+func (p *PublicIPFetcher) GetIP(ctx context.Context) (net.IP, error) {
 	myIP, err := cache.GetWithExpiration("source_public_ip", func() ([]byte, error) {
-		ip, err := GetPublicIP(p.client, p.backoffPolicy)
+		ip, err := GetPublicIP(ctx, p.client, p.backoffPolicy)
 		log.Debugf("Public IP fetched: %s", ip.String())
 		if err != nil {
 			return nil, err

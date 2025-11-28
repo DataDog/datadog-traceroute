@@ -49,7 +49,7 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if params.CollectSourcePublicIP {
 		// TODO: should be done concurrently
 		// TODO: TEST ME
-		ip, err := t.publicIPFetcher.GetIP()
+		ip, err := t.publicIPFetcher.GetIP(ctx)
 		if err != nil {
 			log.Debugf("Error getting IP: %s", err)
 		} else {

@@ -6,6 +6,7 @@
 package publicip
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -220,38 +221,50 @@ func (t *errorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestGetPublicIPUsingIPChecker(t *testing.T) {
 	tests := []struct {
-		name       string
-		statusCode int
-		body       string
-		wantIP     string
-		wantErr    bool
+		name           string
+		url            string
+		contextTimeout time.Duration
+		statusCode     int
+		body           string
+		wantIP         string
+		expectedErr    string
 	}{
 		{
 			name:       "valid IPv4",
 			statusCode: http.StatusOK,
 			body:       "192.0.2.1",
 			wantIP:     "192.0.2.1",
-			wantErr:    false,
 		},
 		{
-			name:       "valid IPv4 with whitespace",
-			statusCode: http.StatusOK,
-			body:       "  192.0.2.1\n",
-			wantIP:     "192.0.2.1",
-			wantErr:    false,
+			name:        "valid IPv4 with whitespace",
+			statusCode:  http.StatusOK,
+			body:        "  192.0.2.1\n",
+			wantIP:      "192.0.2.1",
+			expectedErr: "",
 		},
 		{
-			name:       "valid IPv6",
-			statusCode: http.StatusOK,
-			body:       "2001:db8::1",
-			wantIP:     "2001:db8::1",
-			wantErr:    false,
+			name:        "valid IPv6",
+			statusCode:  http.StatusOK,
+			body:        "2001:db8::1",
+			wantIP:      "2001:db8::1",
+			expectedErr: "",
 		},
 		{
-			name:       "bad request 400",
-			statusCode: http.StatusBadRequest,
-			body:       "192.0.2.1",
-			wantErr:    true,
+			name:        "bad request 400",
+			statusCode:  http.StatusBadRequest,
+			body:        "192.0.2.1",
+			expectedErr: "backoff retry error: bad request",
+		},
+		{
+			name:        "invalid url",
+			url:         string([]byte{1}),
+			expectedErr: "failed to create new request: parse \"\\x01\": net/url: invalid control character in URL",
+		},
+		{
+			name:           "context exceeded",
+			url:            "*",
+			contextTimeout: 1 * time.Millisecond,
+			expectedErr:    "backoff retry error: context deadline exceeded",
 		},
 	}
 
@@ -268,10 +281,23 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			backoffPolicy.InitialInterval = 1 * time.Millisecond
 			backoffPolicy.MaxInterval = 5 * time.Millisecond
 
-			gotIP, err := getPublicIPUsingIPChecker(client, backoffPolicy, server.URL)
+			timeout := 1 * time.Second
+			if tt.contextTimeout > 0 {
+				timeout = tt.contextTimeout
+			}
 
-			if tt.wantErr {
-				require.Error(t, err)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			url := server.URL
+			if tt.url != "" {
+				url = tt.url
+			}
+
+			gotIP, err := getPublicIPUsingIPChecker(ctx, client, backoffPolicy, url)
+
+			if tt.expectedErr != "" {
+				assert.EqualError(t, err, tt.expectedErr)
 				return
 			}
 

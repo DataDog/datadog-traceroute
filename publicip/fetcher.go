@@ -21,10 +21,10 @@ var ipCheckers = []string{
 	"https://whatismyip.akamai.com/", // Akamai is a CDN Provider
 }
 
-func GetPublicIP(client *http.Client, backoffPolicy *backoff.ExponentialBackOff) (net.IP, error) {
+func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff) (net.IP, error) {
 	// TODO: TEST ME
 	for _, ipChecker := range ipCheckers {
-		ip, err := getPublicIPUsingIPChecker(client, backoffPolicy, ipChecker)
+		ip, err := getPublicIPUsingIPChecker(ctx, client, backoffPolicy, ipChecker)
 		if err != nil {
 			log.Debugf("error fetching: %s, %s\n", ipChecker, err.Error())
 			continue
@@ -34,7 +34,7 @@ func GetPublicIP(client *http.Client, backoffPolicy *backoff.ExponentialBackOff)
 	return nil, errors.New("no IP found")
 }
 
-func getPublicIPUsingIPChecker(client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
+func getPublicIPUsingIPChecker(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
 	// TODO: TEST ME
 	req, err := http.NewRequest("GET", dest, nil)
 	if err != nil {
@@ -44,7 +44,7 @@ func getPublicIPUsingIPChecker(client *http.Client, backoffPolicy *backoff.Expon
 	operation := func() (net.IP, error) {
 		return handleRequest(client, req)
 	}
-	result, err := backoff.Retry(context.TODO(), operation, backoff.WithBackOff(backoffPolicy))
+	result, err := backoff.Retry(ctx, operation, backoff.WithBackOff(backoffPolicy))
 	if err != nil {
 		return nil, errors.New("backoff retry error: " + err.Error())
 	}
