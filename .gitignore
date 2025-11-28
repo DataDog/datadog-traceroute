@@ -1,6 +1,7 @@
 /datadog-traceroute
 .idea
 .vscode
+.cursor
 vendor
 
 portable_*.exe
