@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/cenkalti/backoff/v5"
 )
 
@@ -37,9 +38,8 @@ func GetPublicIP(client *http.Client) (net.IP, error) {
 	for _, d := range APIURIs {
 		ip, err := doGetPublicIP(client, d)
 		if err != nil {
-			fmt.Printf("[GetPublicIP] error fetching: %s, %s\n", d, err.Error())
+			log.Debugf("[GetPublicIP] error fetching: %s, %s\n", d, err.Error())
 			continue
-			//return nil, err
 		}
 		return ip, nil
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
 )
@@ -47,13 +48,13 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 
 	if params.CollectSourcePublicIP {
 		// TODO: should be done concurrently
+		// TODO: TEST ME
 		ip, err := t.publicIPFetcher.GetIP()
 		if err != nil {
-			return nil, err
+			log.Debugf("Error getting IP: %s", err)
+		} else {
+			results.Source.PublicIP = ip.String()
 		}
-
-		// TODO: TEST ME
-		results.Source.PublicIP = ip.String()
 	}
 	return results, nil
 }
