@@ -25,7 +25,7 @@ var ipCheckers = []string{
 func GetPublicIP(client *http.Client) (net.IP, error) {
 	// TODO: TEST ME
 	for _, ipChecker := range ipCheckers {
-		ip, err := doGetPublicIP(client, ipChecker)
+		ip, err := getPublicIPUsingIPChecker(client, ipChecker)
 		if err != nil {
 			log.Debugf("error fetching: %s, %s\n", ipChecker, err.Error())
 			continue
@@ -35,7 +35,7 @@ func GetPublicIP(client *http.Client) (net.IP, error) {
 	return nil, errors.New("no IP found")
 }
 
-func doGetPublicIP(client *http.Client, dest string) (net.IP, error) {
+func getPublicIPUsingIPChecker(client *http.Client, dest string) (net.IP, error) {
 	// TODO: TEST ME
 	expBackoff := backoff.NewExponentialBackOff()
 	expBackoff.InitialInterval = 500 * time.Millisecond
