@@ -1,6 +1,11 @@
 project_name: datadog-traceroute
 builds:
   - env: [CGO_ENABLED=0]
+    ldflags:
+      - -s -w
+      - -X github.com/DataDog/datadog-traceroute/cmd.Version={{.Version}}
+      - -X github.com/DataDog/datadog-traceroute/cmd.Commit={{.Commit}}
+      - -X github.com/DataDog/datadog-traceroute/cmd.Date={{.Date}}
     goos:
       - linux
 #      - windows
