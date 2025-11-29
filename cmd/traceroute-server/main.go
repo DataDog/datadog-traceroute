@@ -7,28 +7,47 @@
 package main
 
 import (
-	"flag"
 	"log"
+	"os"
 
 	ddlog "github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/server"
+	"github.com/spf13/cobra"
 )
 
+var (
+	addr     string
+	logLevel string
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "datadog-traceroute-server",
+	Short: "Traceroute HTTP server",
+	Long:  `HTTP server that provides traceroute functionality via REST API endpoints`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Set the log level
+		ddlog.SetLogLevel(ddlog.ParseLogLevel(logLevel))
+
+		srv := server.NewServer()
+
+		log.Printf("Starting traceroute HTTP server on %s", addr)
+		log.Printf("Log level set to: %s", logLevel)
+		log.Printf("Example usage: curl 'http://localhost:8080/traceroute?target=google.com&protocol=tcp&port=443'")
+
+		if err := srv.Start(addr); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+func init() {
+	rootCmd.Flags().StringVarP(&addr, "addr", "a", ":8080", "HTTP server address to listen on")
+	rootCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (error, warn, info, debug, trace)")
+}
+
 func main() {
-	addr := flag.String("addr", ":8080", "HTTP server address to listen on")
-	logLevel := flag.String("log-level", "info", "Log level (error, warn, info, debug, trace)")
-	flag.Parse()
-
-	// Set the log level
-	ddlog.SetLogLevel(ddlog.ParseLogLevel(*logLevel))
-
-	srv := server.NewServer()
-
-	log.Printf("Starting traceroute HTTP server on %s", *addr)
-	log.Printf("Log level set to: %s", *logLevel)
-	log.Printf("Example usage: curl 'http://localhost:8080/traceroute?target=google.com&protocol=tcp&port=443'")
-
-	if err := srv.Start(*addr); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
 }
