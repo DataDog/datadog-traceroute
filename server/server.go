@@ -78,7 +78,6 @@ func (s *Server) parseTracerouteParams(r *http.Request) (traceroute.TraceroutePa
 	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
 
 	// Parse boolean flags
-	verbose := getBoolParam(query, "verbose", false)
 	wantV6 := getBoolParam(query, "ipv6", false)
 	reverseDns := getBoolParam(query, "reverse-dns", false)
 	collectSourcePublicIP := getBoolParam(query, "source-public-ip", false)
@@ -86,7 +85,7 @@ func (s *Server) parseTracerouteParams(r *http.Request) (traceroute.TraceroutePa
 	skipPrivateHops := getBoolParam(query, "skip-private-hops", false)
 
 	// Set verbose logging
-	log.SetVerbose(verbose)
+	log.SetVerbose(true)
 
 	// Construct traceroute parameters
 	params := traceroute.TracerouteParams{
@@ -143,4 +142,3 @@ func (s *Server) Start(addr string) error {
 	log.Debugf("Starting HTTP server on %s", addr)
 	return http.ListenAndServe(addr, nil)
 }
-

@@ -25,7 +25,6 @@ Runs a traceroute to the specified target.
 | `e2e-queries` | int | `50` | Number of end-to-end probe queries |
 | `windows-driver` | bool | `false` | Use Windows driver (Windows only) |
 | `skip-private-hops` | bool | `false` | Skip private hops |
-| `verbose` | bool | `false` | Enable verbose logging |
 
 #### Example Requests
 

@@ -7,10 +7,54 @@ package log
 
 import "log"
 
-var enabled = true
+// LogLevel represents the logging level
+type LogLevel int
 
+const (
+	// LevelError only shows errors
+	LevelError LogLevel = iota
+	// LevelWarn shows warnings and errors
+	LevelWarn
+	// LevelInfo shows info, warnings, and errors
+	LevelInfo
+	// LevelDebug shows debug, info, warnings, and errors
+	LevelDebug
+	// LevelTrace shows all log messages
+	LevelTrace
+)
+
+var (
+	enabled  = true
+	logLevel = LevelInfo
+)
+
+// SetVerbose enables or disables logging (for backward compatibility)
 func SetVerbose(v bool) {
 	enabled = v
+}
+
+// SetLogLevel sets the logging level
+func SetLogLevel(level LogLevel) {
+	logLevel = level
+	enabled = true
+}
+
+// ParseLogLevel converts a string to a LogLevel
+func ParseLogLevel(s string) LogLevel {
+	switch s {
+	case "error":
+		return LevelError
+	case "warn":
+		return LevelWarn
+	case "info":
+		return LevelInfo
+	case "debug":
+		return LevelDebug
+	case "trace":
+		return LevelTrace
+	default:
+		return LevelInfo
+	}
 }
 
 type Logger struct {
@@ -83,45 +127,45 @@ func TraceFunc(logFunc func() string) {
 
 var (
 	defaultTracef = func(format string, args ...interface{}) {
-		if enabled {
+		if enabled && logLevel >= LevelTrace {
 			log.Printf("[TRACE] "+format, args...)
 		}
 	}
 
 	defaultTrace = func(format string) {
-		if enabled {
+		if enabled && logLevel >= LevelTrace {
 			log.Print("[TRACE] " + format)
 		}
 	}
 
 	defaultInfof = func(format string, args ...interface{}) {
-		if enabled {
+		if enabled && logLevel >= LevelInfo {
 			log.Printf("[INFO] "+format, args...)
 		}
 	}
 
 	defaultDebugf = func(format string, args ...interface{}) {
-		if enabled {
+		if enabled && logLevel >= LevelDebug {
 			log.Printf("[DEBUG] "+format, args...)
 		}
 	}
 
 	defaultErrorf = func(format string, args ...interface{}) error {
-		if enabled {
+		if enabled && logLevel >= LevelError {
 			log.Printf("[ERROR] "+format, args...)
 		}
 		return nil
 	}
 
 	defaultWarnf = func(format string, args ...interface{}) error {
-		if enabled {
+		if enabled && logLevel >= LevelWarn {
 			log.Printf("[WARN] "+format, args...)
 		}
 		return nil
 	}
 
 	defaultTraceFunc = func(logFunc func() string) {
-		if enabled {
+		if enabled && logLevel >= LevelTrace {
 			log.Print("[TRACEFUNC] " + logFunc())
 		}
 	}
