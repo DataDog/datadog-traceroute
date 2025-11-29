@@ -67,8 +67,6 @@ Returns JSON with the traceroute results. Example:
 
 ### Running the Server
 
-See `example_main.go` for a complete example:
-
 ```go
 package main
 
