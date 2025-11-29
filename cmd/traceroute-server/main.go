@@ -26,13 +26,17 @@ var rootCmd = &cobra.Command{
 	Long:  `HTTP server that provides traceroute functionality via REST API endpoints`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Set the log level
-		ddlog.SetLogLevel(ddlog.ParseLogLevel(logLevel))
+		level, err := ddlog.ParseLogLevel(logLevel)
+		if err != nil {
+			return err
+		}
+		ddlog.SetLogLevel(level)
 
 		srv := server.NewServer()
 
 		log.Printf("Starting traceroute HTTP server on %s", addr)
 		log.Printf("Log level set to: %s", logLevel)
-		log.Printf("Example usage: curl 'http://localhost:8080/traceroute?target=google.com&protocol=tcp&port=443'")
+		log.Printf("Example usage: curl http://localhost:8080/traceroute?target=google.com&protocol=tcp&port=443")
 
 		if err := srv.Start(addr); err != nil {
 			return err

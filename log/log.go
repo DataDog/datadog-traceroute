@@ -5,7 +5,10 @@
 
 package log
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // LogLevel represents the logging level
 type LogLevel int
@@ -40,20 +43,20 @@ func SetLogLevel(level LogLevel) {
 }
 
 // ParseLogLevel converts a string to a LogLevel
-func ParseLogLevel(s string) LogLevel {
+func ParseLogLevel(s string) (LogLevel, error) {
 	switch s {
 	case "error":
-		return LevelError
+		return LevelError, nil
 	case "warn":
-		return LevelWarn
+		return LevelWarn, nil
 	case "info":
-		return LevelInfo
+		return LevelInfo, nil
 	case "debug":
-		return LevelDebug
+		return LevelDebug, nil
 	case "trace":
-		return LevelTrace
+		return LevelTrace, nil
 	default:
-		return LevelInfo
+		return 0, fmt.Errorf("invalid log level: %q (valid levels: error, warn, info, debug, trace)", s)
 	}
 }
 
