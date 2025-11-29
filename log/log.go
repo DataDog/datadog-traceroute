@@ -42,22 +42,20 @@ func SetLogLevel(level LogLevel) {
 	enabled = true
 }
 
+var logLevelMap = map[string]LogLevel{
+	"error": LevelError,
+	"warn":  LevelWarn,
+	"info":  LevelInfo,
+	"debug": LevelDebug,
+	"trace": LevelTrace,
+}
+
 // ParseLogLevel converts a string to a LogLevel
 func ParseLogLevel(s string) (LogLevel, error) {
-	switch s {
-	case "error":
-		return LevelError, nil
-	case "warn":
-		return LevelWarn, nil
-	case "info":
-		return LevelInfo, nil
-	case "debug":
-		return LevelDebug, nil
-	case "trace":
-		return LevelTrace, nil
-	default:
-		return 0, fmt.Errorf("invalid log level: %q (valid levels: error, warn, info, debug, trace)", s)
+	if level, ok := logLevelMap[s]; ok {
+		return level, nil
 	}
+	return 0, fmt.Errorf("invalid log level: %q (valid levels: error, warn, info, debug, trace)", s)
 }
 
 type Logger struct {
