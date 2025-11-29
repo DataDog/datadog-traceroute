@@ -1,6 +1,20 @@
 project_name: datadog-traceroute
 builds:
-  - env: [CGO_ENABLED=0]
+  - id: traceroute
+    main: ./traceroute.go
+    binary: datadog-traceroute
+    env: [CGO_ENABLED=0]
+    goos:
+      - linux
+#      - windows
+#      - darwin
+    goarch:
+      - amd64
+#      - arm64
+  - id: traceroute-server
+    main: ./cmd/traceroute-server
+    binary: datadog-traceroute-server
+    env: [CGO_ENABLED=0]
     goos:
       - linux
 #      - windows
