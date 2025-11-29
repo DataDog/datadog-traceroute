@@ -8,7 +8,7 @@ package main
 
 import "github.com/DataDog/datadog-traceroute/cmd"
 
-// MOVE main to cmd/traceroute/
+// TODO: Move main to cmd/traceroute/
 func main() {
 	cmd.Execute()
 }
