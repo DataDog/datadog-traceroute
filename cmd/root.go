@@ -49,8 +49,10 @@ var rootCmd = &cobra.Command{
 			timeout = time.Duration(Args.timeout) * time.Millisecond
 		}
 
-		log.SetVerbose(Args.verbose)
-		log.SetLogLevel(log.LevelTrace)
+		if Args.verbose {
+			log.SetVerbose(true)
+			log.SetLogLevel(log.LevelTrace)
+		}
 
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
