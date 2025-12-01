@@ -50,7 +50,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if Args.verbose {
-			log.SetVerbose(true)
+			log.EnabledLogging(true)
 			log.SetLogLevel(log.LevelTrace)
 		}
 

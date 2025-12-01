@@ -85,7 +85,7 @@ func (s *Server) parseTracerouteParams(r *http.Request) (traceroute.TraceroutePa
 	skipPrivateHops := getBoolParam(query, "skip-private-hops", false)
 
 	// Set verbose logging
-	log.SetVerbose(true)
+	log.EnabledLogging(true)
 
 	// Construct traceroute parameters
 	params := traceroute.TracerouteParams{

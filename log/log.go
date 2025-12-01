@@ -31,8 +31,8 @@ var (
 	logLevel = LevelInfo
 )
 
-// SetVerbose enables or disables logging (for backward compatibility)
-func SetVerbose(v bool) {
+// EnabledLogging enables or disables logging (for backward compatibility)
+func EnabledLogging(v bool) {
 	enabled = v
 }
 
