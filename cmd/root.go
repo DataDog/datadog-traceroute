@@ -50,6 +50,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		log.SetVerbose(Args.verbose)
+		log.SetLogLevel(log.LevelTrace)
 
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
