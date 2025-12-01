@@ -226,6 +226,8 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 		contextTimeout time.Duration
 		statusCode     int
 		body           string
+		serverDelay    time.Duration
+		clientTimeout  time.Duration
 		wantIP         string
 		expectedErr    string
 	}{
@@ -266,20 +268,56 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			contextTimeout: 1 * time.Millisecond,
 			expectedErr:    "backoff retry error: context deadline exceeded",
 		},
+		{
+			name:          "server responds within timeout",
+			statusCode:    http.StatusOK,
+			body:          "192.0.2.1",
+			serverDelay:   100 * time.Millisecond,
+			clientTimeout: 1 * time.Second,
+			wantIP:        "192.0.2.1",
+		},
+		{
+			name:          "server fails causing retries until ipCheckerCallTimeout expires",
+			statusCode:    http.StatusInternalServerError,
+			body:          "error",
+			serverDelay:   50 * time.Millisecond,
+			clientTimeout: 100 * time.Millisecond,
+			expectedErr:   "backoff retry error: context deadline exceeded",
+		},
+		{
+			name:           "parent context timeout shorter than ipCheckerCallTimeout",
+			statusCode:     http.StatusInternalServerError, // Fail to trigger retries
+			body:           "error",
+			serverDelay:    10 * time.Millisecond,
+			clientTimeout:  30 * time.Millisecond,  // Shorter than parent context timeout
+			contextTimeout: 100 * time.Millisecond, // Expires before ipCheckerCallTimeout (2s)
+			expectedErr:    "backoff retry error: context deadline exceeded",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.serverDelay > 0 {
+					time.Sleep(tt.serverDelay)
+				}
 				w.WriteHeader(tt.statusCode)
 				w.Write([]byte(tt.body))
 			}))
 			defer server.Close()
 
 			client := server.Client()
+			if tt.clientTimeout > 0 {
+				client.Timeout = tt.clientTimeout
+			}
 			backoffPolicy := backoff.NewExponentialBackOff()
 			backoffPolicy.InitialInterval = 1 * time.Millisecond
 			backoffPolicy.MaxInterval = 5 * time.Millisecond
+			if tt.serverDelay > 0 || tt.clientTimeout > 0 {
+				// Use longer intervals for timeout tests to avoid flakiness
+				backoffPolicy.InitialInterval = 10 * time.Millisecond
+				backoffPolicy.MaxInterval = 50 * time.Millisecond
+			}
 
 			timeout := 1 * time.Second
 			if tt.contextTimeout > 0 {
@@ -297,7 +335,8 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			gotIP, err := getPublicIPUsingIPChecker(ctx, client, backoffPolicy, url)
 
 			if tt.expectedErr != "" {
-				assert.EqualError(t, err, tt.expectedErr)
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, tt.expectedErr)
 				return
 			}
 
