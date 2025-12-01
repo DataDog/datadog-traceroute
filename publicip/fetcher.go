@@ -7,10 +7,13 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/cenkalti/backoff/v5"
 )
+
+const ipCheckerCallTimeout = 2 * time.Second
 
 // ipCheckers list of reliable public IP checkers
 var ipCheckers = []string{
@@ -42,7 +45,9 @@ func getPublicIPUsingIPChecker(ctx context.Context, client *http.Client, backoff
 	operation := func() (net.IP, error) {
 		return handleRequest(client, req)
 	}
-	result, err := backoff.Retry(ctx, operation, backoff.WithBackOff(backoffPolicy))
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, ipCheckerCallTimeout)
+	defer cancel()
+	result, err := backoff.Retry(ctxWithTimeout, operation, backoff.WithBackOff(backoffPolicy))
 	if err != nil {
 		return nil, errors.New("backoff retry error: " + err.Error())
 	}
