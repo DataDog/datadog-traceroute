@@ -76,7 +76,7 @@ func handleRequest(client *http.Client, req *http.Request) (net.IP, error) {
 	tb := strings.TrimSpace(string(body))
 	ip := net.ParseIP(tb)
 	if ip == nil {
-		return nil, errors.New("IP address not valid: " + tb)
+		return nil, backoff.Permanent(errors.New("IP address not valid: " + tb))
 	}
 	// Return successful response.
 	return ip, nil
