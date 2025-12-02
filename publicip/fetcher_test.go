@@ -153,6 +153,20 @@ func TestHandleRequest(t *testing.T) {
 			wantPermanentErr: true,
 		},
 		{
+			name:       "status 399 returns success",
+			statusCode: 399,
+			body:       "192.0.2.1",
+			wantIP:     "192.0.2.1",
+		},
+		{
+			name:             "status 499 returns permanent error",
+			statusCode:       499,
+			body:             "192.0.2.1",
+			wantErr:          true,
+			wantErrMsg:       "client error: 499",
+			wantPermanentErr: true,
+		},
+		{
 			name:           "failed to read content",
 			statusCode:     http.StatusOK,
 			useErrorReader: true,
