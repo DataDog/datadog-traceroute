@@ -22,7 +22,7 @@ var parallelParams = TracerouteParallelParams{
 	TracerouteParams: TracerouteParams{
 		MinTTL:            1,
 		MaxTTL:            10,
-		TracerouteTimeout: 1000 * time.Millisecond,
+		TracerouteTimeout: 50 * time.Millisecond,
 		PollFrequency:     1 * time.Millisecond,
 		SendDelay:         1 * time.Millisecond,
 	},
@@ -471,7 +471,11 @@ func TestParallelSupport(t *testing.T) {
 
 func TestParallelSendFirst(t *testing.T) {
 	// this test checks the hasSent logic -- i.e. that it does not call ReceiveProbe until after SendProbe finishes
-	m := initMockDriver(t, parallelParams.TracerouteParams, parallelInfo)
+	// make a copy of parallelParams
+	params := parallelParams
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 200 * time.Millisecond
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
 	t.Parallel()
 
 	var hasSent, hasReceived atomic.Bool
@@ -486,10 +490,10 @@ func TestParallelSendFirst(t *testing.T) {
 	m.receiveHandler = func() (*ProbeResponse, error) {
 		hasReceived.Store(true)
 		require.True(t, hasSent.Load(), "ReceiveProbe() called before SendProbe() finished")
-		return pollData(nil, parallelParams.PollFrequency)
+		return pollData(nil, params.PollFrequency)
 	}
 
-	_, err := TracerouteParallel(context.Background(), m, parallelParams)
+	_, err := TracerouteParallel(context.Background(), m, params)
 	require.NoError(t, err)
 	require.True(t, hasSent.Load())
 	require.True(t, hasReceived.Load())

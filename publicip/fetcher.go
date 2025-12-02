@@ -69,14 +69,14 @@ func handleRequest(client *http.Client, req *http.Request) (net.IP, error) {
 
 	// In case on non-retriable error, return Permanent error to stop retrying.
 	// For this HTTP example, client errors are non-retriable.
-	if resp.StatusCode == 400 {
-		return nil, backoff.Permanent(errors.New("bad request"))
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		return nil, backoff.Permanent(errors.New("client error: " + resp.Status))
 	}
 
 	tb := strings.TrimSpace(string(body))
 	ip := net.ParseIP(tb)
 	if ip == nil {
-		return nil, errors.New("IP address not valid: " + tb)
+		return nil, backoff.Permanent(errors.New("IP address not valid: " + tb))
 	}
 	// Return successful response.
 	return ip, nil

@@ -85,7 +85,7 @@ func TestHandleRequest(t *testing.T) {
 			statusCode:       http.StatusBadRequest,
 			body:             "192.0.2.1",
 			wantErr:          true,
-			wantErrMsg:       "bad request",
+			wantErrMsg:       "client error: 400 Bad Request",
 			wantPermanentErr: true,
 		},
 		{
@@ -137,10 +137,34 @@ func TestHandleRequest(t *testing.T) {
 			wantIP:     "192.0.2.1",
 		},
 		{
-			name:       "status 404 with valid IP",
-			statusCode: http.StatusNotFound,
+			name:             "status 404 returns permanent error",
+			statusCode:       http.StatusNotFound,
+			body:             "192.0.2.1",
+			wantErr:          true,
+			wantErrMsg:       "client error: 404 Not Found",
+			wantPermanentErr: true,
+		},
+		{
+			name:             "status 403 returns permanent error",
+			statusCode:       http.StatusForbidden,
+			body:             "192.0.2.1",
+			wantErr:          true,
+			wantErrMsg:       "client error: 403 Forbidden",
+			wantPermanentErr: true,
+		},
+		{
+			name:       "status 399 returns success",
+			statusCode: 399,
 			body:       "192.0.2.1",
 			wantIP:     "192.0.2.1",
+		},
+		{
+			name:             "status 499 returns permanent error",
+			statusCode:       499,
+			body:             "192.0.2.1",
+			wantErr:          true,
+			wantErrMsg:       "client error: 499",
+			wantPermanentErr: true,
 		},
 		{
 			name:           "failed to read content",
@@ -255,7 +279,7 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			name:        "bad request 400",
 			statusCode:  http.StatusBadRequest,
 			body:        "192.0.2.1",
-			expectedErr: "backoff retry error: bad request",
+			expectedErr: "backoff retry error: client error: 400 Bad Request",
 		},
 		{
 			name:        "invalid url",
@@ -280,7 +304,7 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			name:          "server fails causing retries until ipCheckerCallTimeout expires",
 			statusCode:    http.StatusInternalServerError,
 			body:          "error",
-			serverDelay:   50 * time.Millisecond,
+			serverDelay:   150 * time.Millisecond,
 			clientTimeout: 100 * time.Millisecond,
 			expectedErr:   "backoff retry error: context deadline exceeded",
 		},
@@ -288,7 +312,7 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			name:           "parent context timeout shorter than ipCheckerCallTimeout",
 			statusCode:     http.StatusInternalServerError, // Fail to trigger retries
 			body:           "error",
-			serverDelay:    10 * time.Millisecond,
+			serverDelay:    50 * time.Millisecond,
 			clientTimeout:  30 * time.Millisecond,  // Shorter than parent context timeout
 			contextTimeout: 100 * time.Millisecond, // Expires before ipCheckerCallTimeout (2s)
 			expectedErr:    "backoff retry error: context deadline exceeded",
