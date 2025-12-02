@@ -1,9 +1,7 @@
-package runner
+package traceroute
 
 import (
 	"time"
-
-	"github.com/DataDog/datadog-traceroute/traceroute"
 )
 
 type TracerouteParams struct {
@@ -14,10 +12,11 @@ type TracerouteParams struct {
 	MaxTTL                    int
 	Delay                     int
 	Timeout                   time.Duration
-	TCPMethod                 traceroute.TCPMethod
+	TCPMethod                 TCPMethod
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool
 	ReverseDns                bool
+	CollectSourcePublicIP     bool
 	TracerouteQueries         int
 	E2eQueries                int
 	UseWindowsDriver          bool
