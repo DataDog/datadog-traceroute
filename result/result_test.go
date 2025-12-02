@@ -228,7 +228,7 @@ func TestResults_EnrichWithReverseDns(t *testing.T) {
 		ExpectedResults Results
 	}{
 		{
-			name: "reverse dns for destination & hops",
+			name: "reverse dns for destination and hops",
 			Results: Results{
 				Traceroute: Traceroute{
 					Runs: []TracerouteRun{
