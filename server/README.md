@@ -10,21 +10,7 @@ Runs a traceroute to the specified target.
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `target` | string | *required* | Target hostname or IP address |
-| `protocol` | string | `udp` | Protocol to use (`udp`, `tcp`, `icmp`) |
-| `port` | int | `33434` | Destination port |
-| `traceroute-queries` | int | `3` | Number of traceroute queries |
-| `max-ttl` | int | `30` | Maximum TTL |
-| `timeout` | int | `3000` | Timeout in milliseconds |
-| `tcp-method` | string | `syn` | TCP method (`syn`, `sack`, `prefer_sack`) |
-| `ipv6` | bool | `false` | Use IPv6 |
-| `reverse-dns` | bool | `false` | Enrich IPs with reverse DNS names |
-| `source-public-ip` | bool | `false` | Enrich with source public IP |
-| `e2e-queries` | int | `50` | Number of end-to-end probe queries |
-| `windows-driver` | bool | `false` | Use Windows driver (Windows only) |
-| `skip-private-hops` | bool | `false` | Skip private hops |
+See `parseTracerouteParams()` function
 
 #### Example Requests
 
@@ -61,39 +47,3 @@ Returns JSON with the traceroute results. Example:
   }
 }
 ```
-
-## Usage
-
-### Running the Server
-
-```go
-package main
-
-import (
-    "log"
-    "github.com/DataDog/datadog-traceroute/server"
-)
-
-func main() {
-    srv := server.NewServer()
-    
-    if err := srv.Start(":8080"); err != nil {
-        log.Fatalf("Server failed: %v", err)
-    }
-}
-```
-
-### Integration
-
-```go
-import "github.com/DataDog/datadog-traceroute/server"
-
-// Create a new server instance
-srv := server.NewServer()
-
-// Start the server
-err := srv.Start(":8080")
-```
-
-The server creates a single `Traceroute` instance on initialization that is reused for all subsequent requests.
-
