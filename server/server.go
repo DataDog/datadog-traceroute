@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 )
 
@@ -83,9 +82,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	collectSourcePublicIP := getBoolParam(query, "source-public-ip", false)
 	useWindowsDriver := getBoolParam(query, "windows-driver", false)
 	skipPrivateHops := getBoolParam(query, "skip-private-hops", false)
-
-	// Set verbose logging
-	log.EnabledLogging(true)
 
 	// Construct traceroute parameters
 	params := traceroute.TracerouteParams{
