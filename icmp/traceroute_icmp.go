@@ -61,6 +61,8 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 		FilterType: packets.FilterTypeICMP,
 	})
 	if err != nil {
+		handle.Source.Close()
+		handle.Sink.Close()
 		return nil, fmt.Errorf("ICMP traceroute failed to set packet filter: %w", err)
 	}
 

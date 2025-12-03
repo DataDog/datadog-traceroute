@@ -44,6 +44,8 @@ func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
 		FilterType: packets.FilterTypeICMP,
 	})
 	if err != nil {
+		handle.Source.Close()
+		handle.Sink.Close()
 		return nil, fmt.Errorf("UDP traceroute failed to set packet filter: %w", err)
 	}
 

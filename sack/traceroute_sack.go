@@ -128,6 +128,8 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		},
 	})
 	if err != nil {
+		handle.Source.Close()
+		handle.Sink.Close()
 		return nil, fmt.Errorf("SACK traceroute failed to set packet filter: %w", err)
 	}
 
@@ -143,6 +145,8 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 
 	driver, err := newSackDriver(p, local.AddrPort().Addr(), handle.Sink, handle.Source)
 	if err != nil {
+		handle.Source.Close()
+		handle.Sink.Close()
 		return nil, fmt.Errorf("failed to init sack driver: %w", err)
 	}
 	defer driver.Close()
