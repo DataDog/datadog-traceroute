@@ -60,6 +60,8 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 		},
 	})
 	if err != nil {
+		handle.Source.Close()
+		handle.Sink.Close()
 		return nil, fmt.Errorf("TCP traceroute failed to set packet filter: %w", err)
 	}
 

@@ -162,6 +162,7 @@ func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
 	if err != nil {
 		return net.Interface{}, fmt.Errorf("deviceForTarget failed to dial UDP: %w", err)
 	}
+	defer conn.Close()
 	laddr := conn.LocalAddr().(*net.UDPAddr)
 	ifaces, err := net.Interfaces()
 	if err != nil {
