@@ -27,14 +27,9 @@ const (
 )
 
 var (
-	enabled  = true
+	enabled  = false
 	logLevel = LevelInfo
 )
-
-// EnabledLogging enables or disables logging (for backward compatibility)
-func EnabledLogging(v bool) {
-	enabled = v
-}
 
 // SetLogLevel sets the logging level
 func SetLogLevel(level LogLevel) {
