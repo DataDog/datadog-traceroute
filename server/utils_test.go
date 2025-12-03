@@ -12,6 +12,8 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/traceroute"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseTracerouteParams(t *testing.T) {
@@ -31,15 +33,9 @@ func TestParseTracerouteParams(t *testing.T) {
 			queryString: "target=google.com",
 			wantErr:     false,
 			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				if p.Hostname != "google.com" {
-					t.Errorf("expected hostname 'google.com', got '%s'", p.Hostname)
-				}
-				if p.Protocol != common.DefaultProtocol {
-					t.Errorf("expected default protocol '%s', got '%s'", common.DefaultProtocol, p.Protocol)
-				}
-				if p.Port != common.DefaultPort {
-					t.Errorf("expected default port %d, got %d", common.DefaultPort, p.Port)
-				}
+				assert.Equal(t, "google.com", p.Hostname)
+				assert.Equal(t, common.DefaultProtocol, p.Protocol)
+				assert.Equal(t, common.DefaultPort, p.Port)
 			},
 		},
 		{
@@ -47,15 +43,9 @@ func TestParseTracerouteParams(t *testing.T) {
 			queryString: "target=example.com&protocol=tcp&port=443",
 			wantErr:     false,
 			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				if p.Hostname != "example.com" {
-					t.Errorf("expected hostname 'example.com', got '%s'", p.Hostname)
-				}
-				if p.Protocol != "tcp" {
-					t.Errorf("expected protocol 'tcp', got '%s'", p.Protocol)
-				}
-				if p.Port != 443 {
-					t.Errorf("expected port 443, got %d", p.Port)
-				}
+				assert.Equal(t, "example.com", p.Hostname)
+				assert.Equal(t, "tcp", p.Protocol)
+				assert.Equal(t, 443, p.Port)
 			},
 		},
 		{
@@ -63,12 +53,8 @@ func TestParseTracerouteParams(t *testing.T) {
 			queryString: "target=8.8.8.8&reverse-dns=true&ipv6=true&verbose=true",
 			wantErr:     false,
 			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				if !p.ReverseDns {
-					t.Error("expected ReverseDns to be true")
-				}
-				if !p.WantV6 {
-					t.Error("expected WantV6 to be true")
-				}
+				assert.True(t, p.ReverseDns, "expected ReverseDns to be true")
+				assert.True(t, p.WantV6, "expected WantV6 to be true")
 			},
 		},
 		{
@@ -76,15 +62,9 @@ func TestParseTracerouteParams(t *testing.T) {
 			queryString: "target=test.com&max-ttl=20&traceroute-queries=5&timeout=5000",
 			wantErr:     false,
 			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				if p.MaxTTL != 20 {
-					t.Errorf("expected max-ttl 20, got %d", p.MaxTTL)
-				}
-				if p.TracerouteQueries != 5 {
-					t.Errorf("expected traceroute-queries 5, got %d", p.TracerouteQueries)
-				}
-				if p.Timeout != 5000*time.Millisecond {
-					t.Errorf("expected timeout 5000ms, got %v", p.Timeout)
-				}
+				assert.Equal(t, 20, p.MaxTTL)
+				assert.Equal(t, 5, p.TracerouteQueries)
+				assert.Equal(t, 5000*time.Millisecond, p.Timeout)
 			},
 		},
 		{
@@ -92,9 +72,7 @@ func TestParseTracerouteParams(t *testing.T) {
 			queryString: "target=test.com&tcp-method=sack",
 			wantErr:     false,
 			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				if p.TCPMethod != "sack" {
-					t.Errorf("expected tcp-method 'sack', got '%s'", p.TCPMethod)
-				}
+				assert.Equal(t, traceroute.TCPConfigSACK, p.TCPMethod)
 			},
 		},
 	}
@@ -102,22 +80,16 @@ func TestParseTracerouteParams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u, err := url.Parse("/traceroute?" + tt.queryString)
-			if err != nil {
-				t.Fatalf("failed to parse URL: %v", err)
-			}
+			require.NoError(t, err, "failed to parse URL")
+
 			params, err := parseTracerouteParams(u)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Error("expected error but got none")
-				}
+				assert.Error(t, err, "expected error but got none")
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+			require.NoError(t, err)
 
 			if tt.checkFunc != nil {
 				tt.checkFunc(t, params)
@@ -131,12 +103,8 @@ func TestHelperFunctions(t *testing.T) {
 		query := map[string][]string{
 			"key1": {"value1"},
 		}
-		if got := getStringParam(query, "key1", "default"); got != "value1" {
-			t.Errorf("expected 'value1', got '%s'", got)
-		}
-		if got := getStringParam(query, "missing", "default"); got != "default" {
-			t.Errorf("expected 'default', got '%s'", got)
-		}
+		assert.Equal(t, "value1", getStringParam(query, "key1", "default"))
+		assert.Equal(t, "default", getStringParam(query, "missing", "default"))
 	})
 
 	t.Run("getIntParam", func(t *testing.T) {
@@ -144,15 +112,9 @@ func TestHelperFunctions(t *testing.T) {
 			"num": {"42"},
 			"bad": {"not-a-number"},
 		}
-		if got := getIntParam(query, "num", 10); got != 42 {
-			t.Errorf("expected 42, got %d", got)
-		}
-		if got := getIntParam(query, "missing", 10); got != 10 {
-			t.Errorf("expected 10, got %d", got)
-		}
-		if got := getIntParam(query, "bad", 10); got != 10 {
-			t.Errorf("expected 10 (default), got %d", got)
-		}
+		assert.Equal(t, 42, getIntParam(query, "num", 10))
+		assert.Equal(t, 10, getIntParam(query, "missing", 10))
+		assert.Equal(t, 10, getIntParam(query, "bad", 10), "should return default for invalid number")
 	})
 
 	t.Run("getBoolParam", func(t *testing.T) {
@@ -161,17 +123,9 @@ func TestHelperFunctions(t *testing.T) {
 			"false": {"false"},
 			"bad":   {"not-a-bool"},
 		}
-		if got := getBoolParam(query, "true", false); !got {
-			t.Error("expected true")
-		}
-		if got := getBoolParam(query, "false", true); got {
-			t.Error("expected false")
-		}
-		if got := getBoolParam(query, "missing", true); !got {
-			t.Error("expected true (default)")
-		}
-		if got := getBoolParam(query, "bad", true); !got {
-			t.Error("expected true (default)")
-		}
+		assert.True(t, getBoolParam(query, "true", false))
+		assert.False(t, getBoolParam(query, "false", true))
+		assert.True(t, getBoolParam(query, "missing", true), "should return default for missing param")
+		assert.True(t, getBoolParam(query, "bad", true), "should return default for invalid bool")
 	})
 }

@@ -9,16 +9,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewServer(t *testing.T) {
 	srv := NewServer()
-	if srv == nil {
-		t.Fatal("NewServer() returned nil")
-	}
-	if srv.tr == nil {
-		t.Fatal("NewServer() did not initialize Traceroute instance")
-	}
+	require.NotNil(t, srv, "NewServer() returned nil")
+	require.NotNil(t, srv.tr, "NewServer() did not initialize Traceroute instance")
 }
 
 func TestTracerouteHandlerMethodNotAllowed(t *testing.T) {
@@ -28,9 +27,7 @@ func TestTracerouteHandlerMethodNotAllowed(t *testing.T) {
 
 	srv.TracerouteHandler(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
 func TestTracerouteHandlerMissingTarget(t *testing.T) {
@@ -40,7 +37,5 @@ func TestTracerouteHandlerMissingTarget(t *testing.T) {
 
 	srv.TracerouteHandler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
