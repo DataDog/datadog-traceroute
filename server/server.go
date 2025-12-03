@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -36,7 +37,7 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters
-	params, err := s.parseTracerouteParams(r)
+	params, err := parseTracerouteParams(r.URL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid parameters: %v", err), http.StatusBadRequest)
 		return
@@ -58,8 +59,8 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // parseTracerouteParams extracts and validates query parameters from the HTTP request
-func (s *Server) parseTracerouteParams(r *http.Request) (traceroute.TracerouteParams, error) {
-	query := r.URL.Query()
+func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
+	query := url.Query()
 
 	// Required parameter: hostname (target)
 	hostname := query.Get("target")

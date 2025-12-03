@@ -26,8 +26,6 @@ func TestNewServer(t *testing.T) {
 }
 
 func TestParseTracerouteParams(t *testing.T) {
-	srv := NewServer()
-
 	tests := []struct {
 		name        string
 		queryString string
@@ -115,7 +113,7 @@ func TestParseTracerouteParams(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/traceroute?"+tt.queryString, nil)
-			params, err := srv.parseTracerouteParams(req)
+			params, err := parseTracerouteParams(req.URL)
 
 			if tt.wantErr {
 				if err == nil {
