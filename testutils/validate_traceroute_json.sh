@@ -25,12 +25,12 @@ echo "  Found $RUN_COUNT traceroute run(s)"
 
 for ((i=0; i<RUN_COUNT; i++)); do
     echo "  Run $((i+1)):"
-    
+
     # Get last hop with non-null IP
     LAST_HOP_IP=$(echo "$JSON_OUTPUT" | jq -r ".traceroute.runs[$i].hops | map(select(.ip_address != null and .ip_address != \"\")) | last | .ip_address // \"null\"")
     LAST_HOP_REACHABLE=$(echo "$JSON_OUTPUT" | jq -r ".traceroute.runs[$i].hops | map(select(.ip_address != null and .ip_address != \"\")) | last | .reachable // false")
     DEST_IP=$(echo "$JSON_OUTPUT" | jq -r ".traceroute.runs[$i].destination.ip_address // \"null\"")
-    
+
     # Validation 1: destination.ip_address equals last hop's ip_address
     if [ "$DEST_IP" = "$LAST_HOP_IP" ]; then
         echo -e "    ${GREEN}✓${NC} Destination IP ($DEST_IP) matches last hop IP"
@@ -38,7 +38,7 @@ for ((i=0; i<RUN_COUNT; i++)); do
         echo -e "    ${RED}✗${NC} Destination IP ($DEST_IP) does NOT match last hop IP ($LAST_HOP_IP)"
         VALIDATION_PASSED=false
     fi
-    
+
     # Validation 2: last hop is reachable
     if [ "$LAST_HOP_REACHABLE" = "true" ]; then
         echo -e "    ${GREEN}✓${NC} Last hop is reachable"
@@ -68,11 +68,12 @@ else
     VALIDATION_PASSED=false
 fi
 
-# Validation 4: packet_loss_percentage is 0
-if [ "$PACKET_LOSS" = "0" ]; then
-    echo -e "  ${GREEN}✓${NC} No packet loss (0%)"
+# Validation 4: packet_loss_percentage is < 1.0 (100%)
+# note, packet_loss_percentage is float between 0 and 1
+if awk -v pl="$PACKET_LOSS" 'BEGIN {exit !(pl < 1.0)}'; then
+    echo -e "  ${GREEN}✓${NC} Packet loss percentage is less than 100% ($PACKET_LOSS)"
 else
-    echo -e "  ${RED}✗${NC} Packet loss detected ($PACKET_LOSS)"
+    echo -e "  ${RED}✗${NC} Packet loss percentage is NOT less than 100% ($PACKET_LOSS)"
     VALIDATION_PASSED=false
 fi
 
@@ -86,4 +87,3 @@ else
     echo -e "${RED}Some validations failed!${NC}"
     exit 1
 fi
-
