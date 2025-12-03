@@ -35,11 +35,11 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
 
 	// Parse boolean flags
-	wantV6 := getBoolParam(query, "ipv6", false)
-	reverseDns := getBoolParam(query, "reverse-dns", false)
-	collectSourcePublicIP := getBoolParam(query, "source-public-ip", false)
-	useWindowsDriver := getBoolParam(query, "windows-driver", false)
-	skipPrivateHops := getBoolParam(query, "skip-private-hops", false)
+	wantV6 := getBoolParam(query, "ipv6", common.DefaultWantV6)
+	reverseDns := getBoolParam(query, "reverse-dns", common.DefaultReverseDns)
+	collectSourcePublicIP := getBoolParam(query, "source-public-ip", common.DefaultCollectSourcePublicIP)
+	useWindowsDriver := getBoolParam(query, "windows-driver", common.DefaultUseWindowsDriver)
+	skipPrivateHops := getBoolParam(query, "skip-private-hops", common.DefaultSkipPrivateHops)
 
 	// Construct traceroute parameters
 	params := traceroute.TracerouteParams{
