@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -107,33 +106,6 @@ func (s *Server) parseTracerouteParams(r *http.Request) (traceroute.TraceroutePa
 	}
 
 	return params, nil
-}
-
-// Helper functions for parsing query parameters
-
-func getStringParam(query map[string][]string, key string, defaultValue string) string {
-	if values, ok := query[key]; ok && len(values) > 0 {
-		return values[0]
-	}
-	return defaultValue
-}
-
-func getIntParam(query map[string][]string, key string, defaultValue int) int {
-	if values, ok := query[key]; ok && len(values) > 0 {
-		if val, err := strconv.Atoi(values[0]); err == nil {
-			return val
-		}
-	}
-	return defaultValue
-}
-
-func getBoolParam(query map[string][]string, key string, defaultValue bool) bool {
-	if values, ok := query[key]; ok && len(values) > 0 {
-		if val, err := strconv.ParseBool(values[0]); err == nil {
-			return val
-		}
-	}
-	return defaultValue
 }
 
 // Start starts the HTTP server on the specified address
