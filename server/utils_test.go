@@ -6,8 +6,7 @@
 package server
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -102,8 +101,11 @@ func TestParseTracerouteParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/traceroute?"+tt.queryString, nil)
-			params, err := parseTracerouteParams(req.URL)
+			u, err := url.Parse("/traceroute?" + tt.queryString)
+			if err != nil {
+				t.Fatalf("failed to parse URL: %v", err)
+			}
+			params, err := parseTracerouteParams(u)
 
 			if tt.wantErr {
 				if err == nil {
