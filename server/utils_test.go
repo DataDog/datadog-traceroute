@@ -17,85 +17,88 @@ import (
 )
 
 func TestParseTracerouteParams(t *testing.T) {
-	tests := []struct {
-		name        string
-		queryString string
-		wantErr     bool
-		checkFunc   func(*testing.T, traceroute.TracerouteParams)
-	}{
-		{
-			name:        "missing target",
-			queryString: "",
-			wantErr:     true,
-		},
-		{
-			name:        "basic target only",
-			queryString: "target=google.com",
-			wantErr:     false,
-			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				assert.Equal(t, "google.com", p.Hostname)
-				assert.Equal(t, common.DefaultProtocol, p.Protocol)
-				assert.Equal(t, common.DefaultPort, p.Port)
-			},
-		},
-		{
-			name:        "with protocol and port",
-			queryString: "target=example.com&protocol=tcp&port=443",
-			wantErr:     false,
-			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				assert.Equal(t, "example.com", p.Hostname)
-				assert.Equal(t, "tcp", p.Protocol)
-				assert.Equal(t, 443, p.Port)
-			},
-		},
-		{
-			name:        "with boolean flags",
-			queryString: "target=8.8.8.8&reverse-dns=true&ipv6=true&verbose=true",
-			wantErr:     false,
-			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				assert.True(t, p.ReverseDns, "expected ReverseDns to be true")
-				assert.True(t, p.WantV6, "expected WantV6 to be true")
-			},
-		},
-		{
-			name:        "with numeric parameters",
-			queryString: "target=test.com&max-ttl=20&traceroute-queries=5&timeout=5000",
-			wantErr:     false,
-			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				assert.Equal(t, 20, p.MaxTTL)
-				assert.Equal(t, 5, p.TracerouteQueries)
-				assert.Equal(t, 5000*time.Millisecond, p.Timeout)
-			},
-		},
-		{
-			name:        "with tcp method",
-			queryString: "target=test.com&tcp-method=sack",
-			wantErr:     false,
-			checkFunc: func(t *testing.T, p traceroute.TracerouteParams) {
-				assert.Equal(t, traceroute.TCPConfigSACK, p.TCPMethod)
-			},
-		},
-	}
+	t.Run("missing target returns error", func(t *testing.T) {
+		u, err := url.Parse("/traceroute?")
+		require.NoError(t, err)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u, err := url.Parse("/traceroute?" + tt.queryString)
-			require.NoError(t, err, "failed to parse URL")
+		_, err = parseTracerouteParams(u)
+		assert.Error(t, err, "expected error when target is missing")
+		assert.Contains(t, err.Error(), "missing required parameter: target")
+	})
 
-			params, err := parseTracerouteParams(u)
+	t.Run("all default values", func(t *testing.T) {
+		u, err := url.Parse("/traceroute?target=example.com")
+		require.NoError(t, err)
 
-			if tt.wantErr {
-				assert.Error(t, err, "expected error but got none")
-				return
-			}
+		params, err := parseTracerouteParams(u)
+		require.NoError(t, err)
 
-			require.NoError(t, err)
+		// Expected params with all default values
+		expected := traceroute.TracerouteParams{
+			Hostname:                  "example.com",
+			Port:                      common.DefaultPort,
+			Protocol:                  common.DefaultProtocol,
+			MinTTL:                    common.DefaultMinTTL,
+			MaxTTL:                    common.DefaultMaxTTL,
+			Delay:                     common.DefaultDelay,
+			Timeout:                   time.Duration(common.DefaultNetworkPathTimeout) * time.Millisecond,
+			TCPMethod:                 traceroute.TCPMethod(common.DefaultTcpMethod),
+			WantV6:                    false,
+			TCPSynParisTracerouteMode: false,
+			ReverseDns:                false,
+			CollectSourcePublicIP:     false,
+			TracerouteQueries:         common.DefaultTracerouteQueries,
+			E2eQueries:                common.DefaultNumE2eProbes,
+			UseWindowsDriver:          false,
+			SkipPrivateHops:           false,
+		}
 
-			if tt.checkFunc != nil {
-				tt.checkFunc(t, params)
-			}
-		})
-	}
+		assert.Equal(t, expected, params, "all fields should match default values")
+	})
+
+	t.Run("all custom values", func(t *testing.T) {
+		queryString := "target=custom.example.com" +
+			"&protocol=tcp" +
+			"&port=8080" +
+			"&max-ttl=64" +
+			"&timeout=10000" +
+			"&tcp-method=sack" +
+			"&traceroute-queries=5" +
+			"&e2e-queries=100" +
+			"&ipv6=true" +
+			"&reverse-dns=true" +
+			"&source-public-ip=true" +
+			"&windows-driver=true" +
+			"&skip-private-hops=true"
+
+		u, err := url.Parse("/traceroute?" + queryString)
+		require.NoError(t, err)
+
+		params, err := parseTracerouteParams(u)
+		require.NoError(t, err)
+
+		// Expected params with all custom values
+		expected := traceroute.TracerouteParams{
+			Hostname:                  "custom.example.com",
+			Port:                      8080,
+			Protocol:                  "tcp",
+			MinTTL:                    common.DefaultMinTTL, // Not customizable via query params
+			MaxTTL:                    64,
+			Delay:                     common.DefaultDelay, // Not customizable via query params
+			Timeout:                   10000 * time.Millisecond,
+			TCPMethod:                 traceroute.TCPConfigSACK,
+			WantV6:                    true,
+			TCPSynParisTracerouteMode: false, // Not customizable via query params
+			ReverseDns:                true,
+			CollectSourcePublicIP:     true,
+			TracerouteQueries:         5,
+			E2eQueries:                100,
+			UseWindowsDriver:          true,
+			SkipPrivateHops:           true,
+		}
+
+		assert.Equal(t, expected, params, "all fields should match custom values")
+	})
 }
 
 func TestHelperFunctions(t *testing.T) {
