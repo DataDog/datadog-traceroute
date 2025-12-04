@@ -24,11 +24,10 @@ import (
 const (
 	localhostTimeout      = 500 * time.Millisecond
 	localhostMaxTTL       = 5
-	publicEndpointTimeout = 1000 * time.Millisecond // JMWNAME
-	//JMWRM publicEndpointMaxTTL = 30 // JMWNAME
+	publicEndpointTimeout = 1000 * time.Millisecond
 )
 
-// TestLocalhostICMP tests ICMP traceroute to localhost as a library
+// TestLocalhostICMP tests ICMP traceroute to localhost
 func TestLocalhostICMP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
@@ -59,7 +58,7 @@ func TestLocalhostICMP(t *testing.T) {
 	validateLocalhostResults(t, results, "icmp")
 }
 
-// TestLocalhostUDP tests UDP traceroute to localhost as a library
+// TestLocalhostUDP tests UDP traceroute to localhost
 func TestLocalhostUDP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
@@ -89,7 +88,7 @@ func TestLocalhostUDP(t *testing.T) {
 	validateLocalhostResults(t, results, "udp")
 }
 
-// TestLocalhostTCP tests TCP traceroute to localhost as a library
+// TestLocalhostTCP tests TCP traceroute to localhost
 func TestLocalhostTCP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
@@ -120,11 +119,18 @@ func TestLocalhostTCP(t *testing.T) {
 	validateLocalhostResults(t, results, "tcp")
 }
 
-// JMWTHU add localhost SACK and PREFER_SACK
+// JMWTHU organize tests better
+// 1) localhost
+// 2) public endpoint
+// 3) fakenetwork
+// for each, test ICMP, UDP, TCP SYN, TCP SACK, TCP PREFER_SACK
 
+// JMWTHU add localhost SACK and PREFER_SACK
+// JMWTHU add expected failure from fakenetwork SACK
+// JMWTHU add expect all hops reachable from fakenetwork (except SACK)
 // JMWTHU add public endpoint ICMP and UDP
 
-// TestPublicEndpointTCP tests TCP traceroute to GitHub (public endpoint) as a library
+// TestPublicEndpointTCP tests TCP traceroute to GitHub (public endpoint)
 func TestPublicEndpointTCP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
@@ -155,7 +161,7 @@ func TestPublicEndpointTCP(t *testing.T) {
 	validatePublicEndpointResults(t, results, "tcp", "github.com", 443)
 }
 
-// TestPublicEndpointTCPSACK tests TCP SACK traceroute to GitHub as a library
+// TestPublicEndpointTCPSACK tests TCP SACK traceroute to GitHub
 func TestPublicEndpointTCPSACK(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
@@ -186,7 +192,7 @@ func TestPublicEndpointTCPSACK(t *testing.T) {
 	validatePublicEndpointResults(t, results, "tcp", "github.com", 443)
 }
 
-// TestPublicEndpointTCPPreferSACK tests TCP prefer_sack traceroute to GitHub as a library
+// TestPublicEndpointTCPPreferSACK tests TCP prefer_sack traceroute to GitHub
 func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")

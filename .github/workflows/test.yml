@@ -366,7 +366,8 @@ jobs:
           bash testutils/validate_traceroute_json.sh "$OUTPUT"
         continue-on-error: true
 
-  # Temporarily disabled - TODO: re-enable integration tests
+  ## JMWTHU split localhost/public endpoint
+  ## JMWTHU add linux fake network
   integration_tests:
     name: "Library Integration Tests"
     runs-on: ${{ matrix.os }}
