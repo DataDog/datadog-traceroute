@@ -36,7 +36,7 @@ var rootCmd = &cobra.Command{
 
 		log.Printf("Starting traceroute HTTP server on %s", addr)
 		log.Printf("Log level set to: %s", logLevel)
-		log.Printf("Example usage: curl http://localhost:8080/traceroute?target=google.com&protocol=tcp&port=443")
+		log.Printf("Example usage: curl http://localhost:3765/traceroute?target=google.com&protocol=tcp&port=443")
 
 		if err := srv.Start(addr); err != nil {
 			return err
@@ -46,7 +46,8 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&addr, "addr", "a", ":8080", "HTTP server address to listen on")
+	// Default port 3765 is used for Remote Traceroute
+	rootCmd.Flags().StringVarP(&addr, "addr", "a", ":3765", "HTTP server address to listen on")
 	rootCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (error, warn, info, debug, trace)")
 }
 
