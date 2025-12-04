@@ -9,7 +9,6 @@ package integration_tests
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -29,10 +28,6 @@ const (
 
 // TestInvalidProtocol tests that an invalid protocol is handled correctly
 func TestInvalidProtocol(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
 		Hostname:          "127.0.0.1",
@@ -58,10 +53,6 @@ func TestInvalidProtocol(t *testing.T) {
 
 // TestInvalidHostname tests that an invalid hostname is handled correctly
 func TestInvalidHostname(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
 		Hostname:          "this-hostname-definitely-does-not-exist-12345.invalid",
@@ -87,10 +78,6 @@ func TestInvalidHostname(t *testing.T) {
 
 // TestZeroQueries tests behavior when no queries are requested
 func TestZeroQueries(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
 		Hostname:          "127.0.0.1",
@@ -121,10 +108,6 @@ func TestZeroQueries(t *testing.T) {
 // JMW should this and others be part of regular, not integration, tests?
 // TestMinimalConfiguration tests with minimal valid configuration
 // func TestMinimalConfiguration(t *testing.T) {
-// 	if runtime.GOOS == "windows" && !isAdmin() {
-// 		t.Skip("Test requires admin privileges on Windows")
-// 	}
-
 // 	ctx := context.Background()
 // 	params := traceroute.TracerouteParams{
 // 		Hostname:          "127.0.0.1",
@@ -145,10 +128,6 @@ func TestZeroQueries(t *testing.T) {
 
 // TestReverseDNSEnabled tests traceroute with reverse DNS lookups enabled
 func TestReverseDNSEnabled(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
 		Hostname:          "github.com",
@@ -196,10 +175,6 @@ func TestReverseDNSEnabled(t *testing.T) {
 
 // TestHighTTL tests with a higher TTL value
 func TestHighTTL(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
 		Hostname:          "github.com",
@@ -234,10 +209,6 @@ func TestHighTTL(t *testing.T) {
 
 // TestContextCancellation tests behavior when context is cancelled
 func TestContextCancellation(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
