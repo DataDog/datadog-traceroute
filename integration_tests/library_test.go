@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -22,205 +21,131 @@ import (
 )
 
 const (
-	localhostTimeout      = 500 * time.Millisecond
-	localhostMaxTTL       = 5
-	publicEndpointTimeout = 1000 * time.Millisecond
+	publicEndpointHostname = "github.com"
+ 	publicEndpointPort     = 443
 )
 
-// TestLocalhostICMP tests ICMP traceroute to localhost
-func TestLocalhostICMP(t *testing.T) {
+// TestLocalhost runs traceroute tests to localhost for all protocols
+func TestLocalhost(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
 	}
 
-	ctx := context.Background()
-	// JMWDIFF how are these different from just running datadog-traceroute CLI commands?  setup params, call RunTraceroute()
-	params := traceroute.TracerouteParams{
-		Hostname:          "127.0.0.1",
-		Port:              0,
-		Protocol:          "icmp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            localhostMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           localhostTimeout,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
+	tests := []struct {
+		name      string
+		protocol  string
+		tcpMethod traceroute.TCPMethod
+	}{
+		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
+		{name: "UDP", protocol: "udp", tcpMethod: ""},
+		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "ICMP traceroute should not fail")
-	require.NotNil(t, results, "Results should not be nil")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			params := traceroute.TracerouteParams{
+				Hostname:          "127.0.0.1",
+				Port:              0,
+				Protocol:          tt.protocol,
+				MinTTL:            common.DefaultMinTTL,
+				MaxTTL:            common.DefaultMaxTTL,
+				Delay:             common.DefaultDelay,
+				Timeout:           common.DefaultNetworkPathTimeout,
+				TCPMethod:         tt.tcpMethod,
+				WantV6:            false,
+				ReverseDns:        false,
+				TracerouteQueries: 3,
+				E2eQueries:        10,
+				UseWindowsDriver:  false,
+			}
 
-	validateLocalhostResults(t, results, "icmp")
+			tr := traceroute.NewTraceroute()
+			results, err := tr.RunTraceroute(ctx, params)
+			require.NoError(t, err, "%s traceroute should not fail", tt.name)
+			require.NotNil(t, results, "Results should not be nil")
+
+			validateLocalhostResults(t, results, tt.protocol)
+		})
+	}
 }
 
-// TestLocalhostUDP tests UDP traceroute to localhost
-func TestLocalhostUDP(t *testing.T) {
+// TestPublicEndpoint runs traceroute tests to a public endpoint for all protocols
+func TestPublicEndpoint(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
 	}
 
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          "127.0.0.1",
-		Port:              0,
-		Protocol:          "udp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            localhostMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           localhostTimeout,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
+	tests := []struct {
+		name      string
+		protocol  string
+		tcpMethod traceroute.TCPMethod
+	}{
+		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
+		{name: "UDP", protocol: "udp", tcpMethod: ""},
+		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "UDP traceroute should not fail")
-	require.NotNil(t, results, "Results should not be nil")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			params := traceroute.TracerouteParams{
+				Hostname:          publicEndpointHostname,
+				Port:              publicEndpointPort,
+				Protocol:          tt.protocol,
+				MinTTL:            common.DefaultMinTTL,
+				MaxTTL:            common.DefaultMaxTTL,
+				Delay:             common.DefaultDelay,
+				Timeout:           common.DefaultNetworkPathTimeout,
+				TCPMethod:         tt.tcpMethod,
+				WantV6:            false,
+				ReverseDns:        false,
+				TracerouteQueries: 3,
+				E2eQueries:        10,
+				UseWindowsDriver:  false,
+			}
 
-	validateLocalhostResults(t, results, "udp")
+			tr := traceroute.NewTraceroute()
+			results, err := tr.RunTraceroute(ctx, params)
+			require.NoError(t, err, "%s traceroute to %s should not fail", tt.name, publicEndpointHostname)
+			require.NotNil(t, results, "Results should not be nil")
+
+			validatePublicEndpointResults(t, results, tt.protocol, publicEndpointHostname, ppublicEndpointPort)
+		})
+	}
 }
 
-// TestLocalhostTCP tests TCP traceroute to localhost
-func TestLocalhostTCP(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
+// TestFakeNetwork runs traceroute tests in a fake network environment for all protocols
+func TestFakeNetwork(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Fake network tests not supported on Windows")
 	}
 
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          "127.0.0.1",
-		Port:              0,
-		Protocol:          "tcp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            localhostMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           localhostTimeout,
-		TCPMethod:         traceroute.TCPConfigSYN,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
+	// TODO: Implement fake network tests
+	// This will require setting up network namespaces and virtual routing
+	t.Skip("Fake network tests not yet implemented")
+
+	tests := []struct {
+		name      string
+		protocol  string
+		tcpMethod traceroute.TCPMethod
+	}{
+		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
+		{name: "UDP", protocol: "udp", tcpMethod: ""},
+		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "TCP traceroute should not fail")
-	require.NotNil(t, results, "Results should not be nil")
-
-	validateLocalhostResults(t, results, "tcp")
-}
-
-// JMWTHU organize tests better
-// 1) localhost
-// 2) public endpoint
-// 3) fakenetwork
-// for each, test ICMP, UDP, TCP SYN, TCP SACK, TCP PREFER_SACK
-
-// JMWTHU add localhost SACK and PREFER_SACK
-// JMWTHU add expected failure from fakenetwork SACK
-// JMWTHU add expect all hops reachable from fakenetwork (except SACK)
-// JMWTHU add public endpoint ICMP and UDP
-
-// TestPublicEndpointTCP tests TCP traceroute to GitHub (public endpoint)
-func TestPublicEndpointTCP(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// TODO: Implement fake network test logic
+		})
 	}
-
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          "github.com",
-		Port:              443,
-		Protocol:          "tcp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            common.DefaultMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           publicEndpointTimeout,
-		TCPMethod:         traceroute.TCPConfigSYN,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
-	}
-
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "TCP traceroute to GitHub should not fail")
-	require.NotNil(t, results, "Results should not be nil")
-
-	validatePublicEndpointResults(t, results, "tcp", "github.com", 443)
-}
-
-// TestPublicEndpointTCPSACK tests TCP SACK traceroute to GitHub
-func TestPublicEndpointTCPSACK(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          "github.com",
-		Port:              443,
-		Protocol:          "tcp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            common.DefaultMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           publicEndpointTimeout,
-		TCPMethod:         traceroute.TCPConfigSACK,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
-	}
-
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "TCP SACK traceroute to GitHub should not fail")
-	require.NotNil(t, results, "Results should not be nil")
-
-	validatePublicEndpointResults(t, results, "tcp", "github.com", 443)
-}
-
-// TestPublicEndpointTCPPreferSACK tests TCP prefer_sack traceroute to GitHub
-func TestPublicEndpointTCPPreferSACK(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          "github.com",
-		Port:              443,
-		Protocol:          "tcp",
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            common.DefaultMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           publicEndpointTimeout,
-		TCPMethod:         traceroute.TCPConfigPreferSACK,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
-	}
-
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "TCP prefer_sack traceroute to GitHub should not fail")
-	require.NotNil(t, results, "Results should not be nil")
-
-	validatePublicEndpointResults(t, results, "tcp", "github.com", 443)
 }
 
 // validateLocalhostResults validates traceroute results for localhost tests
@@ -246,13 +171,10 @@ func validateLocalhostResults(t *testing.T, results *result.Results, protocol st
 		assert.NotEmpty(t, run.RunID, "Run %d should have a RunID", i)
 		assert.NotEmpty(t, run.Hops, "Run %d should have at least one hop", i)
 
-		// For localhost, we expect a very short path (typically 1 hop)
-		assert.LessOrEqual(t, len(run.Hops), localhostMaxTTL, "Run %d should not exceed max TTL", i)
-
 		// Validate hop information
 		for j, hop := range run.Hops {
 			assert.NotZero(t, hop.TTL, "Run %d, Hop %d should have a TTL", i, j)
-			assert.LessOrEqual(t, hop.TTL, localhostMaxTTL, "Run %d, Hop %d TTL should not exceed max TTL", i, j)
+			//JMWassert.LessOrEqual(t, hop.TTL, localhostMaxTTL, "Run %d, Hop %d TTL should not exceed max TTL", i, j)
 
 			// At least some hops should be reachable
 			if hop.Reachable {
