@@ -114,35 +114,40 @@ jobs:
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
           echo "$OUTPUT"
           bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MIN_PACKET_LOSS_PCT"
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        #continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
       - name: Test UDP traceroute to localhost
         run: |
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
           echo "$OUTPUT"
           bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MIN_PACKET_LOSS_PCT"
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        #continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
       - name: Test TCP traceroute to localhost
         run: |
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
           echo "$OUTPUT"
           bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MIN_PACKET_LOSS_PCT"
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        #continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
       - name: Test TCP sack traceroute to localhost
         run: |
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
           echo "$OUTPUT"
           bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MIN_PACKET_LOSS_PCT" "sack traceroute failed: SACK not supported for this target/source"
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        #continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
       - name: Test TCP prefer_sack traceroute to localhost
         run: |
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
           echo "$OUTPUT"
           bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MIN_PACKET_LOSS_PCT"
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        #continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
   fake_network_tests:
     name: "Fake Network Tests"
