@@ -9,6 +9,7 @@ package integration_tests
 
 import (
 	"context"
+	"encoding/json"
 	"runtime"
 	"testing"
 	"time"
@@ -21,8 +22,8 @@ import (
 )
 
 const (
-	localhostTimeout = 500 * time.Millisecond
-	localhostMaxTTL  = 5
+	localhostTimeout      = 500 * time.Millisecond
+	localhostMaxTTL       = 5
 	publicEndpointTimeout = 1000 * time.Millisecond // JMWNAME
 	//JMWRM publicEndpointMaxTTL = 30 // JMWNAME
 )
@@ -216,7 +217,12 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 func validateLocalhostResults(t *testing.T, results *result.Results, protocol string) {
 	t.Helper()
 
-	t.Logf("JMW Validating Traceroute Results: %+v", results)
+	jsonBytes, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		t.Logf("JMW Failed to marshal results to JSON: %v", err)
+	} else {
+		t.Logf("JMW Validating Traceroute Results:\n%s", string(jsonBytes))
+	}
 
 	// Validate basic parameters
 	assert.Equal(t, protocol, results.Protocol, "Protocol should match")
@@ -284,6 +290,13 @@ func validateLocalhostResults(t *testing.T, results *result.Results, protocol st
 // validatePublicEndpointResults validates traceroute results for public endpoint tests
 func validatePublicEndpointResults(t *testing.T, results *result.Results, protocol, hostname string, port int) {
 	t.Helper()
+
+	jsonBytes, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		t.Logf("JMW Failed to marshal results to JSON: %v", err)
+	} else {
+		t.Logf("JMW Validating Traceroute Results:\n%s", string(jsonBytes))
+	}
 
 	// Validate basic parameters
 	assert.Equal(t, protocol, results.Protocol, "Protocol should match")
