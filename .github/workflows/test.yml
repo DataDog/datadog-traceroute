@@ -224,7 +224,7 @@ jobs:
         run: go build -o $BUILD_TARGET .
 
       # Setup fake network environment
-      - name: Setup fake network
+      - name: Setup fake network environment
         run: sudo bash testutils/router_setup.sh
 
       # Test different protocols against fake network
@@ -386,7 +386,8 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
+      - name: Run localhost tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
         continue-on-error: true
 
   public_endpoint_integration_tests:
@@ -408,7 +409,8 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+      - name: Run public endpoint tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
         continue-on-error: true
 
   fake_network_integration_tests:
@@ -427,5 +429,8 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestFakeNetwork
+      - name: Setup fake network environment
+        run: sudo bash testutils/router_setup.sh
+      - name: Run fake network tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestFakeNetwork
         continue-on-error: true
