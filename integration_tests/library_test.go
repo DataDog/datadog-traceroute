@@ -120,6 +120,10 @@ func TestLocalhostTCP(t *testing.T) {
 	validateLocalhostResults(t, results, "tcp")
 }
 
+// JMWTHU add localhost SACK and PREFER_SACK
+
+// JMWTHU add public endpoint ICMP and UDP
+
 // TestPublicEndpointTCP tests TCP traceroute to GitHub (public endpoint) as a library
 func TestPublicEndpointTCP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
