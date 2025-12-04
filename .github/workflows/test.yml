@@ -366,9 +366,7 @@ jobs:
           bash testutils/validate_traceroute_json.sh "$OUTPUT"
         continue-on-error: true
 
-  ## JMWTHU split localhost/public endpoint
-  ## JMWTHU add linux fake network
-  integration_tests:
+  old_integration_tests:
     name: "Library Integration Tests"
     runs-on: ${{ matrix.os }}
     defaults:
@@ -412,4 +410,73 @@ jobs:
 
       - name: Test library TCP prefer_sack to GitHub
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPPreferSACK
+        continue-on-error: true
+
+  localhost_tests:
+    name: "localhost integration tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      - name: Test localhost
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
+        continue-on-error: true
+
+  public_endpoint_tests:
+    name: "public endpoint integration tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      - name: Test library TCP to GitHub
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+        continue-on-error: true
+
+  fake_network_tests:
+    name: "fake network integration tests"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SUDO_CMD: 'sudo'
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      - name: Test library TCP to GitHub
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestFakeNetwork
         continue-on-error: true

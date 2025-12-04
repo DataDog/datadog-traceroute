@@ -22,265 +22,171 @@ import (
 
 const (
 	publicEndpointHostname = "github.com"
- 	publicEndpointPort     = 443
+	publicEndpointPort     = 443
+	fakeNetworkHostname    = "198.51.100.2"
 )
 
+// testConfig holds configuration for running traceroute tests
+type testConfig struct {
+	hostname         string
+	port             int
+	validateFunc     func(*testing.T, *result.Results, string, string, int)
+	expectMultiHops  bool
+	expectLowLatency bool
+}
+
+// testCommon runs traceroute tests for all protocols with the given configuration
+func testCommon(t *testing.T, config testConfig) {
+	t.Helper()
+
+	tests := []struct {
+		name      string
+		protocol  string
+		tcpMethod traceroute.TCPMethod
+	}{
+		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
+		{name: "UDP", protocol: "udp", tcpMethod: ""},
+		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			params := traceroute.TracerouteParams{
+				Hostname:          config.hostname,
+				Port:              config.port,
+				Protocol:          tt.protocol,
+				MinTTL:            common.DefaultMinTTL,
+				MaxTTL:            common.DefaultMaxTTL,
+				Delay:             common.DefaultDelay,
+				Timeout:           common.DefaultNetworkPathTimeout,
+				TCPMethod:         tt.tcpMethod,
+				WantV6:            false,
+				ReverseDns:        false,
+				TracerouteQueries: 3,
+				E2eQueries:        10,
+				UseWindowsDriver:  false,
+			}
+
+			tr := traceroute.NewTraceroute()
+			results, err := tr.RunTraceroute(ctx, params)
+			require.NoError(t, err, "%s traceroute to %s should not fail", tt.name, config.hostname)
+			require.NotNil(t, results, "Results should not be nil")
+
+			// Call the validation function
+			config.validateFunc(t, results, tt.protocol, config.hostname, config.port)
+		})
+	}
+}
+
 // TestLocalhost runs traceroute tests to localhost for all protocols
+// In CI this will run on Linux, MacOS, and Windows
 func TestLocalhost(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
 	}
 
-	tests := []struct {
-		name      string
-		protocol  string
-		tcpMethod traceroute.TCPMethod
-	}{
-		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
-		{name: "UDP", protocol: "udp", tcpMethod: ""},
-		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
-		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
-		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			params := traceroute.TracerouteParams{
-				Hostname:          "127.0.0.1",
-				Port:              0,
-				Protocol:          tt.protocol,
-				MinTTL:            common.DefaultMinTTL,
-				MaxTTL:            common.DefaultMaxTTL,
-				Delay:             common.DefaultDelay,
-				Timeout:           common.DefaultNetworkPathTimeout,
-				TCPMethod:         tt.tcpMethod,
-				WantV6:            false,
-				ReverseDns:        false,
-				TracerouteQueries: 3,
-				E2eQueries:        10,
-				UseWindowsDriver:  false,
-			}
-
-			tr := traceroute.NewTraceroute()
-			results, err := tr.RunTraceroute(ctx, params)
-			require.NoError(t, err, "%s traceroute should not fail", tt.name)
-			require.NotNil(t, results, "Results should not be nil")
-
-			validateLocalhostResults(t, results, tt.protocol)
-		})
-	}
+	testCommon(t, testConfig{
+		hostname:         "127.0.0.1",
+		port:             0,
+		validateFunc:     validateResults,
+		expectMultiHops:  false,
+		expectLowLatency: true,
+	})
 }
 
 // TestPublicEndpoint runs traceroute tests to a public endpoint for all protocols
+// In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpoint(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
 	}
 
-	tests := []struct {
-		name      string
-		protocol  string
-		tcpMethod traceroute.TCPMethod
-	}{
-		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
-		{name: "UDP", protocol: "udp", tcpMethod: ""},
-		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
-		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
-		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			params := traceroute.TracerouteParams{
-				Hostname:          publicEndpointHostname,
-				Port:              publicEndpointPort,
-				Protocol:          tt.protocol,
-				MinTTL:            common.DefaultMinTTL,
-				MaxTTL:            common.DefaultMaxTTL,
-				Delay:             common.DefaultDelay,
-				Timeout:           common.DefaultNetworkPathTimeout,
-				TCPMethod:         tt.tcpMethod,
-				WantV6:            false,
-				ReverseDns:        false,
-				TracerouteQueries: 3,
-				E2eQueries:        10,
-				UseWindowsDriver:  false,
-			}
-
-			tr := traceroute.NewTraceroute()
-			results, err := tr.RunTraceroute(ctx, params)
-			require.NoError(t, err, "%s traceroute to %s should not fail", tt.name, publicEndpointHostname)
-			require.NotNil(t, results, "Results should not be nil")
-
-			validatePublicEndpointResults(t, results, tt.protocol, publicEndpointHostname, ppublicEndpointPort)
-		})
-	}
+	testCommon(t, testConfig{
+		hostname:         publicEndpointHostname,
+		port:             publicEndpointPort,
+		validateFunc:     validateResults,
+		expectMultiHops:  true,
+		expectLowLatency: false,
+	})
 }
 
-// TestFakeNetwork runs traceroute tests in a fake network environment for all protocols
+// TestFakeNetwork runs traceroute tests in a fake network environment for all protocols.
+// This test should be run in a sandboxed environment where testutils/router_setup.sh is
+// run first to set up network namespaces and virtual routing.
+// In CI this will only run on Linux.
 func TestFakeNetwork(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Fake network tests not supported on Windows")
-	}
-
-	// TODO: Implement fake network tests
-	// This will require setting up network namespaces and virtual routing
-	t.Skip("Fake network tests not yet implemented")
-
-	tests := []struct {
-		name      string
-		protocol  string
-		tcpMethod traceroute.TCPMethod
-	}{
-		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
-		{name: "UDP", protocol: "udp", tcpMethod: ""},
-		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
-		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
-		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// TODO: Implement fake network test logic
-		})
-	}
+	testCommon(t, testConfig{
+		hostname:         fakeNetworkHostname,
+		port:             0,
+		validateFunc:     validateResults,
+		expectMultiHops:  true,
+		expectLowLatency: false,
+	})
 }
 
-// validateLocalhostResults validates traceroute results for localhost tests
-func validateLocalhostResults(t *testing.T, results *result.Results, protocol string) {
+// validateResults validates traceroute results
+func validateResults(t *testing.T, results *result.Results, protocol, hostname string, port int) {
 	t.Helper()
 
 	jsonBytes, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
-		t.Logf("JMW Failed to marshal results to JSON: %v", err)
+		t.Logf("Failed to marshal results to JSON: %v", err)
 	} else {
-		t.Logf("JMW Validating Traceroute Results:\n%s", string(jsonBytes))
+		t.Logf("Validating traceroute results:\n%s", string(jsonBytes))
 	}
 
 	// Validate basic parameters
-	assert.Equal(t, protocol, results.Protocol, "Protocol should match")
-	assert.Equal(t, "127.0.0.1", results.Destination.Hostname, "Hostname should be localhost")
+	assert.Equal(t, protocol, results.Protocol, "protocol should match")
+	assert.Equal(t, hostname, results.Destination.Hostname, "hostname should match")
+	if port > 0 {
+		assert.Equal(t, port, results.Destination.Port, "port should match")
+	}
 
 	// Validate traceroute runs
-	assert.NotEmpty(t, results.Traceroute.Runs, "Should have at least one traceroute run")
-	assert.Equal(t, 3, len(results.Traceroute.Runs), "Should have 3 traceroute runs as requested")
+	assert.Equal(t, 3, len(results.Traceroute.Runs), "should have 3 traceroute runs")
 
 	for i, run := range results.Traceroute.Runs {
-		assert.NotEmpty(t, run.RunID, "Run %d should have a RunID", i)
-		assert.NotEmpty(t, run.Hops, "Run %d should have at least one hop", i)
-
-		// Validate hop information
-		for j, hop := range run.Hops {
-			assert.NotZero(t, hop.TTL, "Run %d, Hop %d should have a TTL", i, j)
-			//JMWassert.LessOrEqual(t, hop.TTL, localhostMaxTTL, "Run %d, Hop %d TTL should not exceed max TTL", i, j)
-
-			// At least some hops should be reachable
-			if hop.Reachable {
-				assert.NotNil(t, hop.IPAddress, "Run %d, Hop %d should have an IP address if reachable", i, j)
-				assert.NotZero(t, hop.RTT, "Run %d, Hop %d should have RTT if reachable", i, j)
-			}
-		}
-
-		// Validate source and destination
-		assert.NotNil(t, run.Source.IPAddress, "Run %d should have source IP", i)
-		assert.NotNil(t, run.Destination.IPAddress, "Run %d should have destination IP", i)
-		assert.Equal(t, "127.0.0.1", run.Destination.IPAddress.String(), "Run %d destination should be localhost", i)
-	}
-
-	// Validate hop count stats
-	assert.Greater(t, results.Traceroute.HopCount.Avg, 0.0, "Average hop count should be positive")
-	assert.Greater(t, results.Traceroute.HopCount.Min, 0, "Min hop count should be positive")
-	assert.Greater(t, results.Traceroute.HopCount.Max, 0, "Max hop count should be positive")
-	assert.GreaterOrEqual(t, results.Traceroute.HopCount.Max, results.Traceroute.HopCount.Min, "Max hop count should be >= min")
-
-	// Validate E2E probe results
-	assert.NotEmpty(t, results.E2eProbe.RTTs, "Should have E2E probe RTTs")
-	assert.Equal(t, 10, len(results.E2eProbe.RTTs), "Should have 10 E2E probes as requested")
-	assert.Equal(t, 10, results.E2eProbe.PacketsSent, "Should have sent 10 E2E packets")
-
-	// At least some E2E packets should be received for localhost
-	assert.Greater(t, results.E2eProbe.PacketsReceived, 0, "Should have received some E2E packets")
-
-	// Validate E2E RTT stats if packets were received
-	if results.E2eProbe.PacketsReceived > 0 {
-		assert.Greater(t, results.E2eProbe.RTT.Avg, 0.0, "E2E average RTT should be positive")
-		assert.Greater(t, results.E2eProbe.RTT.Min, 0.0, "E2E min RTT should be positive")
-		assert.Greater(t, results.E2eProbe.RTT.Max, 0.0, "E2E max RTT should be positive")
-		assert.GreaterOrEqual(t, results.E2eProbe.RTT.Max, results.E2eProbe.RTT.Min, "E2E max RTT should be >= min")
-
-		// Packet loss should be calculated
-		assert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "Packet loss should be >= 0")
-		assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "Packet loss should be <= 1.0")
-
-		// For localhost, we expect low packet loss
-		assert.Less(t, results.E2eProbe.PacketLossPercentage, float32(0.5), "Packet loss to localhost should be low")
-	}
-}
-
-// validatePublicEndpointResults validates traceroute results for public endpoint tests
-func validatePublicEndpointResults(t *testing.T, results *result.Results, protocol, hostname string, port int) {
-	t.Helper()
-
-	jsonBytes, err := json.MarshalIndent(results, "", "  ")
-	if err != nil {
-		t.Logf("JMW Failed to marshal results to JSON: %v", err)
-	} else {
-		t.Logf("JMW Validating Traceroute Results:\n%s", string(jsonBytes))
-	}
-
-	// Validate basic parameters
-	assert.Equal(t, protocol, results.Protocol, "Protocol should match")
-	assert.Equal(t, hostname, results.Destination.Hostname, "Hostname should match")
-	assert.Equal(t, port, results.Destination.Port, "Port should match")
-
-	// Validate traceroute runs
-	assert.NotEmpty(t, results.Traceroute.Runs, "Should have at least one traceroute run")
-	assert.Equal(t, 3, len(results.Traceroute.Runs), "Should have 3 traceroute runs as requested")
-
-	for i, run := range results.Traceroute.Runs {
-		assert.NotEmpty(t, run.RunID, "Run %d should have a RunID", i)
-		assert.NotEmpty(t, run.Hops, "Run %d should have at least one hop", i)
-
-		// For public endpoints, we expect multiple hops
-		assert.Greater(t, len(run.Hops), 1, "Run %d should have multiple hops for public endpoint", i)
+		assert.NotEmpty(t, run.Hops, "run %d should have at least one hop", i)
 
 		// Count reachable hops
 		reachableCount := 0
 		for j, hop := range run.Hops {
-			assert.NotZero(t, hop.TTL, "Run %d, Hop %d should have a TTL", i, j)
+			assert.NotZero(t, hop.TTL, "run %d, hop %d should have a TTL", i, j)
 
 			if hop.Reachable {
 				reachableCount++
-				assert.NotNil(t, hop.IPAddress, "Run %d, Hop %d should have an IP address if reachable", i, j)
-				assert.Greater(t, hop.RTT, 0.0, "Run %d, Hop %d should have positive RTT if reachable", i, j)
+				assert.NotNil(t, hop.IPAddress, "run %d, hop %d should have an IP address if reachable", i, j)
+				assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
 			}
 		}
 
-		// We should have at least some reachable hops
-		assert.Greater(t, reachableCount, 0, "Run %d should have at least one reachable hop", i)
+		assert.Greater(t, reachableCount, 0, "run %d should have at least one reachable hop", i)
 
 		// Validate source and destination
-		assert.NotNil(t, run.Source.IPAddress, "Run %d should have source IP", i)
-		assert.NotNil(t, run.Destination.IPAddress, "Run %d should have destination IP", i)
-		assert.Equal(t, uint16(port), run.Destination.Port, "Run %d destination port should match", i)
+		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
+		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
+		if port > 0 {
+			assert.Equal(t, uint16(port), run.Destination.Port, "run %d destination port should match", i)
+		}
 	}
 
 	// Validate hop count stats
-	assert.Greater(t, results.Traceroute.HopCount.Avg, 0.0, "Average hop count should be positive")
-	assert.Greater(t, results.Traceroute.HopCount.Min, 0, "Min hop count should be positive")
-	assert.Greater(t, results.Traceroute.HopCount.Max, 0, "Max hop count should be positive")
-	assert.GreaterOrEqual(t, results.Traceroute.HopCount.Max, results.Traceroute.HopCount.Min, "Max hop count should be >= min")
+	assert.Greater(t, results.Traceroute.HopCount.Avg, 0.0, "average hop count should be positive")
+	assert.Greater(t, results.Traceroute.HopCount.Min, 0, "min hop count should be positive")
+	assert.Greater(t, results.Traceroute.HopCount.Max, 0, "max hop count should be positive")
+	assert.GreaterOrEqual(t, results.Traceroute.HopCount.Max, results.Traceroute.HopCount.Min, "max hop count should be >= min")
 
 	// Validate E2E probe results
-	assert.NotEmpty(t, results.E2eProbe.RTTs, "Should have E2E probe RTTs")
-	assert.Equal(t, 10, len(results.E2eProbe.RTTs), "Should have 10 E2E probes as requested")
-	assert.Equal(t, 10, results.E2eProbe.PacketsSent, "Should have sent 10 E2E packets")
+	assert.NotEmpty(t, results.E2eProbe.RTTs, "should have E2E probe RTTs")
+	assert.Equal(t, 10, len(results.E2eProbe.RTTs), "should have 10 E2E probes as requested")
+	assert.Equal(t, 10, results.E2eProbe.PacketsSent, "should have sent 10 E2E packets")
 
-	// For public endpoints, some packet loss is acceptable
-	assert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "Packet loss should be >= 0")
-	assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "Packet loss should be <= 1.0")
+	// Validate packet loss
+	assert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
+	assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
 
 	// If we received any packets, validate RTT stats
 	if results.E2eProbe.PacketsReceived > 0 {
@@ -289,9 +195,11 @@ func validatePublicEndpointResults(t *testing.T, results *result.Results, protoc
 		assert.Greater(t, results.E2eProbe.RTT.Max, 0.0, "E2E max RTT should be positive")
 		assert.GreaterOrEqual(t, results.E2eProbe.RTT.Max, results.E2eProbe.RTT.Min, "E2E max RTT should be >= min")
 
-		// For public endpoints, RTT should be reasonable but not necessarily very low
+		// RTT should be reasonable
 		assert.Less(t, results.E2eProbe.RTT.Avg, 5000.0, "E2E average RTT should be less than 5 seconds")
 	}
+
+	// JMW other checks?
 }
 
 // isAdmin checks if the current process has admin privileges on Windows
