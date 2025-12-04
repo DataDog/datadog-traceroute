@@ -410,6 +410,9 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      matrix:
+        os: [macos-latest]
     env:
       SUDO_CMD: 'sudo'
     steps:
