@@ -51,10 +51,11 @@ func pickBpfDevice() (int, error) {
 }
 
 type BpfDevice struct {
-	fd       int
-	deadline time.Time
-	readBuf  []byte
-	pktBuf   []byte
+	fd         int
+	deadline   time.Time
+	readBuf    []byte
+	pktBuf     []byte
+	isLoopback bool
 }
 
 // Close implements Source.
@@ -132,13 +133,25 @@ func (b *BpfDevice) Read(buf []byte) (int, error) {
 			}
 		}
 
-		ethFrame, err := b.nextPacket()
+		linkFrame, err := b.nextPacket()
 		if err != nil {
 			return 0, err
 		}
-		payload, err = stripEthernetHeader(ethFrame)
-		if err != nil {
-			return 0, err
+
+		// BPF returns different link-layer headers depending on interface type:
+		// - Loopback interface (DLT_NULL): 4-byte address family header
+		// - Regular interfaces (DLT_EN10MB): 14-byte Ethernet header
+		if b.isLoopback {
+			// Skip the 4-byte DLT_NULL header to get to the IP packet
+			if len(linkFrame) < 4 {
+				return 0, fmt.Errorf("loopback packet too short: %d bytes", len(linkFrame))
+			}
+			payload = linkFrame[4:]
+		} else {
+			payload, err = stripEthernetHeader(linkFrame)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
 
@@ -158,6 +171,22 @@ func (b *BpfDevice) SetPacketFilter(_ PacketFilterSpec) error {
 }
 
 func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
+	// On macOS, net.Dial() to a loopback destination may return a non-loopback local address.
+	// Find the loopback interface directly so we attach BPF to the correct interface.
+	if targetIp.IsLoopback() {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return net.Interface{}, fmt.Errorf("deviceForTarget failed to get interfaces: %w", err)
+		}
+		// Look for the loopback interface (typically "lo0" on macOS)
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagLoopback != 0 {
+				return iface, nil
+			}
+		}
+		return net.Interface{}, fmt.Errorf("deviceForTarget couldn't find loopback interface for loopback target")
+	}
+
 	conn, err := net.Dial("udp", net.JoinHostPort(targetIp.String(), "53"))
 	if err != nil {
 		return net.Interface{}, fmt.Errorf("deviceForTarget failed to dial UDP: %w", err)
@@ -211,9 +240,9 @@ func NewBpfDevice(targetIp netip.Addr) (Source, error) {
 	}
 
 	return &BpfDevice{
-		fd:      fd,
-		readBuf: make([]byte, 4096),
-		// no packets yet
-		pktBuf: nil,
+		fd:         fd,
+		readBuf:    make([]byte, 4096),
+		pktBuf:     nil, // no packets yet
+		isLoopback: iface.Flags&net.FlagLoopback != 0,
 	}, nil
 }
