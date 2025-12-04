@@ -386,9 +386,7 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-
-      - name: Test localhost
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
+      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
         continue-on-error: true
 
   public_endpoint_integration_tests:
@@ -410,9 +408,7 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-
-      - name: Test library TCP to GitHub
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
         continue-on-error: true
 
   fake_network_integration_tests:
@@ -431,7 +427,5 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-
-      - name: Test library TCP to GitHub
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestFakeNetwork
+      - run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestFakeNetwork
         continue-on-error: true
