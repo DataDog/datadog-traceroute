@@ -41,15 +41,15 @@ var (
 	}
 
 	TCPSYNProtocol = []protocolTest{
-		{name:      "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
 	}
 
 	TCPSACKProtocol = []protocolTest{
-		{name:      "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
 	}
 
 	TCPPreferSACKProtocol = []protocolTest{
-		{name:      "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
+		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
 	// TCPProtocols defines all TCP protocol tests
