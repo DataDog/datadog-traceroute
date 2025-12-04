@@ -404,9 +404,9 @@ jobs:
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
         continue-on-error: true
 
-  public_endpoint_icmp_and_udp_integration_tests:
-    name: "Public Endpoint ICMP and UDP Integration Tests"
-    runs-on: macos-latest
+  public_endpoint_icmp_integration_tests:
+    name: "Public Endpoint ICMP Integration Tests"
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
@@ -424,11 +424,34 @@ jobs:
           go-version-file: "go.mod"
       - run: go mod tidy
       - name: Run public endpoint tests
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointICMP
         continue-on-error: true
 
-  public_endpoint_tcp_integration_tests:
-    name: "Public Endpoint TCP Integration Tests"
+  public_endpoint_udp_integration_tests:
+    name: "Public Endpoint UDP Integration Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [macos-latest]
+    env:
+      SUDO_CMD: 'sudo'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - run: go mod tidy
+      - name: Run public endpoint tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointUDP
+        continue-on-error: true
+
+  public_endpoint_tcp_syn_integration_tests:
+    name: "Public Endpoint TCP SYN nIntegration Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -447,7 +470,30 @@ jobs:
           go-version-file: "go.mod"
       - run: go mod tidy
       - name: Run public endpoint tests
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointSYN
+        continue-on-error: true
+
+  public_endpoint_tcp_prefer_sack_integration_tests:
+    name: "Public Endpoint TCP PreferSACK nIntegration Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - run: go mod tidy
+      - name: Run public endpoint tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointPreferSACK
         continue-on-error: true
 
   fake_network_integration_tests:

@@ -10,7 +10,6 @@ package integration_tests
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -34,21 +33,32 @@ type protocolTest struct {
 }
 
 var (
-	// ICMPAndUDPProtocols defines ICMP and UDP protocol tests
-	ICMPAndUDPProtocols = []protocolTest{
-		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
-		{name: "UDP", protocol: "udp", tcpMethod: ""},
+	ICMPProtocol = []protocolTest{
+		{name: "ICMP", protocol: "icmp"},
+	}
+	UDPProtocol = []protocolTest{
+		{name: "UDP", protocol: "udp"},
+	}
+
+	TCPSYNProtocol = []protocolTest{
+		{name:      "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
+	}
+
+	TCPSACKProtocol = []protocolTest{
+		{name:      "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
+	}
+
+	TCPPreferSACKProtocol = []protocolTest{
+		{name:      "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
 	// TCPProtocols defines all TCP protocol tests
-	TCPProtocols = []protocolTest{
+	AllProtocolsExceptSACK = []protocolTest{
+		{name: "ICMP", protocol: "icmp"},
+		{name: "UDP", protocol: "udp"},
 		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
-		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
 		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
-
-	// AllProtocols defines all protocol tests (ICMP, UDP, and TCP)
-	AllProtocols = append(append([]protocolTest{}, ICMPAndUDPProtocols...), TCPProtocols...)
 )
 
 // testConfig holds configuration for running traceroute tests
@@ -98,53 +108,69 @@ func testCommon(t *testing.T, config testConfig) {
 // TestLocalhost runs traceroute tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhost(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
 	testCommon(t, testConfig{
 		hostname:         "127.0.0.1",
 		port:             0,
-		protocols:        AllProtocols,
+		protocols:        AllProtocolsExceptSACK,
 		validateFunc:     validateResults,
 		expectMultiHops:  false,
 		expectLowLatency: true,
 	})
 }
 
-// TestPublicEndpointICMPAndUDP runs traceroute tests to a public endpoint for ICMP and UDP protocols
-// In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpointICMPAndUDP(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
+// TestPublicEndpointICMP runs traceroute tests to a public endpoint for ICMP protocol
+// In CI this will run on MacOS
+func TestPublicEndpointICMP(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
-		protocols:        ICMPAndUDPProtocols,
+		protocols:        ICMPProtocol,
 		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
 }
 
-// TestPublicEndpointTCP runs traceroute tests to a public endpoint for TCP protocols
-// In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpointTCP(t *testing.T) {
-	if runtime.GOOS == "windows" && !isAdmin() {
-		t.Skip("Test requires admin privileges on Windows")
-	}
-
+// TestPublicEndpointUDP runs traceroute tests to a public endpoint for UDP protocol
+// In CI this will run on MacOS
+func TestPublicEndpointUDP(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
-		protocols:        TCPProtocols,
+		protocols:        UDPProtocol,
 		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
 }
+
+// TestPublicEndpointTCPSYN runs traceroute tests to a public endpoint for TCP SYN protocol
+// In CI this will run on Linux, MacOS, and Windows
+func TestPublicEndpointTCPSYN(t *testing.T) {
+	testCommon(t, testConfig{
+		hostname:         publicEndpointHostname,
+		port:             publicEndpointPort,
+		protocols:        TCPSYNProtocol,
+		validateFunc:     validateResults,
+		expectMultiHops:  true,
+		expectLowLatency: false,
+	})
+}
+
+// TestPublicEndpointTCPPreferSACK runs traceroute tests to a public endpoint for TCP PreferSACK protocol
+// In CI this will run on Linux, MacOS, and Windows
+func TestPublicEndpointTCPPreferSACK(t *testing.T) {
+	testCommon(t, testConfig{
+		hostname:         publicEndpointHostname,
+		port:             publicEndpointPort,
+		protocols:        TCPPreferSACKProtocol,
+		validateFunc:     validateResults,
+		expectMultiHops:  true,
+		expectLowLatency: false,
+	})
+}
+
+// JMWTHU add SACK tests w/ expected failures
 
 // TestFakeNetwork runs traceroute tests in a fake network environment for all protocols.
 // This test should be run in a sandboxed environment where testutils/router_setup.sh is
@@ -154,7 +180,7 @@ func TestFakeNetwork(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         fakeNetworkHostname,
 		port:             0,
-		protocols:        AllProtocols,
+		protocols:        AllProtocolsExceptSACK,
 		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
@@ -218,6 +244,7 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 	assert.Equal(t, 10, len(results.E2eProbe.RTTs), "should have 10 E2E probes as requested")
 	assert.Equal(t, 10, results.E2eProbe.PacketsSent, "should have sent 10 E2E packets")
 
+	// JMWTHU can we validate 0% packet loss or is that too flaky?
 	// Validate packet loss
 	assert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
 	assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
@@ -234,14 +261,4 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 	}
 
 	// JMW other checks?
-}
-
-// isAdmin checks if the current process has admin privileges on Windows
-func isAdmin() bool {
-	if runtime.GOOS != "windows" {
-		return true // Not needed on non-Windows platforms
-	}
-	// For Windows, we'd need to check actual admin status
-	// For now, just assume it's being run with proper privileges
-	return true
 }
