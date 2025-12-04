@@ -367,42 +367,48 @@ jobs:
         continue-on-error: true
 
   # Temporarily disabled - TODO: re-enable integration tests
-  # integration_tests:
-  #   name: "Library Integration Tests"
-  #   runs-on: ${{ matrix.os }}
-  #   defaults:
-  #     run:
-  #       shell: bash
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest, windows-latest, macos-latest]
-  #   env:
-  #     SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0
-  #     - uses: actions/setup-go@v2
-  #       with:
-  #         go-version: 1.24.6
-  #     - run: go mod tidy
-  #
-  #     # Run localhost integration tests
-  #     - name: Test library localhost ICMP
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostICMP
-  #
-  #     - name: Test library localhost UDP
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostUDP
-  #
-  #     - name: Test library localhost TCP
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestLocalhostTCP
-  #
-  #     # Run public endpoint integration tests
-  #     - name: Test library TCP to GitHub
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCP
-  #
-  #     - name: Test library TCP SACK to GitHub
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCPSACK
-  #
-  #     - name: Test library TCP prefer_sack to GitHub
-  #       run: $SUDO_CMD go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCPPreferSACK
+  integration_tests:
+    name: "Library Integration Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.24.6
+      - run: go mod tidy
+
+      # Run localhost integration tests
+      - name: Test library localhost ICMP
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostICMP
+        continue-on-error: true
+
+      - name: Test library localhost UDP
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostUDP
+        continue-on-error: true
+
+      - name: Test library localhost TCP
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostTCP
+        continue-on-error: true
+
+      # Run public endpoint integration tests
+      - name: Test library TCP to GitHub
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCP
+        continue-on-error: true
+
+      - name: Test library TCP SACK to GitHub
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPSACK
+        continue-on-error: true
+
+      - name: Test library TCP prefer_sack to GitHub
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPPreferSACK
+        continue-on-error: true
