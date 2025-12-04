@@ -24,7 +24,7 @@ const (
 	testTimeout = 500 * time.Millisecond
 )
 
-// JMW go thru these tests, are they valid and worth testing?
+// JMWTHU go thru these tests, are they valid and worth testing?
 
 // TestInvalidProtocol tests that an invalid protocol is handled correctly
 func TestInvalidProtocol(t *testing.T) {

@@ -66,7 +66,6 @@ type testConfig struct {
 	hostname         string
 	port             int
 	protocols        []protocolTest
-	validateFunc     func(*testing.T, *result.Results, string, string, int)
 	expectMultiHops  bool
 	expectLowLatency bool
 }
@@ -99,8 +98,7 @@ func testCommon(t *testing.T, config testConfig) {
 			require.NoError(t, err, "%s traceroute to %s should not fail", tt.name, config.hostname)
 			require.NotNil(t, results, "Results should not be nil")
 
-			// Call the validation function
-			config.validateFunc(t, results, tt.protocol, config.hostname, config.port)
+			validateResults(t, results, tt.protocol, config.hostname, config.port)
 		})
 	}
 }
@@ -112,7 +110,6 @@ func TestLocalhost(t *testing.T) {
 		hostname:         "127.0.0.1",
 		port:             0,
 		protocols:        AllProtocolsExceptSACK,
-		validateFunc:     validateResults,
 		expectMultiHops:  false,
 		expectLowLatency: true,
 	})
@@ -125,7 +122,6 @@ func TestPublicEndpointICMP(t *testing.T) {
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
 		protocols:        ICMPProtocol,
-		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
@@ -138,7 +134,6 @@ func TestPublicEndpointUDP(t *testing.T) {
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
 		protocols:        UDPProtocol,
-		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
@@ -151,7 +146,6 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
 		protocols:        TCPSYNProtocol,
-		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
@@ -164,7 +158,6 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
 		protocols:        TCPPreferSACKProtocol,
-		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
@@ -181,7 +174,6 @@ func TestFakeNetwork(t *testing.T) {
 		hostname:         fakeNetworkHostname,
 		port:             0,
 		protocols:        AllProtocolsExceptSACK,
-		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
 	})
