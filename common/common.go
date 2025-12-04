@@ -81,6 +81,16 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 		return nil, nil, fmt.Errorf("invalid address type for %s: want %T, got %T", localAddr, localUDPAddr, localAddr)
 	}
 
+	// On macOS, net.Dial() to a loopback destination may return a non-loopback local address.
+	// Force the source to be a loopback address so packets can be properly routed.
+	if destIP.IsLoopback() && !localUDPAddr.IP.IsLoopback() {
+		if destIP.To4() != nil {
+			localUDPAddr.IP = net.IPv4(127, 0, 0, 1)
+		} else {
+			localUDPAddr.IP = net.IPv6loopback
+		}
+	}
+
 	return localUDPAddr, conn, nil
 }
 
