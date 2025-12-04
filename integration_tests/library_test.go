@@ -211,6 +211,17 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 
 		assert.Greater(t, reachableCount, 0, "run %d should have at least one reachable hop", i)
 
+		// Validate that the last hop is the destination and is reachable
+		destHop := run.GetDestinationHop()
+		assert.NotNil(t, destHop, "run %d should have a destination hop", i)
+		assert.True(t, destHop.Reachable, "run %d destination hop should be reachable", i)
+		assert.NotNil(t, destHop.IPAddress, "run %d destination hop should have an IP address", i)
+		assert.Greater(t, destHop.RTT, 0.0, "run %d destination hop should have positive RTT", i)
+
+		// Verify the destination hop IP matches the run's destination IP
+		assert.True(t, destHop.IPAddress.Equal(run.Destination.IPAddress),
+			"run %d destination hop IP should match run destination IP", i)
+
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
 		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
