@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -63,10 +64,10 @@ var (
 
 // testConfig holds configuration for running traceroute tests
 type testConfig struct {
-	hostname         string
-	port             int
-	protocols        []protocolTest
-	expectMultiHops  bool
+	hostname        string
+	port            int
+	protocols       []protocolTest
+	expectMultiHops bool
 }
 
 // testCommon runs traceroute tests for the specified protocols with the given configuration
@@ -83,7 +84,7 @@ func testCommon(t *testing.T, config testConfig) {
 				MinTTL:            common.DefaultMinTTL,
 				MaxTTL:            common.DefaultMaxTTL,
 				Delay:             common.DefaultDelay,
-				Timeout:           common.DefaultNetworkPathTimeout,
+				Timeout:           common.DefaultNetworkPathTimeout * time.Millisecond,
 				TCPMethod:         tt.tcpMethod,
 				WantV6:            false,
 				ReverseDns:        false,
@@ -106,10 +107,10 @@ func testCommon(t *testing.T, config testConfig) {
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhost(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         "127.0.0.1",
-		port:             0,
-		protocols:        AllProtocolsExceptSACK,
-		expectMultiHops:  false,
+		hostname:        "127.0.0.1",
+		port:            0,
+		protocols:       AllProtocolsExceptSACK,
+		expectMultiHops: false,
 	})
 }
 
@@ -117,10 +118,10 @@ func TestLocalhost(t *testing.T) {
 // In CI this will run on MacOS
 func TestPublicEndpointICMP(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         publicEndpointHostname,
-		port:             publicEndpointPort,
-		protocols:        ICMPProtocol,
-		expectMultiHops:  true,
+		hostname:        publicEndpointHostname,
+		port:            publicEndpointPort,
+		protocols:       ICMPProtocol,
+		expectMultiHops: true,
 	})
 }
 
@@ -128,10 +129,10 @@ func TestPublicEndpointICMP(t *testing.T) {
 // In CI this will run on MacOS
 func TestPublicEndpointUDP(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         publicEndpointHostname,
-		port:             publicEndpointPort,
-		protocols:        UDPProtocol,
-		expectMultiHops:  true,
+		hostname:        publicEndpointHostname,
+		port:            publicEndpointPort,
+		protocols:       UDPProtocol,
+		expectMultiHops: true,
 	})
 }
 
@@ -139,10 +140,10 @@ func TestPublicEndpointUDP(t *testing.T) {
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPSYN(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         publicEndpointHostname,
-		port:             publicEndpointPort,
-		protocols:        TCPSYNProtocol,
-		expectMultiHops:  true,
+		hostname:        publicEndpointHostname,
+		port:            publicEndpointPort,
+		protocols:       TCPSYNProtocol,
+		expectMultiHops: true,
 	})
 }
 
@@ -150,10 +151,10 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         publicEndpointHostname,
-		port:             publicEndpointPort,
-		protocols:        TCPPreferSACKProtocol,
-		expectMultiHops:  true,
+		hostname:        publicEndpointHostname,
+		port:            publicEndpointPort,
+		protocols:       TCPPreferSACKProtocol,
+		expectMultiHops: true,
 	})
 }
 
@@ -165,10 +166,10 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 // In CI this will only run on Linux.
 func TestFakeNetwork(t *testing.T) {
 	testCommon(t, testConfig{
-		hostname:         fakeNetworkHostname,
-		port:             0,
-		protocols:        AllProtocolsExceptSACK,
-		expectMultiHops:  true,
+		hostname:        fakeNetworkHostname,
+		port:            0,
+		protocols:       AllProtocolsExceptSACK,
+		expectMultiHops: true,
 	})
 }
 
