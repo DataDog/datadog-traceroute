@@ -67,7 +67,6 @@ type testConfig struct {
 	port             int
 	protocols        []protocolTest
 	expectMultiHops  bool
-	expectLowLatency bool
 }
 
 // testCommon runs traceroute tests for the specified protocols with the given configuration
@@ -111,7 +110,6 @@ func TestLocalhost(t *testing.T) {
 		port:             0,
 		protocols:        AllProtocolsExceptSACK,
 		expectMultiHops:  false,
-		expectLowLatency: true,
 	})
 }
 
@@ -123,7 +121,6 @@ func TestPublicEndpointICMP(t *testing.T) {
 		port:             publicEndpointPort,
 		protocols:        ICMPProtocol,
 		expectMultiHops:  true,
-		expectLowLatency: false,
 	})
 }
 
@@ -135,7 +132,6 @@ func TestPublicEndpointUDP(t *testing.T) {
 		port:             publicEndpointPort,
 		protocols:        UDPProtocol,
 		expectMultiHops:  true,
-		expectLowLatency: false,
 	})
 }
 
@@ -147,7 +143,6 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 		port:             publicEndpointPort,
 		protocols:        TCPSYNProtocol,
 		expectMultiHops:  true,
-		expectLowLatency: false,
 	})
 }
 
@@ -159,7 +154,6 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 		port:             publicEndpointPort,
 		protocols:        TCPPreferSACKProtocol,
 		expectMultiHops:  true,
-		expectLowLatency: false,
 	})
 }
 
@@ -175,7 +169,6 @@ func TestFakeNetwork(t *testing.T) {
 		port:             0,
 		protocols:        AllProtocolsExceptSACK,
 		expectMultiHops:  true,
-		expectLowLatency: false,
 	})
 }
 
