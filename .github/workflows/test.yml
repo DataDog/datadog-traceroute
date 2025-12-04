@@ -17,10 +17,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
       - run: go test -tags=test -v ./...
         continue-on-error: true # JMWRM
@@ -40,10 +40,10 @@ jobs:
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Build the CLI binary
@@ -92,10 +92,10 @@ jobs:
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
       MAX_PACKET_LOSS_PCT: ${{ matrix.os == 'windows-latest' && '0.9' || '0.0' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Build the CLI binary
@@ -158,10 +158,10 @@ jobs:
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Build the CLI binary
@@ -203,10 +203,10 @@ jobs:
       BUILD_TARGET: datadog-traceroute
       EXECUTABLE: ./datadog-traceroute
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Build the CLI binary
@@ -272,10 +272,10 @@ jobs:
       BUILD_TARGET: "datadog-traceroute.exe"
       EXECUTABLE: "./datadog-traceroute.exe"
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Build the CLI binary
@@ -367,10 +367,10 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       # Run localhost integration tests
@@ -411,10 +411,10 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       - name: Test localhost
@@ -433,10 +433,10 @@ jobs:
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       - name: Test library TCP to GitHub
@@ -452,10 +452,10 @@ jobs:
     env:
       SUDO_CMD: 'sudo'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
       - run: go mod tidy
 
       - name: Test library TCP to GitHub
