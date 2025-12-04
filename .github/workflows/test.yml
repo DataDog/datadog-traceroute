@@ -76,7 +76,7 @@ jobs:
         run: $EXECUTABLE --windows-driver --help
         continue-on-error: true
 
-  localhost_tests:
+  localhost_cli_tests:
     name: "Localhost Network Tests"
     runs-on: ${{ matrix.os }}
     defaults:
@@ -143,7 +143,56 @@ jobs:
         #continue-on-error: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
 
-  fake_network_tests:
+  public_endpoint_cli_tests:
+    name: "Public Endpoint Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Test different protocols against reliable public endpoints
+      - name: Test TCP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        # JMW confirm success on linux, mac, failure on windows
+        # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
+        continue-on-error: true
+
+      - name: Test TCP prefer_sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+  fake_network_cli_tests:
     name: "Fake Network Tests"
     runs-on: ubuntu-latest
     defaults:
@@ -206,55 +255,7 @@ jobs:
           bash testutils/validate_traceroute_json.sh "$OUTPUT"
         continue-on-error: true
 
-  public_endpoint_tests:
-    name: "Public Endpoint Tests"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v2
-      - run: go mod tidy
-
-      # Build the CLI binary
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
-
-      # Test different protocols against reliable public endpoints
-      - name: Test TCP traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: true
-
-      - name: Test TCP sack traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        # JMW confirm success on linux, mac, failure on windows
-        # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
-        continue-on-error: true
-
-      - name: Test TCP prefer_sack traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: true
-
+  #JMWTHU
   windows_driver_tests:
     name: "Windows Driver Tests"
     runs-on: ${{ matrix.os }}
@@ -398,7 +399,7 @@ jobs:
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPPreferSACK
         continue-on-error: true
 
-  localhost_tests:
+  localhost_integration_tests:
     name: "localhost integration tests"
     runs-on: ${{ matrix.os }}
     defaults:
@@ -420,7 +421,7 @@ jobs:
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
         continue-on-error: true
 
-  public_endpoint_tests:
+  public_endpoint_integration_tests:
     name: "public endpoint integration tests"
     runs-on: ${{ matrix.os }}
     defaults:
@@ -442,7 +443,7 @@ jobs:
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
         continue-on-error: true
 
-  fake_network_tests:
+  fake_network_integration_tests:
     name: "fake network integration tests"
     runs-on: ubuntu-latest
     defaults:
