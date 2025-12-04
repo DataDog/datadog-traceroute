@@ -21,6 +21,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
       - run: go test -tags=test -v ./...
         continue-on-error: true # JMWRM
@@ -44,6 +46,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Build the CLI binary
@@ -96,6 +100,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Build the CLI binary
@@ -162,6 +168,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Build the CLI binary
@@ -207,6 +215,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Build the CLI binary
@@ -276,6 +286,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Build the CLI binary
@@ -371,6 +383,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       # Run localhost integration tests
@@ -415,6 +429,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       - name: Test localhost
@@ -437,6 +453,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       - name: Test library TCP to GitHub
@@ -450,12 +468,14 @@ jobs:
       run:
         shell: bash
     env:
-      SUDO_CMD: 'sudo'
+      SUDO_CMD: "sudo"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - run: go mod tidy
 
       - name: Test library TCP to GitHub
