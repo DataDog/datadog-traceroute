@@ -24,6 +24,8 @@ func NewTraceroute() *Traceroute {
 }
 
 func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
+	log.Infof("Running traceroute with params: %+v", params)
+
 	destinationPort := params.Port
 	if destinationPort == 0 {
 		destinationPort = common.DefaultPort

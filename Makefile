@@ -2,6 +2,14 @@
 build:
 	go build .
 
+.PHONY: build-server
+build-server:
+	go build -o datadog-traceroute-server ./cmd/traceroute-server
+
+.PHONY: run-server
+run-server:
+	sudo go run ./cmd/traceroute-server
+
 .PHONY: test
 test:
 	go test ./...
