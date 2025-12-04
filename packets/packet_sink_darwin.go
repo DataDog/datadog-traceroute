@@ -9,15 +9,19 @@ package packets
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/netip"
+	"os"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
 
 // sinkDarwin is an implementation of the packet Sink interface for darwin
 type sinkDarwin struct {
-	fd       int
+	sock     *os.File
+	rawConn  syscall.RawConn
 	writeBuf []byte
 }
 
@@ -51,8 +55,16 @@ func NewSinkDarwin(addr netip.Addr) (Sink, error) {
 		}
 	}
 
+	sock := os.NewFile(uintptr(fd), "")
+	rawConn, err := sock.SyscallConn()
+	if err != nil {
+		sock.Close()
+		return nil, fmt.Errorf("failed to create SyscallConn(): %w", err)
+	}
+
 	return &sinkDarwin{
-		fd:       fd,
+		sock:     sock,
+		rawConn:  rawConn,
 		writeBuf: make([]byte, 4096),
 	}, nil
 }
@@ -97,23 +109,34 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 		if err != nil {
 			return fmt.Errorf("failed to strip IPv6 header: %w", err)
 		}
+		var controlErr error
 		// set the TTL via IPV6_HOPLIMIT
-		err = unix.SetsockoptInt(p.fd, unix.IPPROTO_IPV6, unix.IPV6_HOPLIMIT, int(ttl))
+		err = p.rawConn.Control(func(fd uintptr) {
+			controlErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_HOPLIMIT, int(ttl))
+		})
 		if err != nil {
-			return fmt.Errorf("failed to set IPV6_HOPLIMIT: %w", err)
+			return fmt.Errorf("failed to call Control() for IPV6_HOPLIMIT: %w", controlErr)
+		}
+		if controlErr != nil {
+			return fmt.Errorf("failed to set IPV6_HOPLIMIT: %w", controlErr)
 		}
 	default:
 		return fmt.Errorf("invalid address family %s", addr)
 	}
 
-	err = unix.Sendto(p.fd, sendBuf, 0, sa)
+	writeErr := p.rawConn.Write(func(fd uintptr) bool {
+		err = unix.Sendto(int(fd), sendBuf, 0, sa)
+		if err == nil {
+			return true
+		}
 
-	return err
+		return !(err == syscall.EAGAIN || err == syscall.EWOULDBLOCK)
+	})
+
+	return errors.Join(writeErr, err)
 }
 
 // Close closes the socket
 func (p *sinkDarwin) Close() error {
-	fd := p.fd
-	p.fd = 0
-	return unix.Close(fd)
+	return p.sock.Close()
 }

@@ -26,7 +26,7 @@ import (
 )
 
 type tcpTestCase struct {
-	filterConfig  func(server, client netip.AddrPort) TCPFilterConfig
+	filterConfig  func(server, client netip.AddrPort) FilterConfig
 	shouldCapture bool
 }
 
@@ -116,8 +116,8 @@ func doTestCase(t *testing.T, tc tcpTestCase) {
 		return nsErr
 	})
 	err = source.SetPacketFilter(PacketFilterSpec{
-		FilterType:      FilterTypeTCP,
-		TCPFilterConfig: cfg,
+		FilterType:   FilterTypeTCP,
+		FilterConfig: cfg,
 	})
 	require.NoError(t, err)
 
@@ -146,8 +146,8 @@ func doTestCase(t *testing.T, tc tcpTestCase) {
 }
 func TestTCPFilterMatch(t *testing.T) {
 	doTestCase(t, tcpTestCase{
-		filterConfig: func(server, client netip.AddrPort) TCPFilterConfig {
-			return TCPFilterConfig{Src: server, Dst: client}
+		filterConfig: func(server, client netip.AddrPort) FilterConfig {
+			return FilterConfig{Src: server, Dst: client}
 		},
 		shouldCapture: true,
 	})
@@ -164,8 +164,8 @@ func manglePort(ap netip.AddrPort) netip.AddrPort {
 
 func TestTCPFilterBadServerIP(t *testing.T) {
 	doTestCase(t, tcpTestCase{
-		filterConfig: func(server, client netip.AddrPort) TCPFilterConfig {
-			return TCPFilterConfig{Src: mangleIP(server), Dst: client}
+		filterConfig: func(server, client netip.AddrPort) FilterConfig {
+			return FilterConfig{Src: mangleIP(server), Dst: client}
 		},
 		shouldCapture: false,
 	})
@@ -173,8 +173,8 @@ func TestTCPFilterBadServerIP(t *testing.T) {
 
 func TestTCPFilterBadServerPort(t *testing.T) {
 	doTestCase(t, tcpTestCase{
-		filterConfig: func(server, client netip.AddrPort) TCPFilterConfig {
-			return TCPFilterConfig{Src: manglePort(server), Dst: client}
+		filterConfig: func(server, client netip.AddrPort) FilterConfig {
+			return FilterConfig{Src: manglePort(server), Dst: client}
 		},
 		shouldCapture: false,
 	})
@@ -182,8 +182,8 @@ func TestTCPFilterBadServerPort(t *testing.T) {
 
 func TestTCPFilterBadClientIP(t *testing.T) {
 	doTestCase(t, tcpTestCase{
-		filterConfig: func(server, client netip.AddrPort) TCPFilterConfig {
-			return TCPFilterConfig{Src: server, Dst: mangleIP(client)}
+		filterConfig: func(server, client netip.AddrPort) FilterConfig {
+			return FilterConfig{Src: server, Dst: mangleIP(client)}
 		},
 		shouldCapture: false,
 	})
@@ -191,8 +191,8 @@ func TestTCPFilterBadClientIP(t *testing.T) {
 
 func TestTCPFilterBadClientPort(t *testing.T) {
 	doTestCase(t, tcpTestCase{
-		filterConfig: func(server, client netip.AddrPort) TCPFilterConfig {
-			return TCPFilterConfig{Src: server, Dst: manglePort(client)}
+		filterConfig: func(server, client netip.AddrPort) FilterConfig {
+			return FilterConfig{Src: server, Dst: manglePort(client)}
 		},
 		shouldCapture: false,
 	})
