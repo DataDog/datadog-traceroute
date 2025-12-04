@@ -26,32 +26,46 @@ const (
 	fakeNetworkHostname    = "198.51.100.2"
 )
 
-// testConfig holds configuration for running traceroute tests
-type testConfig struct {
-	hostname         string
-	port             int
-	validateFunc     func(*testing.T, *result.Results, string, string, int)
-	expectMultiHops  bool
-	expectLowLatency bool
+// Protocol test configurations
+type protocolTest struct {
+	name      string
+	protocol  string
+	tcpMethod traceroute.TCPMethod
 }
 
-// testCommon runs traceroute tests for all protocols with the given configuration
-func testCommon(t *testing.T, config testConfig) {
-	t.Helper()
-
-	tests := []struct {
-		name      string
-		protocol  string
-		tcpMethod traceroute.TCPMethod
-	}{
+var (
+	// ICMPAndUDPProtocols defines ICMP and UDP protocol tests
+	ICMPAndUDPProtocols = []protocolTest{
 		{name: "ICMP", protocol: "icmp", tcpMethod: ""},
 		{name: "UDP", protocol: "udp", tcpMethod: ""},
+	}
+
+	// TCPProtocols defines all TCP protocol tests
+	TCPProtocols = []protocolTest{
 		{name: "TCP_SYN", protocol: "tcp", tcpMethod: traceroute.TCPConfigSYN},
 		{name: "TCP_SACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigSACK},
 		{name: "TCP_PreferSACK", protocol: "tcp", tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
-	for _, tt := range tests {
+	// AllProtocols defines all protocol tests (ICMP, UDP, and TCP)
+	AllProtocols = append(append([]protocolTest{}, ICMPAndUDPProtocols...), TCPProtocols...)
+)
+
+// testConfig holds configuration for running traceroute tests
+type testConfig struct {
+	hostname         string
+	port             int
+	protocols        []protocolTest
+	validateFunc     func(*testing.T, *result.Results, string, string, int)
+	expectMultiHops  bool
+	expectLowLatency bool
+}
+
+// testCommon runs traceroute tests for the specified protocols with the given configuration
+func testCommon(t *testing.T, config testConfig) {
+	t.Helper()
+
+	for _, tt := range config.protocols {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			params := traceroute.TracerouteParams{
@@ -91,15 +105,16 @@ func TestLocalhost(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         "127.0.0.1",
 		port:             0,
+		protocols:        AllProtocols,
 		validateFunc:     validateResults,
 		expectMultiHops:  false,
 		expectLowLatency: true,
 	})
 }
 
-// TestPublicEndpoint runs traceroute tests to a public endpoint for all protocols
+// TestPublicEndpointICMPAndUDP runs traceroute tests to a public endpoint for ICMP and UDP protocols
 // In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpoint(t *testing.T) {
+func TestPublicEndpointICMPAndUDP(t *testing.T) {
 	if runtime.GOOS == "windows" && !isAdmin() {
 		t.Skip("Test requires admin privileges on Windows")
 	}
@@ -107,6 +122,24 @@ func TestPublicEndpoint(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         publicEndpointHostname,
 		port:             publicEndpointPort,
+		protocols:        ICMPAndUDPProtocols,
+		validateFunc:     validateResults,
+		expectMultiHops:  true,
+		expectLowLatency: false,
+	})
+}
+
+// TestPublicEndpointTCP runs traceroute tests to a public endpoint for TCP protocols
+// In CI this will run on Linux, MacOS, and Windows
+func TestPublicEndpointTCP(t *testing.T) {
+	if runtime.GOOS == "windows" && !isAdmin() {
+		t.Skip("Test requires admin privileges on Windows")
+	}
+
+	testCommon(t, testConfig{
+		hostname:         publicEndpointHostname,
+		port:             publicEndpointPort,
+		protocols:        TCPProtocols,
 		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,
@@ -121,6 +154,7 @@ func TestFakeNetwork(t *testing.T) {
 	testCommon(t, testConfig{
 		hostname:         fakeNetworkHostname,
 		port:             0,
+		protocols:        AllProtocols,
 		validateFunc:     validateResults,
 		expectMultiHops:  true,
 		expectLowLatency: false,

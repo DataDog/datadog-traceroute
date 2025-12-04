@@ -404,8 +404,28 @@ jobs:
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
         continue-on-error: true
 
-  public_endpoint_integration_tests:
-    name: "Public Endpoint Integration Tests"
+  public_endpoint_icmp_and_udp_integration_tests:
+    name: "Public Endpoint ICMP and UDP Integration Tests"
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      SUDO_CMD: 'sudo'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - run: go mod tidy
+      - name: Run public endpoint tests
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpoint
+        continue-on-error: true
+
+  public_endpoint_tcp_integration_tests:
+    name: "Public Endpoint TCP Integration Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
