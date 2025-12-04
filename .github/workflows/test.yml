@@ -177,6 +177,20 @@ jobs:
         run: go build -o $BUILD_TARGET .
 
       # Test different protocols against reliable public endpoints
+      - name: Test ICMP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test UDP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
       - name: Test TCP traceroute to GitHub
         run: |
           OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
