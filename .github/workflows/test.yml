@@ -81,7 +81,7 @@ jobs:
         continue-on-error: true
 
   localhost_cli_tests:
-    name: "Localhost Network Tests"
+    name: "Localhost CLI Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -150,7 +150,7 @@ jobs:
         continue-on-error: true
 
   public_endpoint_cli_tests:
-    name: "Public Endpoint Tests"
+    name: "Public Endpoint CLI Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -201,7 +201,7 @@ jobs:
         continue-on-error: true
 
   fake_network_cli_tests:
-    name: "Fake Network Tests"
+    name: "Fake Network CLI Tests"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -266,8 +266,8 @@ jobs:
         continue-on-error: true
 
   #JMWTHU
-  windows_driver_tests:
-    name: "Windows Driver Tests"
+  windows_driver_cli_tests:
+    name: "Windows Driver CLI Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -367,54 +367,8 @@ jobs:
           bash testutils/validate_traceroute_json.sh "$OUTPUT"
         continue-on-error: true
 
-  old_integration_tests:
-    name: "Library Integration Tests"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-      - run: go mod tidy
-
-      # Run localhost integration tests
-      - name: Test library localhost ICMP
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostICMP
-        continue-on-error: true
-
-      - name: Test library localhost UDP
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostUDP
-        continue-on-error: true
-
-      - name: Test library localhost TCP
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostTCP
-        continue-on-error: true
-
-      # Run public endpoint integration tests
-      - name: Test library TCP to GitHub
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCP
-        continue-on-error: true
-
-      - name: Test library TCP SACK to GitHub
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPSACK
-        continue-on-error: true
-
-      - name: Test library TCP prefer_sack to GitHub
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestPublicEndpointTCPPreferSACK
-        continue-on-error: true
-
   localhost_integration_tests:
-    name: "localhost integration tests"
+    name: "Localhost Integration Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -438,7 +392,7 @@ jobs:
         continue-on-error: true
 
   public_endpoint_integration_tests:
-    name: "public endpoint integration tests"
+    name: "Public Endpoint Integration Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -462,7 +416,7 @@ jobs:
         continue-on-error: true
 
   fake_network_integration_tests:
-    name: "fake network integration tests"
+    name: "Fake Network Integration Tests"
     runs-on: ubuntu-latest
     defaults:
       run:
