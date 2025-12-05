@@ -8,6 +8,7 @@
 package integration_tests
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -264,15 +265,15 @@ func testCLI(t *testing.T, config testConfig) {
 		"--proto", strings.ToLower(string(config.protocol)),
 		"--timeout", "500",
 		"--traceroute-queries", "3",
-		//JMW breaks unmarshalling JSON for validation"--verbose",
+		"--verbose",
 
 		//JMW
-  // --port int                 Destination port (default 33434)
-  //     --reverse-dns              Enrich IPs with Reverse DNS names
-  //     --skip-private-hops        Skip private hops
-  //     --source-public-ip         Enrich with Source Public IP
-  //     --tcp-method string        Method used to run TCP (syn, sack, prefer_sack) (default "syn")
-  //     --windows-driver           Use Windows driver for traceroute (Windows only)
+		// --port int                 Destination port (default 33434)
+		//     --reverse-dns              Enrich IPs with Reverse DNS names
+		//     --skip-private-hops        Skip private hops
+		//     --source-public-ip         Enrich with Source Public IP
+		//     --tcp-method string        Method used to run TCP (syn, sack, prefer_sack) (default "syn")
+		//     --windows-driver           Use Windows driver for traceroute (Windows only)
 	}
 	if config.port > 0 {
 		args = append(args, "--port", fmt.Sprintf("%d", config.port))
@@ -284,15 +285,25 @@ func testCLI(t *testing.T, config testConfig) {
 
 	cmd := exec.Command(binaryPath, args...)
 
-	output, err := cmd.CombinedOutput()
+	// Capture stdout (JSON output) and stderr (logs) separately
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
 	if err != nil {
-		t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
+		t.Fatalf("Failed to run datadog-traceroute: %v\nStderr: %s\nStdout: %s", err, stderr.String(), stdout.String())
+	}
+
+	// if stderr is not empty, log it for debugging
+	if stderr.Len() > 0 {
+		t.Logf("datadog-traceroute stderr:\n%s", stderr.String())
 	}
 
 	var results result.Results
-	err = json.Unmarshal(output, &results)
+	err = json.Unmarshal(stdout.Bytes(), &results)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
+		t.Fatalf("Failed to unmarshal JSON output: %v\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
 	}
 
 	validateResults(t, &results, config)
