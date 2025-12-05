@@ -100,7 +100,7 @@ func testCommon(t *testing.T, config testConfig) {
 	require.NoError(t, err, "%s traceroute to %s should not fail", config.protocol.name, config.hostname)
 	require.NotNil(t, results, "Results should not be nil")
 
-	validateResults(t, results, config.protocol.protocol, config.hostname, config.port)
+	validateResults(t, results, config)
 }
 
 // TestLocalhost runs traceroute tests to localhost for all protocols
@@ -265,7 +265,7 @@ func testCLI(t *testing.T, config testConfig) {
 	}
 
 	// Validate the results using the same validation function
-	validateResults(t, &results, config.protocol.protocol, config.hostname, config.port)
+	validateResults(t, &results, config)
 }
 
 // TestLocalhostCLI runs CLI tests to localhost for all protocols
@@ -284,7 +284,7 @@ func TestLocalhostCLI(t *testing.T) {
 }
 
 // validateResults validates traceroute results
-func validateResults(t *testing.T, results *result.Results, protocol, hostname string, port int) {
+func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	t.Helper()
 
 	jsonBytes, err := json.MarshalIndent(results, "", "  ")
@@ -295,12 +295,12 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 	}
 
 	// Validate basic parameters
-	assert.Equal(t, protocol, results.Protocol, "protocol should match")
-	assert.Equal(t, hostname, results.Destination.Hostname, "hostname should match")
+	assert.Equal(t, config.protocol.protocol, results.Protocol, "protocol should match")
+	assert.Equal(t, config.hostname, results.Destination.Hostname, "hostname should match")
 	// Port validation: ICMP doesn't use ports (it's a network layer protocol),
 	// so we only validate port for TCP and UDP protocols when port > 0
-	if port > 0 && protocol != "icmp" {
-		assert.Equal(t, port, results.Destination.Port, "port should match")
+	if config.port > 0 && config.protocol.protocol != "icmp" {
+		assert.Equal(t, config.port, results.Destination.Port, "port should match")
 	}
 
 	// Validate traceroute runs
@@ -336,8 +336,8 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
 		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
-		if port > 0 && protocol != "icmp" {
-			assert.Equal(t, uint16(port), run.Destination.Port, "run %d destination port should match", i)
+		if config.port > 0 && config.protocol.protocol != "icmp" {
+			assert.Equal(t, uint16(config.port), run.Destination.Port, "run %d destination port should match", i)
 		}
 	}
 
