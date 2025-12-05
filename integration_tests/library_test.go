@@ -265,22 +265,18 @@ func testCLI(t *testing.T, config testConfig) {
 		"--proto", strings.ToLower(string(config.protocol)),
 		"--timeout", "500",
 		"--traceroute-queries", "3",
-		"--verbose",
-
-		//JMW
-		// --port int                 Destination port (default 33434)
-		//     --reverse-dns              Enrich IPs with Reverse DNS names
-		//     --skip-private-hops        Skip private hops
-		//     --source-public-ip         Enrich with Source Public IP
-		//     --tcp-method string        Method used to run TCP (syn, sack, prefer_sack) (default "syn")
-		//     --windows-driver           Use Windows driver for traceroute (Windows only)
 	}
+
 	if config.port > 0 {
 		args = append(args, "--port", fmt.Sprintf("%d", config.port))
 	}
 	if config.tcpMethod != "" {
 		args = append(args, "--tcp-method", string(config.tcpMethod))
 	}
+	if testing.Verbose() {
+		args = append(args, "--verbose")
+	}
+
 	args = append(args, config.hostname)
 
 	cmd := exec.Command(binaryPath, args...)
