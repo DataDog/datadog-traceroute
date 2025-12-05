@@ -29,7 +29,7 @@ const (
 // Protocol test configurations
 type protocolTest struct {
 	name      string
-	protocol  string
+	protocol  string // JMWFRI --> traceroute.Protocol?
 	tcpMethod traceroute.TCPMethod
 }
 
@@ -187,7 +187,9 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 	// Validate basic parameters
 	assert.Equal(t, protocol, results.Protocol, "protocol should match")
 	assert.Equal(t, hostname, results.Destination.Hostname, "hostname should match")
-	if port > 0 {
+	// Port validation: ICMP doesn't use ports (it's a network layer protocol),
+	// so we only validate port for TCP and UDP protocols when port > 0
+	if port > 0 && protocol != "icmp" {
 		assert.Equal(t, port, results.Destination.Port, "port should match")
 	}
 
@@ -225,7 +227,7 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
 		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
-		if port > 0 {
+		if port > 0 && protocol != "icmp" {
 			assert.Equal(t, uint16(port), run.Destination.Port, "run %d destination port should match", i)
 		}
 	}
