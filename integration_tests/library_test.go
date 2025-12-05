@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,57 +51,52 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-// Protocol test configurations
-type protocolTest struct {
-	protocol  traceroute.Protocol
-	tcpMethod traceroute.TCPMethod
+// testConfig holds configuration for running traceroute tests
+type testConfig struct {
+	hostname               string
+	port                   int
+	protocol               traceroute.Protocol
+	tcpMethod              traceroute.TCPMethod
+	expectIntermediateHops bool
 }
 
 // testName returns a test name combining protocol and TCP method
-func (p protocolTest) testName() string {
-	name := string(p.protocol)
-	if p.tcpMethod != "" {
-		name += "_" + string(p.tcpMethod)
+func (c testConfig) testName() string {
+	name := string(c.protocol)
+	if c.tcpMethod != "" {
+		name += "_" + string(c.tcpMethod)
 	}
 	return name
 }
 
 var (
-	ICMPProtocol = []protocolTest{
+	ICMPProtocol = []testConfig{
 		{protocol: traceroute.ProtocolICMP},
 	}
-	UDPProtocol = []protocolTest{
+	UDPProtocol = []testConfig{
 		{protocol: traceroute.ProtocolUDP},
 	}
 
-	TCPSYNProtocol = []protocolTest{
+	TCPSYNProtocol = []testConfig{
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigSYN},
 	}
 
-	TCPSACKProtocol = []protocolTest{
+	TCPSACKProtocol = []testConfig{
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigSACK},
 	}
 
-	TCPPreferSACKProtocol = []protocolTest{
+	TCPPreferSACKProtocol = []testConfig{
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 
-	// TCPProtocols defines all TCP protocol tests
-	AllProtocolsExceptSACK = []protocolTest{
+	// AllProtocolsExceptSACK defines all protocol tests except SACK
+	AllProtocolsExceptSACK = []testConfig{
 		{protocol: traceroute.ProtocolICMP},
 		{protocol: traceroute.ProtocolUDP},
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigSYN},
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 )
-
-// testConfig holds configuration for running traceroute tests
-type testConfig struct {
-	hostname               string
-	port                   int
-	protocol               protocolTest
-	expectIntermediateHops bool
-}
 
 // testCommon runs a library traceroute test with the given configuration
 func testCommon(t *testing.T, config testConfig) {
@@ -110,12 +106,12 @@ func testCommon(t *testing.T, config testConfig) {
 	params := traceroute.TracerouteParams{
 		Hostname:          config.hostname,
 		Port:              config.port,
-		Protocol:          string(config.protocol.protocol),
+		Protocol:          string(config.protocol),
 		MinTTL:            common.DefaultMinTTL,
 		MaxTTL:            common.DefaultMaxTTL,
 		Delay:             common.DefaultDelay,
 		Timeout:           common.DefaultNetworkPathTimeout * time.Millisecond,
-		TCPMethod:         config.protocol.tcpMethod,
+		TCPMethod:         config.tcpMethod,
 		WantV6:            false,
 		ReverseDns:        false,
 		TracerouteQueries: 3,
@@ -125,7 +121,7 @@ func testCommon(t *testing.T, config testConfig) {
 
 	tr := traceroute.NewTraceroute()
 	results, err := tr.RunTraceroute(ctx, params)
-	require.NoError(t, err, "%s traceroute to %s should not fail", config.protocol.testName(), config.hostname)
+	require.NoError(t, err, "%s traceroute to %s should not fail", config.testName(), config.hostname)
 	require.NotNil(t, results, "Results should not be nil")
 
 	validateResults(t, results, config)
@@ -134,14 +130,13 @@ func testCommon(t *testing.T, config testConfig) {
 // TestLocalhost runs traceroute tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhost(t *testing.T) {
-	for _, protocol := range AllProtocolsExceptSACK {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               "127.0.0.1",
-				port:                   0,
-				protocol:               protocol,
-				expectIntermediateHops: false,
-			})
+	for _, baseConfig := range AllProtocolsExceptSACK {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = "127.0.0.1"
+			config.port = 0
+			config.expectIntermediateHops = false
+			testCommon(t, config)
 		})
 	}
 }
@@ -149,14 +144,13 @@ func TestLocalhost(t *testing.T) {
 // TestPublicEndpointICMP runs traceroute tests to a public endpoint for ICMP protocol
 // In CI this will run on MacOS
 func TestPublicEndpointICMP(t *testing.T) {
-	for _, protocol := range ICMPProtocol {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               publicEndpointHostname,
-				port:                   publicEndpointPort,
-				protocol:               protocol,
-				expectIntermediateHops: false,
-			})
+	for _, baseConfig := range ICMPProtocol {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = publicEndpointHostname
+			config.port = publicEndpointPort
+			config.expectIntermediateHops = false
+			testCommon(t, config)
 		})
 	}
 }
@@ -164,14 +158,13 @@ func TestPublicEndpointICMP(t *testing.T) {
 // TestPublicEndpointUDP runs traceroute tests to a public endpoint for UDP protocol
 // In CI this will run on MacOS
 func TestPublicEndpointUDP(t *testing.T) {
-	for _, protocol := range UDPProtocol {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               publicEndpointHostname,
-				port:                   publicEndpointPort,
-				protocol:               protocol,
-				expectIntermediateHops: false,
-			})
+	for _, baseConfig := range UDPProtocol {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = publicEndpointHostname
+			config.port = publicEndpointPort
+			config.expectIntermediateHops = false
+			testCommon(t, config)
 		})
 	}
 }
@@ -179,14 +172,13 @@ func TestPublicEndpointUDP(t *testing.T) {
 // TestPublicEndpointTCPSYN runs traceroute tests to a public endpoint for TCP SYN protocol
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPSYN(t *testing.T) {
-	for _, protocol := range TCPSYNProtocol {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               publicEndpointHostname,
-				port:                   publicEndpointPort,
-				protocol:               protocol,
-				expectIntermediateHops: false,
-			})
+	for _, baseConfig := range TCPSYNProtocol {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = publicEndpointHostname
+			config.port = publicEndpointPort
+			config.expectIntermediateHops = false
+			testCommon(t, config)
 		})
 	}
 }
@@ -194,14 +186,13 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 // TestPublicEndpointTCPPreferSACK runs traceroute tests to a public endpoint for TCP PreferSACK protocol
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPPreferSACK(t *testing.T) {
-	for _, protocol := range TCPPreferSACKProtocol {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               publicEndpointHostname,
-				port:                   publicEndpointPort,
-				protocol:               protocol,
-				expectIntermediateHops: false,
-			})
+	for _, baseConfig := range TCPPreferSACKProtocol {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = publicEndpointHostname
+			config.port = publicEndpointPort
+			config.expectIntermediateHops = false
+			testCommon(t, config)
 		})
 	}
 }
@@ -213,14 +204,13 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 // run first to set up network namespaces and virtual routing.
 // In CI this will only run on Linux.
 func TestFakeNetwork(t *testing.T) {
-	for _, protocol := range AllProtocolsExceptSACK {
-		t.Run(protocol.testName(), func(t *testing.T) {
-			testCommon(t, testConfig{
-				hostname:               fakeNetworkHostname,
-				port:                   0,
-				protocol:               protocol,
-				expectIntermediateHops: true,
-			})
+	for _, baseConfig := range AllProtocolsExceptSACK {
+		t.Run(baseConfig.testName(), func(t *testing.T) {
+			config := baseConfig
+			config.hostname = fakeNetworkHostname
+			config.port = 0
+			config.expectIntermediateHops = true
+			testCommon(t, config)
 		})
 	}
 }
@@ -242,7 +232,7 @@ func getCLIBinaryPath(t *testing.T) string {
 		}
 
 		// Binary doesn't exist - build it (local dev scenario)
-		t.Log("Pre-built binary not found, building test binary...")
+		t.Log("Pre-built binary not found, building test binary")
 		binaryName := "datadog-traceroute-test"
 		cliBinaryPath = filepath.Join(projectRoot, binaryName)
 
@@ -274,7 +264,7 @@ func testCLI(t *testing.T, config testConfig) {
 	binaryPath := getCLIBinaryPath(t)
 
 	args := []string{
-		"--proto", string(config.protocol.protocol),
+		"--proto", strings.ToLower(string(config.protocol)),
 		"--max-ttl", "5",
 		"--traceroute-queries", "3",
 		"--e2e-queries", "10",
@@ -283,8 +273,8 @@ func testCLI(t *testing.T, config testConfig) {
 	if config.port > 0 {
 		args = append(args, "--port", fmt.Sprintf("%d", config.port))
 	}
-	if config.protocol.tcpMethod != "" {
-		args = append(args, "--tcp-method", string(config.protocol.tcpMethod))
+	if config.tcpMethod != "" {
+		args = append(args, "--tcp-method", string(config.tcpMethod))
 	}
 	args = append(args, config.hostname)
 
@@ -311,13 +301,33 @@ func TestLocalhostCLI(t *testing.T) {
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
-			protocol:               protocolTest{protocol: traceroute.ProtocolICMP},
+			protocol:               traceroute.ProtocolICMP,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolUDP,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigSYN,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigPreferSACK,
 			expectIntermediateHops: false,
 		},
 	}
 
 	for _, config := range testConfigs {
-		t.Run(config.protocol.testName(), func(t *testing.T) {
+		t.Run(config.testName(), func(t *testing.T) {
 			testCLI(t, config)
 		})
 	}
@@ -335,11 +345,11 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	}
 
 	// Validate basic parameters
-	assert.Equal(t, string(config.protocol.protocol), results.Protocol, "protocol should match")
+	assert.Equal(t, strings.ToLower(string(config.protocol)), results.Protocol, "protocol should match")
 	assert.Equal(t, config.hostname, results.Destination.Hostname, "hostname should match")
 	// Port validation: ICMP doesn't use ports (it's a network layer protocol),
 	// so we only validate port for TCP and UDP protocols when port > 0
-	if config.port > 0 && config.protocol.protocol != traceroute.Protocol("icmp") {
+	if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
 		assert.Equal(t, config.port, results.Destination.Port, "port should match")
 	}
 
@@ -382,7 +392,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
 		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
-		if config.port > 0 && config.protocol.protocol != traceroute.Protocol("icmp") {
+		if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
 			assert.Equal(t, uint16(config.port), run.Destination.Port, "run %d destination port should match", i)
 		}
 	}
