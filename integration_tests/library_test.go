@@ -14,8 +14,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -223,7 +224,14 @@ func getCLIBinaryPath(t *testing.T) string {
 	cliBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
 
-		preBuiltBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
+		// Determine binary name based on OS
+		binaryName := "datadog-traceroute"
+		if runtime.GOOS == "windows" {
+			binaryName = "datadog-traceroute.exe"
+		}
+
+		// Check for pre-built binary (CI scenario)
+		preBuiltBinaryPath := filepath.Join(projectRoot, binaryName)
 		if _, err := os.Stat(preBuiltBinaryPath); err == nil {
 			t.Log("Using pre-built binary from CI")
 			cliBinaryPath = preBuiltBinaryPath
@@ -232,10 +240,13 @@ func getCLIBinaryPath(t *testing.T) string {
 		}
 
 		t.Log("Pre-built binary not found, building test binary")
-		binaryName := "datadog-traceroute-test"
-		cliBinaryPath = filepath.Join(projectRoot, binaryName)
+		testBinaryName := "datadog-traceroute-test"
+		if runtime.GOOS == "windows" {
+			testBinaryName = "datadog-traceroute-test.exe"
+		}
+		cliBinaryPath = filepath.Join(projectRoot, testBinaryName)
 
-		buildCmd := exec.Command("go", "build", "-o", binaryName, ".")
+		buildCmd := exec.Command("go", "build", "-o", testBinaryName, ".")
 		buildCmd.Dir = projectRoot
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
