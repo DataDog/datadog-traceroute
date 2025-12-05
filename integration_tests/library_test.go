@@ -245,8 +245,9 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 
 	// JMWTHU can we validate 0% packet loss or is that too flaky?
 	// Validate packet loss
-	assert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
-	assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
+	//JMWassert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
+	//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
+	assert.Equal(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be == 0.0")
 
 	// If we received any packets, validate RTT stats
 	if results.E2eProbe.PacketsReceived > 0 {
