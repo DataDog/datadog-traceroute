@@ -70,96 +70,112 @@ var (
 type testConfig struct {
 	hostname        string
 	port            int
-	protocols       []protocolTest
+	protocol        protocolTest
 	expectMultiHops bool
 }
 
-// testCommon runs traceroute tests for the specified protocols with the given configuration
+// testCommon runs a library traceroute test with the given configuration
 func testCommon(t *testing.T, config testConfig) {
 	t.Helper()
 
-	for _, tt := range config.protocols {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			params := traceroute.TracerouteParams{
-				Hostname:          config.hostname,
-				Port:              config.port,
-				Protocol:          tt.protocol,
-				MinTTL:            common.DefaultMinTTL,
-				MaxTTL:            common.DefaultMaxTTL,
-				Delay:             common.DefaultDelay,
-				Timeout:           common.DefaultNetworkPathTimeout * time.Millisecond,
-				TCPMethod:         tt.tcpMethod,
-				WantV6:            false,
-				ReverseDns:        false,
-				TracerouteQueries: 3,
-				E2eQueries:        10,
-				UseWindowsDriver:  false,
-			}
-
-			tr := traceroute.NewTraceroute()
-			results, err := tr.RunTraceroute(ctx, params)
-			require.NoError(t, err, "%s traceroute to %s should not fail", tt.name, config.hostname)
-			require.NotNil(t, results, "Results should not be nil")
-
-			validateResults(t, results, tt.protocol, config.hostname, config.port)
-		})
+	ctx := context.Background()
+	params := traceroute.TracerouteParams{
+		Hostname:          config.hostname,
+		Port:              config.port,
+		Protocol:          config.protocol.protocol,
+		MinTTL:            common.DefaultMinTTL,
+		MaxTTL:            common.DefaultMaxTTL,
+		Delay:             common.DefaultDelay,
+		Timeout:           common.DefaultNetworkPathTimeout * time.Millisecond,
+		TCPMethod:         config.protocol.tcpMethod,
+		WantV6:            false,
+		ReverseDns:        false,
+		TracerouteQueries: 3,
+		E2eQueries:        10,
+		UseWindowsDriver:  false,
 	}
+
+	tr := traceroute.NewTraceroute()
+	results, err := tr.RunTraceroute(ctx, params)
+	require.NoError(t, err, "%s traceroute to %s should not fail", config.protocol.name, config.hostname)
+	require.NotNil(t, results, "Results should not be nil")
+
+	validateResults(t, results, config.protocol.protocol, config.hostname, config.port)
 }
 
 // TestLocalhost runs traceroute tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhost(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        "127.0.0.1",
-		port:            0,
-		protocols:       AllProtocolsExceptSACK,
-		expectMultiHops: false,
-	})
+	for _, protocol := range AllProtocolsExceptSACK {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        "127.0.0.1",
+				port:            0,
+				protocol:        protocol,
+				expectMultiHops: false,
+			})
+		})
+	}
 }
 
 // TestPublicEndpointICMP runs traceroute tests to a public endpoint for ICMP protocol
 // In CI this will run on MacOS
 func TestPublicEndpointICMP(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        publicEndpointHostname,
-		port:            publicEndpointPort,
-		protocols:       ICMPProtocol,
-		expectMultiHops: true,
-	})
+	for _, protocol := range ICMPProtocol {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        publicEndpointHostname,
+				port:            publicEndpointPort,
+				protocol:        protocol,
+				expectMultiHops: true,
+			})
+		})
+	}
 }
 
 // TestPublicEndpointUDP runs traceroute tests to a public endpoint for UDP protocol
 // In CI this will run on MacOS
 func TestPublicEndpointUDP(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        publicEndpointHostname,
-		port:            publicEndpointPort,
-		protocols:       UDPProtocol,
-		expectMultiHops: true,
-	})
+	for _, protocol := range UDPProtocol {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        publicEndpointHostname,
+				port:            publicEndpointPort,
+				protocol:        protocol,
+				expectMultiHops: true,
+			})
+		})
+	}
 }
 
 // TestPublicEndpointTCPSYN runs traceroute tests to a public endpoint for TCP SYN protocol
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPSYN(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        publicEndpointHostname,
-		port:            publicEndpointPort,
-		protocols:       TCPSYNProtocol,
-		expectMultiHops: true,
-	})
+	for _, protocol := range TCPSYNProtocol {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        publicEndpointHostname,
+				port:            publicEndpointPort,
+				protocol:        protocol,
+				expectMultiHops: true,
+			})
+		})
+	}
 }
 
 // TestPublicEndpointTCPPreferSACK runs traceroute tests to a public endpoint for TCP PreferSACK protocol
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicEndpointTCPPreferSACK(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        publicEndpointHostname,
-		port:            publicEndpointPort,
-		protocols:       TCPPreferSACKProtocol,
-		expectMultiHops: true,
-	})
+	for _, protocol := range TCPPreferSACKProtocol {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        publicEndpointHostname,
+				port:            publicEndpointPort,
+				protocol:        protocol,
+				expectMultiHops: true,
+			})
+		})
+	}
 }
 
 // JMWTHU add SACK tests w/ expected failures
@@ -169,15 +185,19 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 // run first to set up network namespaces and virtual routing.
 // In CI this will only run on Linux.
 func TestFakeNetwork(t *testing.T) {
-	testCommon(t, testConfig{
-		hostname:        fakeNetworkHostname,
-		port:            0,
-		protocols:       AllProtocolsExceptSACK,
-		expectMultiHops: true,
-	})
+	for _, protocol := range AllProtocolsExceptSACK {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCommon(t, testConfig{
+				hostname:        fakeNetworkHostname,
+				port:            0,
+				protocol:        protocol,
+				expectMultiHops: true,
+			})
+		})
+	}
 }
 
-// testCLI runs CLI tests for the specified protocols with the given configuration
+// testCLI runs a CLI traceroute test with the given configuration
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
 
@@ -212,56 +232,55 @@ func testCLI(t *testing.T, config testConfig) {
 		defer os.Remove(binaryPath)
 	}
 
-	// Run tests for each protocol
-	for _, tt := range config.protocols {
-		t.Run(tt.name, func(t *testing.T) {
-			// Build command-line arguments
-			args := []string{
-				"--proto", tt.protocol,
-				"--max-ttl", "5",
-				"--traceroute-queries", "3",
-				"--e2e-queries", "10",
-				"--timeout", "500",
-			}
-			if config.port > 0 {
-				args = append(args, "--port", fmt.Sprintf("%d", config.port))
-			}
-			if tt.tcpMethod != "" {
-				args = append(args, "--tcp-method", string(tt.tcpMethod))
-			}
-			args = append(args, config.hostname)
-
-			// Run the command-line tool
-			// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
-			cmd := exec.Command(binaryPath, args...)
-
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
-			}
-
-			// Parse the JSON output
-			var results result.Results
-			err = json.Unmarshal(output, &results)
-			if err != nil {
-				t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
-			}
-
-			// Validate the results using the same validation function
-			validateResults(t, &results, tt.protocol, config.hostname, config.port)
-		})
+	// Build command-line arguments
+	args := []string{
+		"--proto", config.protocol.protocol,
+		"--max-ttl", "5",
+		"--traceroute-queries", "3",
+		"--e2e-queries", "10",
+		"--timeout", "500",
 	}
+	if config.port > 0 {
+		args = append(args, "--port", fmt.Sprintf("%d", config.port))
+	}
+	if config.protocol.tcpMethod != "" {
+		args = append(args, "--tcp-method", string(config.protocol.tcpMethod))
+	}
+	args = append(args, config.hostname)
+
+	// Run the command-line tool
+	// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
+	cmd := exec.Command(binaryPath, args...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
+	}
+
+	// Parse the JSON output
+	var results result.Results
+	err = json.Unmarshal(output, &results)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
+	}
+
+	// Validate the results using the same validation function
+	validateResults(t, &results, config.protocol.protocol, config.hostname, config.port)
 }
 
 // TestLocalhostCLI runs CLI tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhostCLI(t *testing.T) {
-	testCLI(t, testConfig{
-		hostname:        "127.0.0.1",
-		port:            0,
-		protocols:       AllProtocolsExceptSACK,
-		expectMultiHops: false,
-	})
+	for _, protocol := range AllProtocolsExceptSACK {
+		t.Run(protocol.name, func(t *testing.T) {
+			testCLI(t, testConfig{
+				hostname:        "127.0.0.1",
+				port:            0,
+				protocol:        protocol,
+				expectMultiHops: false,
+			})
+		})
+	}
 }
 
 // validateResults validates traceroute results
