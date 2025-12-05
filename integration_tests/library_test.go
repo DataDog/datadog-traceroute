@@ -35,7 +35,7 @@ var (
 	// CLI binary state for reuse across tests
 	cliBinaryPath         string
 	cliBinaryOnce         sync.Once
-	needsCliBinaryCleanup bool
+	cliBinaryNeedsCleanup bool
 )
 
 // TestMain runs before all tests and cleans up after all tests complete
@@ -217,9 +217,8 @@ func TestFakeNetwork(t *testing.T) {
 	}
 }
 
-// ensureCLIBinary ensures the CLI binary is built and returns its path
-// This function is thread-safe and will only build once even if called from multiple tests
-func ensureCLIBinary(t *testing.T) string {
+// getCLIBinaryPath returns the path to the CLI binary, building it if necessary
+func getCLIBinaryPath(t *testing.T) string {
 	t.Helper()
 
 	cliBinaryOnce.Do(func() {
@@ -230,7 +229,7 @@ func ensureCLIBinary(t *testing.T) string {
 		if _, err := os.Stat(preBuildBinaryPath); err == nil {
 			t.Log("Using pre-built binary from CI")
 			cliBinaryPath = preBuildBinaryPath
-			needsCliBinaryCleanup = false
+			cliBinaryNeedsCleanup = false
 			return
 		}
 
@@ -246,7 +245,7 @@ func ensureCLIBinary(t *testing.T) string {
 			t.Fatalf("Failed to build datadog-traceroute: %v\nOutput: %s", err, string(buildOutput))
 		}
 
-		needsCliBinaryCleanup = true
+		cliBinaryNeedsCleanup = true
 	})
 
 	return cliBinaryPath
@@ -255,7 +254,7 @@ func ensureCLIBinary(t *testing.T) string {
 // cleanupCLIBinary removes the CLI binary if it was built by tests
 // This is called automatically by TestMain after all tests complete
 func cleanupCLIBinary() {
-	if needsCliBinaryCleanup && cliBinaryPath != "" {
+	if cliBinaryNeedsCleanup && cliBinaryPath != "" {
 		os.Remove(cliBinaryPath)
 	}
 }
@@ -264,10 +263,8 @@ func cleanupCLIBinary() {
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
 
-	// Ensure binary is built (will use cached path if already built)
-	binaryPath := ensureCLIBinary(t)
+	binaryPath := getCLIBinaryPath(t)
 
-	// Build command-line arguments
 	args := []string{
 		"--proto", config.protocol.protocol,
 		"--max-ttl", "5",
@@ -283,8 +280,6 @@ func testCLI(t *testing.T, config testConfig) {
 	}
 	args = append(args, config.hostname)
 
-	// Run the command-line tool
-	// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
 	cmd := exec.Command(binaryPath, args...)
 
 	output, err := cmd.CombinedOutput()
@@ -292,14 +287,12 @@ func testCLI(t *testing.T, config testConfig) {
 		t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
 	}
 
-	// Parse the JSON output
 	var results result.Results
 	err = json.Unmarshal(output, &results)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
 	}
 
-	// Validate the results using the same validation function
 	validateResults(t, &results, config)
 }
 
