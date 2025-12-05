@@ -25,7 +25,6 @@ jobs:
           go-version-file: "go.mod"
       - run: go mod tidy
       - run: go test -tags=test -v ./...
-        continue-on-error: true # JMWRM
 
   basic_functionality_tests:
     name: "Basic CLI Tests"
@@ -428,30 +427,23 @@ jobs:
     strategy:
       matrix:
         include:
-          - test: ICMP
-            test_name: TestPublicEndpointICMP
+          - test: TestPublicEndpointICMP
             os: macos-latest
           # JMWFRI fails
           #- test: UDP
           #  test_name: TestPublicEndpointUDP
           #  os: macos-latest
-          - test: TCP SYN
-            test_name: TestPublicEndpointTCPSYN
+          - test: TestPublicEndpointTCPSYN
             os: ubuntu-latest
-          - test: TCP SYN
-            test_name: TestPublicEndpointTCPSYN
+          - test: TestPublicEndpointTCPSYN
             os: windows-latest
-          - test: TCP SYN
-            test_name: TestPublicEndpointTCPSYN
+          - test: TestPublicEndpointTCPSYN
             os: macos-latest
-          - test: TCP PreferSACK
-            test_name: TestPublicEndpointTCPPreferSACK
+          - test: TestPublicEndpointTCPPreferSACK
             os: ubuntu-latest
-          - test: TCP PreferSACK
-            test_name: TestPublicEndpointTCPPreferSACK
+          - test: TestPublicEndpointTCPPreferSACK
             os: windows-latest
-          - test: TCP PreferSACK
-            test_name: TestPublicEndpointTCPPreferSACK
+          - test: TestPublicEndpointTCPPreferSACK
             os: macos-latest
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
@@ -463,8 +455,8 @@ jobs:
         with:
           go-version-file: "go.mod"
       - run: go mod tidy
-      - name: Run public endpoint ${{ matrix.test }} tests
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run ${{ matrix.test_name }}
+      - name: Run ${{ matrix.test }} test
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run ${{ matrix.test }}
 
   fake_network_integration_tests:
     name: "Fake Network Integration Tests"
