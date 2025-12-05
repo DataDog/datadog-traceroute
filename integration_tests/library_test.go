@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,25 @@ const (
 	publicEndpointPort     = 443
 	fakeNetworkHostname    = "198.51.100.2"
 )
+
+var (
+	// CLI binary state for reuse across tests
+	cliBinaryPath         string
+	cliBinaryOnce         sync.Once
+	needsCliBinaryCleanup bool
+)
+
+// TestMain runs before all tests and cleans up after all tests complete
+func TestMain(m *testing.M) {
+	// Run all tests
+	exitCode := m.Run()
+
+	// Cleanup CLI binary if it was built
+	cleanupCLIBinary()
+
+	// Exit with the test result code
+	os.Exit(exitCode)
+}
 
 // Protocol test configurations
 type protocolTest struct {
@@ -197,26 +217,27 @@ func TestFakeNetwork(t *testing.T) {
 	}
 }
 
-// testCLI runs a CLI traceroute test with the given configuration
-func testCLI(t *testing.T, config testConfig) {
+// ensureCLIBinary ensures the CLI binary is built and returns its path
+// This function is thread-safe and will only build once even if called from multiple tests
+func ensureCLIBinary(t *testing.T) string {
 	t.Helper()
 
-	// Get or build the binary
-	projectRoot := filepath.Join("..")
-	var binaryPath string
-	var needsCleanup bool
+	cliBinaryOnce.Do(func() {
+		projectRoot := filepath.Join("..")
 
-	// Check if pre-built binary exists (CI scenario with localhost_cli_tests job)
-	preBuildBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
-	if _, err := os.Stat(preBuildBinaryPath); err == nil {
-		t.Log("Using pre-built binary from CI")
-		binaryPath = preBuildBinaryPath
-		needsCleanup = false
-	} else {
+		// Check if pre-built binary exists (CI scenario with localhost_cli_tests job)
+		preBuildBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
+		if _, err := os.Stat(preBuildBinaryPath); err == nil {
+			t.Log("Using pre-built binary from CI")
+			cliBinaryPath = preBuildBinaryPath
+			needsCliBinaryCleanup = false
+			return
+		}
+
 		// Binary doesn't exist - build it (local dev scenario)
 		t.Log("Pre-built binary not found, building test binary...")
 		binaryName := "datadog-traceroute-test"
-		binaryPath = filepath.Join(projectRoot, binaryName)
+		cliBinaryPath = filepath.Join(projectRoot, binaryName)
 
 		buildCmd := exec.Command("go", "build", "-o", binaryName, ".")
 		buildCmd.Dir = projectRoot
@@ -224,13 +245,27 @@ func testCLI(t *testing.T, config testConfig) {
 		if err != nil {
 			t.Fatalf("Failed to build datadog-traceroute: %v\nOutput: %s", err, string(buildOutput))
 		}
-		needsCleanup = true
-	}
 
-	// Clean up test binary if we built it
-	if needsCleanup {
-		defer os.Remove(binaryPath)
+		needsCliBinaryCleanup = true
+	})
+
+	return cliBinaryPath
+}
+
+// cleanupCLIBinary removes the CLI binary if it was built by tests
+// This is called automatically by TestMain after all tests complete
+func cleanupCLIBinary() {
+	if needsCliBinaryCleanup && cliBinaryPath != "" {
+		os.Remove(cliBinaryPath)
 	}
+}
+
+// testCLI runs a CLI traceroute test with the given configuration
+func testCLI(t *testing.T, config testConfig) {
+	t.Helper()
+
+	// Ensure binary is built (will use cached path if already built)
+	binaryPath := ensureCLIBinary(t)
 
 	// Build command-line arguments
 	args := []string{
