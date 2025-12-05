@@ -107,7 +107,7 @@ func testCommon(t *testing.T, config testConfig) {
 	params := traceroute.TracerouteParams{
 		Hostname:          config.hostname,
 		Port:              config.port,
-		Protocol:          string(config.protocol),
+		Protocol:          strings.ToLower(string(config.protocol)),
 		MinTTL:            common.DefaultMinTTL,
 		MaxTTL:            common.DefaultMaxTTL,
 		Delay:             common.DefaultDelay,
