@@ -222,16 +222,14 @@ func getCLIBinaryPath(t *testing.T) string {
 	cliBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
 
-		// Check if pre-built binary exists (CI scenario with localhost_cli_tests job)
-		preBuildBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
-		if _, err := os.Stat(preBuildBinaryPath); err == nil {
+		preBuiltBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
+		if _, err := os.Stat(preBuiltBinaryPath); err == nil {
 			t.Log("Using pre-built binary from CI")
-			cliBinaryPath = preBuildBinaryPath
+			cliBinaryPath = preBuiltBinaryPath
 			cliBinaryNeedsCleanup = false
 			return
 		}
 
-		// Binary doesn't exist - build it (local dev scenario)
 		t.Log("Pre-built binary not found, building test binary")
 		binaryName := "datadog-traceroute-test"
 		cliBinaryPath = filepath.Join(projectRoot, binaryName)
@@ -249,26 +247,32 @@ func getCLIBinaryPath(t *testing.T) string {
 	return cliBinaryPath
 }
 
-// cleanupCLIBinary removes the CLI binary if it was built by tests
-// This is called automatically by TestMain after all tests complete
 func cleanupCLIBinary() {
 	if cliBinaryNeedsCleanup && cliBinaryPath != "" {
 		os.Remove(cliBinaryPath)
 	}
 }
 
-// testCLI runs a CLI traceroute test with the given configuration
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
 
 	binaryPath := getCLIBinaryPath(t)
 
 	args := []string{
-		"--proto", strings.ToLower(string(config.protocol)),
-		"--max-ttl", "5",
-		"--traceroute-queries", "3",
 		"--e2e-queries", "10",
+		"--max-ttl", "5",
+		"--proto", strings.ToLower(string(config.protocol)),
 		"--timeout", "500",
+		"--traceroute-queries", "3",
+		//JMW breaks unmarshalling JSON for validation"--verbose",
+
+		//JMW
+  // --port int                 Destination port (default 33434)
+  //     --reverse-dns              Enrich IPs with Reverse DNS names
+  //     --skip-private-hops        Skip private hops
+  //     --source-public-ip         Enrich with Source Public IP
+  //     --tcp-method string        Method used to run TCP (syn, sack, prefer_sack) (default "syn")
+  //     --windows-driver           Use Windows driver for traceroute (Windows only)
 	}
 	if config.port > 0 {
 		args = append(args, "--port", fmt.Sprintf("%d", config.port))
