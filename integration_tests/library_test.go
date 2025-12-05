@@ -88,9 +88,9 @@ var (
 
 // testConfig holds configuration for running traceroute tests
 type testConfig struct {
-	hostname        string
-	port            int
-	protocol        protocolTest
+	hostname               string
+	port                   int
+	protocol               protocolTest
 	expectIntermediateHops bool
 }
 
@@ -129,9 +129,9 @@ func TestLocalhost(t *testing.T) {
 	for _, protocol := range AllProtocolsExceptSACK {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        "127.0.0.1",
-				port:            0,
-				protocol:        protocol,
+				hostname:               "127.0.0.1",
+				port:                   0,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -144,9 +144,9 @@ func TestPublicEndpointICMP(t *testing.T) {
 	for _, protocol := range ICMPProtocol {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        publicEndpointHostname,
-				port:            publicEndpointPort,
-				protocol:        protocol,
+				hostname:               publicEndpointHostname,
+				port:                   publicEndpointPort,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -159,9 +159,9 @@ func TestPublicEndpointUDP(t *testing.T) {
 	for _, protocol := range UDPProtocol {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        publicEndpointHostname,
-				port:            publicEndpointPort,
-				protocol:        protocol,
+				hostname:               publicEndpointHostname,
+				port:                   publicEndpointPort,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -174,9 +174,9 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 	for _, protocol := range TCPSYNProtocol {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        publicEndpointHostname,
-				port:            publicEndpointPort,
-				protocol:        protocol,
+				hostname:               publicEndpointHostname,
+				port:                   publicEndpointPort,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -189,9 +189,9 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 	for _, protocol := range TCPPreferSACKProtocol {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        publicEndpointHostname,
-				port:            publicEndpointPort,
-				protocol:        protocol,
+				hostname:               publicEndpointHostname,
+				port:                   publicEndpointPort,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -208,9 +208,9 @@ func TestFakeNetwork(t *testing.T) {
 	for _, protocol := range AllProtocolsExceptSACK {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCommon(t, testConfig{
-				hostname:        fakeNetworkHostname,
-				port:            0,
-				protocol:        protocol,
+				hostname:               fakeNetworkHostname,
+				port:                   0,
+				protocol:               protocol,
 				expectIntermediateHops: true,
 			})
 		})
@@ -309,9 +309,9 @@ func TestLocalhostCLI(t *testing.T) {
 	for _, protocol := range AllProtocolsExceptSACK {
 		t.Run(protocol.name, func(t *testing.T) {
 			testCLI(t, testConfig{
-				hostname:        "127.0.0.1",
-				port:            0,
-				protocol:        protocol,
+				hostname:               "127.0.0.1",
+				port:                   0,
+				protocol:               protocol,
 				expectIntermediateHops: false,
 			})
 		})
@@ -356,7 +356,13 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			}
 		}
 
-		assert.Greater(t, reachableCount, 0, "run %d should have at least one reachable hop", i)
+		// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
+		// Otherwise, we just need at least 1 reachable hop (the destination)
+		minReachableHops := 1
+		if config.expectIntermediateHops {
+			minReachableHops = 2
+		}
+		assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 
 		// Validate that the last hop is the destination and is reachable
 		lastHop := run.Hops[len(run.Hops)-1]
