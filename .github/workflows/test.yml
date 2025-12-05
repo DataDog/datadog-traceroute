@@ -149,6 +149,10 @@ jobs:
         #continue-on-error: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
 
+        # JMWFRI
+      - name: TestLocalhostCLI integration test
+        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostCLI
+
   public_endpoint_cli_tests:
     name: "Public Endpoint CLI Tests"
     runs-on: ${{ matrix.os }}
