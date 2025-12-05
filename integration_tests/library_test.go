@@ -10,6 +10,9 @@ package integration_tests
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -173,6 +176,67 @@ func TestFakeNetwork(t *testing.T) {
 	})
 }
 
+// TestCommandLineTool runs the datadog-traceroute command-line tool and validates its JSON output
+// In CI this will run on Linux, MacOS, and Windows
+func TestCommandLineTool(t *testing.T) {
+	projectRoot := filepath.Join("..")
+	var binaryPath string
+	var needsCleanup bool
+
+	// Check if pre-built binary exists (CI scenario with localhost_cli_tests job)
+	preBuildBinaryPath := filepath.Join(projectRoot, "datadog-traceroute")
+	if _, err := os.Stat(preBuildBinaryPath); err == nil {
+		t.Log("Using pre-built binary from CI")
+		binaryPath = preBuildBinaryPath
+		needsCleanup = false
+	} else {
+		// Binary doesn't exist - build it (local dev scenario)
+		t.Log("Pre-built binary not found, building test binary...")
+		binaryName := "datadog-traceroute-test"
+		binaryPath = filepath.Join(projectRoot, binaryName)
+
+		buildCmd := exec.Command("go", "build", "-o", binaryName, ".")
+		buildCmd.Dir = projectRoot
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to build datadog-traceroute: %v\nOutput: %s", err, string(buildOutput))
+		}
+		needsCleanup = true
+	}
+
+	// Clean up test binary if we built it
+	if needsCleanup {
+		defer os.Remove(binaryPath)
+	}
+
+	// Run the command-line tool with the specified arguments
+	// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
+	cmd := exec.Command(binaryPath,
+		"--proto", "icmp",
+		"--max-ttl", "5",
+		"--traceroute-queries", "3",
+		"--e2e-queries", "10",
+		"--timeout", "500",
+		"127.0.0.1",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
+	}
+
+	// Parse the JSON output
+	var results result.Results
+	err = json.Unmarshal(output, &results)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
+	}
+
+	// Validate the results using the same validation function
+	// Port is 0 since ICMP doesn't use ports
+	validateResults(t, &results, "icmp", "127.0.0.1", 0)
+}
+
 // validateResults validates traceroute results
 func validateResults(t *testing.T, results *result.Results, protocol, hostname string, port int) {
 	t.Helper()
@@ -214,15 +278,14 @@ func validateResults(t *testing.T, results *result.Results, protocol, hostname s
 		assert.Greater(t, reachableCount, 0, "run %d should have at least one reachable hop", i)
 
 		// Validate that the last hop is the destination and is reachable
-		destHop := run.GetDestinationHop()
-		assert.NotNil(t, destHop, "run %d should have a destination hop", i)
-		assert.True(t, destHop.Reachable, "run %d destination hop should be reachable", i)
-		assert.NotNil(t, destHop.IPAddress, "run %d destination hop should have an IP address", i)
-		assert.Greater(t, destHop.RTT, 0.0, "run %d destination hop should have positive RTT", i)
+		lastHop := run.Hops[len(run.Hops)-1]
+		assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
+		assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
+		assert.Greater(t, lastHop.RTT, 0.0, "run %d last hop should have positive RTT", i)
 
-		// Verify the destination hop IP matches the run's destination IP
-		assert.True(t, destHop.IPAddress.Equal(run.Destination.IPAddress),
-			"run %d destination hop IP should match run destination IP", i)
+		// Verify the last hop IP matches the run's destination IP
+		assert.True(t, lastHop.IPAddress.Equal(run.Destination.IPAddress),
+			"run %d last hop IP should match run destination IP", i)
 
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
