@@ -149,7 +149,35 @@ jobs:
         #continue-on-error: ${{ matrix.os == 'macos-latest' }}
         continue-on-error: true
 
-        # JMWFRI
+  localhost_cli_integration_tests:
+    name: "Localhost CLI Integration Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        #JMWos: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+      MAX_PACKET_LOSS_PCT: ${{ matrix.os == 'windows-latest' && '0.9' || '0.0' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
       - name: TestLocalhostCLI integration test
         run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhostCLI
 
