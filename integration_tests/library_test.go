@@ -10,6 +10,7 @@ package integration_tests
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -176,9 +177,11 @@ func TestFakeNetwork(t *testing.T) {
 	})
 }
 
-// TestCommandLineTool runs the datadog-traceroute command-line tool and validates its JSON output
-// In CI this will run on Linux, MacOS, and Windows
-func TestCommandLineTool(t *testing.T) {
+// testCLI runs CLI tests for the specified protocols with the given configuration
+func testCLI(t *testing.T, config testConfig) {
+	t.Helper()
+
+	// Get or build the binary
 	projectRoot := filepath.Join("..")
 	var binaryPath string
 	var needsCleanup bool
@@ -209,32 +212,56 @@ func TestCommandLineTool(t *testing.T) {
 		defer os.Remove(binaryPath)
 	}
 
-	// Run the command-line tool with the specified arguments
-	// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
-	cmd := exec.Command(binaryPath,
-		"--proto", "icmp",
-		"--max-ttl", "5",
-		"--traceroute-queries", "3",
-		"--e2e-queries", "10",
-		"--timeout", "500",
-		"127.0.0.1",
-	)
+	// Run tests for each protocol
+	for _, tt := range config.protocols {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build command-line arguments
+			args := []string{
+				"--proto", tt.protocol,
+				"--max-ttl", "5",
+				"--traceroute-queries", "3",
+				"--e2e-queries", "10",
+				"--timeout", "500",
+			}
+			if config.port > 0 {
+				args = append(args, "--port", fmt.Sprintf("%d", config.port))
+			}
+			if tt.tcpMethod != "" {
+				args = append(args, "--tcp-method", string(tt.tcpMethod))
+			}
+			args = append(args, config.hostname)
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
+			// Run the command-line tool
+			// Note: This test assumes it's running with sufficient privileges for ICMP (e.g., sudo on Unix)
+			cmd := exec.Command(binaryPath, args...)
+
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Failed to run datadog-traceroute: %v\nOutput: %s", err, string(output))
+			}
+
+			// Parse the JSON output
+			var results result.Results
+			err = json.Unmarshal(output, &results)
+			if err != nil {
+				t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
+			}
+
+			// Validate the results using the same validation function
+			validateResults(t, &results, tt.protocol, config.hostname, config.port)
+		})
 	}
+}
 
-	// Parse the JSON output
-	var results result.Results
-	err = json.Unmarshal(output, &results)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal JSON output: %v\nOutput: %s", err, string(output))
-	}
-
-	// Validate the results using the same validation function
-	// Port is 0 since ICMP doesn't use ports
-	validateResults(t, &results, "icmp", "127.0.0.1", 0)
+// TestLocalhostCLI runs CLI tests to localhost for all protocols
+// In CI this will run on Linux, MacOS, and Windows
+func TestLocalhostCLI(t *testing.T) {
+	testCLI(t, testConfig{
+		hostname:        "127.0.0.1",
+		port:            0,
+		protocols:       AllProtocolsExceptSACK,
+		expectMultiHops: false,
+	})
 }
 
 // validateResults validates traceroute results
