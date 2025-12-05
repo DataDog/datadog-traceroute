@@ -91,7 +91,7 @@ type testConfig struct {
 	hostname        string
 	port            int
 	protocol        protocolTest
-	expectMultiHops bool
+	expectIntermediateHops bool
 }
 
 // testCommon runs a library traceroute test with the given configuration
@@ -132,7 +132,7 @@ func TestLocalhost(t *testing.T) {
 				hostname:        "127.0.0.1",
 				port:            0,
 				protocol:        protocol,
-				expectMultiHops: false,
+				expectIntermediateHops: false,
 			})
 		})
 	}
@@ -147,7 +147,7 @@ func TestPublicEndpointICMP(t *testing.T) {
 				hostname:        publicEndpointHostname,
 				port:            publicEndpointPort,
 				protocol:        protocol,
-				expectMultiHops: true,
+				expectIntermediateHops: false,
 			})
 		})
 	}
@@ -162,7 +162,7 @@ func TestPublicEndpointUDP(t *testing.T) {
 				hostname:        publicEndpointHostname,
 				port:            publicEndpointPort,
 				protocol:        protocol,
-				expectMultiHops: true,
+				expectIntermediateHops: false,
 			})
 		})
 	}
@@ -177,7 +177,7 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 				hostname:        publicEndpointHostname,
 				port:            publicEndpointPort,
 				protocol:        protocol,
-				expectMultiHops: true,
+				expectIntermediateHops: false,
 			})
 		})
 	}
@@ -192,7 +192,7 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 				hostname:        publicEndpointHostname,
 				port:            publicEndpointPort,
 				protocol:        protocol,
-				expectMultiHops: true,
+				expectIntermediateHops: false,
 			})
 		})
 	}
@@ -211,7 +211,7 @@ func TestFakeNetwork(t *testing.T) {
 				hostname:        fakeNetworkHostname,
 				port:            0,
 				protocol:        protocol,
-				expectMultiHops: true,
+				expectIntermediateHops: true,
 			})
 		})
 	}
@@ -312,7 +312,7 @@ func TestLocalhostCLI(t *testing.T) {
 				hostname:        "127.0.0.1",
 				port:            0,
 				protocol:        protocol,
-				expectMultiHops: false,
+				expectIntermediateHops: false,
 			})
 		})
 	}
