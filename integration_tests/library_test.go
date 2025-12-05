@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -261,14 +262,18 @@ func testCLI(t *testing.T, config testConfig) {
 
 	args := []string{
 		"--e2e-queries", "10",
-		"--max-ttl", "5",
+		"--max-ttl", "5", //JMWRM?
 		"--proto", strings.ToLower(string(config.protocol)),
-		"--timeout", "500",
+		"--timeout", "500", //JMWRM?
 		"--traceroute-queries", "3",
 	}
+	//JMW--reverse-dns              Enrich IPs with Reverse DNS names
+	//JMW--skip-private-hops        Skip private hops
+	//JMW--source-public-ip         Enrich with Source Public IP
+	//JMW--windows-driver           Use Windows driver for traceroute (Windows only)
 
 	if config.port > 0 {
-		args = append(args, "--port", fmt.Sprintf("%d", config.port))
+		args = append(args, "--port", strvonv.Itoa(config.port))
 	}
 	if config.tcpMethod != "" {
 		args = append(args, "--tcp-method", string(config.tcpMethod))
