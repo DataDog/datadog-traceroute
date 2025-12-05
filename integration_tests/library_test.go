@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -273,7 +272,7 @@ func testCLI(t *testing.T, config testConfig) {
 	//JMW--windows-driver           Use Windows driver for traceroute (Windows only)
 
 	if config.port > 0 {
-		args = append(args, "--port", strvonv.Itoa(config.port))
+		args = append(args, "--port", strconv.Itoa(config.port))
 	}
 	if config.tcpMethod != "" {
 		args = append(args, "--tcp-method", string(config.tcpMethod))
