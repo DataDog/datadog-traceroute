@@ -11,6 +11,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +41,11 @@ var (
 	cliBinaryPath         string
 	cliBinaryOnce         sync.Once
 	cliBinaryNeedsCleanup bool
+
+	// HTTP server binary state for reuse across tests
+	serverBinaryPath         string
+	serverBinaryOnce         sync.Once
+	serverBinaryNeedsCleanup bool
 )
 
 // TestMain runs before all tests and cleans up after all tests complete
@@ -46,8 +53,9 @@ func TestMain(m *testing.M) {
 	// Run all tests
 	exitCode := m.Run()
 
-	// Cleanup CLI binary if it was built
+	// Cleanup binaries if they were built
 	cleanupCLIBinary()
+	cleanupServerBinary()
 
 	// Exit with the test result code
 	os.Exit(exitCode)
@@ -265,6 +273,54 @@ func cleanupCLIBinary() {
 	}
 }
 
+// getServerBinaryPath returns the path to the HTTP server binary, building it if necessary
+func getServerBinaryPath(t *testing.T) string {
+	t.Helper()
+
+	serverBinaryOnce.Do(func() {
+		projectRoot := filepath.Join("..")
+
+		// Determine binary name based on OS
+		binaryName := "datadog-traceroute-server"
+		if runtime.GOOS == "windows" {
+			binaryName = "datadog-traceroute-server.exe"
+		}
+
+		// Check for pre-built binary (CI scenario)
+		preBuiltBinaryPath := filepath.Join(projectRoot, binaryName)
+		if _, err := os.Stat(preBuiltBinaryPath); err == nil {
+			t.Log("Using pre-built server binary from CI")
+			serverBinaryPath = preBuiltBinaryPath
+			serverBinaryNeedsCleanup = false
+			return
+		}
+
+		t.Log("Pre-built server binary not found, building test server binary")
+		testBinaryName := "datadog-traceroute-server-test"
+		if runtime.GOOS == "windows" {
+			testBinaryName = "datadog-traceroute-server-test.exe"
+		}
+		serverBinaryPath = filepath.Join(projectRoot, testBinaryName)
+
+		buildCmd := exec.Command("go", "build", "-o", testBinaryName, "./cmd/traceroute-server")
+		buildCmd.Dir = projectRoot
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to build datadog-traceroute-server: %v\nOutput: %s", err, string(buildOutput))
+		}
+
+		serverBinaryNeedsCleanup = true
+	})
+
+	return serverBinaryPath
+}
+
+func cleanupServerBinary() {
+	if serverBinaryNeedsCleanup && serverBinaryPath != "" {
+		os.Remove(serverBinaryPath)
+	}
+}
+
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
 
@@ -355,6 +411,140 @@ func TestLocalhostCLI(t *testing.T) {
 	for _, config := range testConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
 			testCLI(t, config)
+		})
+	}
+}
+
+// testHTTPServer runs an HTTP server traceroute test with the given configuration
+func testHTTPServer(t *testing.T, config testConfig) {
+	t.Helper()
+
+	binaryPath := getServerBinaryPath(t)
+
+	// Start the HTTP server on a random available port
+	serverAddr := "127.0.0.1:0" // Port 0 means pick a random available port
+
+	cmd := exec.Command(binaryPath, "--addr", serverAddr, "--log-level", "error")
+
+	// Capture stdout and stderr
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Start the server
+	err := cmd.Start()
+	if err != nil {
+		t.Fatalf("Failed to start datadog-traceroute-server: %v", err)
+	}
+
+	// Ensure server is killed when test completes
+	defer func() {
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+			cmd.Wait()
+		}
+	}()
+
+	// Wait a bit for server to start and parse the actual port from output
+	// The server prints: "Starting traceroute HTTP server on :PORT"
+	time.Sleep(500 * time.Millisecond)
+
+	// Since we used port 0, we need to find the actual port the server is listening on
+	// For now, use a fixed port for testing
+	testServerAddr := "127.0.0.1:3765" // Use default port
+
+	// Restart server with fixed port
+	cmd.Process.Kill()
+	cmd.Wait()
+
+	cmd = exec.Command(binaryPath, "--addr", testServerAddr, "--log-level", "error")
+	stdout.Reset()
+	stderr.Reset()
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Start()
+	if err != nil {
+		t.Fatalf("Failed to start datadog-traceroute-server: %v", err)
+	}
+
+	defer func() {
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+			cmd.Wait()
+		}
+	}()
+
+	// Wait for server to be ready
+	time.Sleep(500 * time.Millisecond)
+
+	// Build the HTTP request URL
+	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&max-ttl=5&traceroute-queries=3&e2e-queries=10&timeout=500",
+		testServerAddr, config.hostname, strings.ToLower(string(config.protocol)))
+
+	if config.port > 0 {
+		url += fmt.Sprintf("&port=%d", config.port)
+	}
+	if config.tcpMethod != "" {
+		url += fmt.Sprintf("&tcp-method=%s", string(config.tcpMethod))
+	}
+
+	// Make HTTP GET request
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("Failed to make HTTP request: %v\nServer stderr: %s", err, stderr.String())
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("HTTP request failed with status %d", resp.StatusCode)
+	}
+
+	// Parse JSON response
+	var results result.Results
+	err = json.NewDecoder(resp.Body).Decode(&results)
+	if err != nil {
+		t.Fatalf("Failed to decode JSON response: %v", err)
+	}
+
+	validateResults(t, &results, config)
+}
+
+// TestLocalhostHTTPServer runs HTTP server tests to localhost for all protocols
+// In CI this will run on Linux, MacOS, and Windows
+func TestLocalhostHTTPServer(t *testing.T) {
+	testConfigs := []testConfig{
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolICMP,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolUDP,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigSYN,
+			expectIntermediateHops: false,
+		},
+		{
+			hostname:               "127.0.0.1",
+			port:                   0,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			expectIntermediateHops: false,
+		},
+	}
+
+	for _, config := range testConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testHTTPServer(t, config)
 		})
 	}
 }
