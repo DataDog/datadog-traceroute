@@ -1,5 +1,6 @@
 /datadog-traceroute
 /datadog-traceroute-server
+.dir-locals.el
 .idea
 .vscode
 .cursor
