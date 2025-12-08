@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-traceroute
 
-go 1.24.11
+go 1.24.10
 
 require (
 	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
