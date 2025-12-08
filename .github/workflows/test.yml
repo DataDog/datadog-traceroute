@@ -3,24 +3,361 @@ name: test
 on:
   push:
     branches:
-      - 'main'
-      - 'mq-working-branch-*'
+      - "main"
+      - "mq-working-branch-*"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  run_tests:
+  unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.24.6
+          go-version-file: ".go-version"
       - run: go mod tidy
       - run: go test -tags=test -v ./...
+
+  e2e_localhost_cli_tests:
+    name: "E2E Localhost CLI Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      - name: TestLocalhostCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
+
+  e2e_public_target_cli_tests:
+    name: "E2E Public Target CLI Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      - name: TestPublicTargetCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetCLI
+
+  e2e_fake_network_cli_tests:
+    name: "E2E Fake Network CLI Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    env:
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      - name: Setup fake network environment
+        run: sudo bash testutils/router_setup.sh
+
+      - name: TestFakeNetworkCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
+
+  e2e_localhost_http_server_tests:
+    name: "E2E Localhost HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
+
+      - name: TestLocalhostHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostHTTPServer
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
+
+  e2e_public_target_http_server_tests:
+    name: "E2E Public Target HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
+
+      - name: TestPublicTargetHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
+
+  e2e_fake_network_http_server_tests:
+    name: "E2E Fake Network HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
+
+      - name: Setup fake network environment
+        run: sudo bash testutils/router_setup.sh
+
+      - name: TestFakeNetworkHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkHTTPServer
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
+
+  # SSH Debug Job - allows you to SSH into the GitHub runner for debugging purposes.
+  # This job only runs on workflow_dispatch (manual trigger).
+  # Only the person who triggered the workflow can access the SSH session.
+  #
+  # To manually trigger this job using GitHub CLI:
+  # 1. Install GitHub CLI if you haven't already:
+  #    MacOS: brew install gh
+  #    or see https://cli.github.com/
+  # 2. Authenticate (one-time setup): gh auth login
+  #    Note: This is separate from SSH keys and required for API access
+  #    Check if already authenticated: gh auth status
+  # 3. Push your branch to GitHub
+  # 4. Run from your terminal:
+  #      gh workflow run test.yml --ref <your-branch-name>
+  #    Or use current branch:
+  #      gh workflow run test.yml --ref $(git branch --show-current)
+  # 5. The workflow will start and you'll see: "✓ Created workflow_dispatch event for test.yml"
+  # 6. Monitor the workflow run:
+  #      gh run list
+  #      gh run watch
+  #    Or view in browser: https://github.com/DataDog/datadog-traceroute/actions
+  #
+  # Once the "E2E SSH Debug for Manual Tests" job reaches the "Setup tmate session" step:
+  # 1. Go to the Actions page and click on your running workflow
+  # 2. Click on the "E2E SSH Debug" job for your desired OS
+  # 3. Expand the "Setup tmate session" step
+  # 4. Look for the SSH connection details:
+  #    - SSH command to connect (e.g., ssh <random-string>@nyc1.tmate.io)
+  # 5. Copy and run the SSH command in your terminal
+  # 6. The session will remain active for 60 minutes or until you cancel the workflow
+  # 7. Both CLI and HTTP server binaries are built and the server is running on port 3765
+  # 8. You can run tests, debug issues, and interact with the runner as needed
+  #    Examples:
+  #      CLI:
+  #        Linux/MacOS:
+  #          sudo ./datadog-traceroute --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com | tee /tmp/tr
+  #        Windows:
+  #          ./datadog-traceroute.exe --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com | tee /tmp/tr
+  #      HTTP Server:
+  #        curl "http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1" | jq . | tee /tmp/tr
+  #
+  #
+  ssh_debug_for_manual_tests:
+    name: "SSH Debug for Manual Tests"
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'workflow_dispatch' # Only run this job manually
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      - name: Build CLI
+        run: |
+          go build -o $BUILD_TARGET .
+          echo "Built CLI executable: $EXECUTABLE"
+          echo "Example test $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com"
+
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started on default port 3765 (PID: $(cat server.pid))"
+          echo "Logs are being written to server.log"
+          echo "Example test:"
+          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+          echo "To view logs during SSH session: tail -f server.log"
+
+      # Setup tmate session for SSH access
+      # This will print SSH connection details in the job logs
+      - name: Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
+        with:
+          limit-access-to-actor: true
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
