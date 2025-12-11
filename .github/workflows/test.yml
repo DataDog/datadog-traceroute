@@ -296,10 +296,14 @@ jobs:
   # 1. Install GitHub CLI if you haven't already:
   #    MacOS: brew install gh
   #    or see https://cli.github.com/
-  # 2. Authenticate: gh auth login # JMW needed if ssh key setup?
+  # 2. Authenticate (one-time setup): gh auth login
+  #    Note: This is separate from SSH keys and required for API access
+  #    Check if already authenticated: gh auth status
   # 3. Push your branch to GitHub
   # 4. Run from your terminal:
   #      gh workflow run test.yml --ref <your-branch-name>
+  #    Or use current branch:
+  #      gh workflow run test.yml --ref $(git branch --show-current)
   # 5. The workflow will start and you'll see: "✓ Created workflow_dispatch event for test.yml"
   # 6. Monitor the workflow run:
   #      gh run list
@@ -323,11 +327,10 @@ jobs:
   #        curl "http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1" | jq . | tee /tmp/tr
   #
   #
-  e2e_ssh_debug_for_manual_tests_tmate:
-    name: "E2E SSH Debug for Manual Tests (tmate)"
+  ssh_debug_for_manual_tests:
+    name: "SSH Debug for Manual Tests"
     runs-on: ${{ matrix.os }}
-    # Only run this job manually to avoid accidental SSH sessions
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' # Only run this job manually
     defaults:
       run:
         shell: bash
@@ -366,7 +369,6 @@ jobs:
       - name: Run HTTP Server
         run: |
           $SUDO_CMD $SERVER_EXECUTABLE &
-          sleep 2
           echo "HTTP server started on default port 3765"
           echo "Example test:"
           echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
