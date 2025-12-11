@@ -34,7 +34,7 @@ const (
 	// JMW add localhostname
 	publicEndpointHostname = "github.com"
 	publicEndpointPort     = 443
-	// JMW fakeNetworkHostname --> fakeNetworkDestination?
+	// JMW fakeNetworkHostname --> fakeNetworkDestination? OR fakeNetworkTarget?
 	fakeNetworkHostname    = "198.51.100.2"
 )
 
