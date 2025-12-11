@@ -62,6 +62,69 @@ func isGitHubRunner() bool {
 	return os.Getenv("GITHUB_ACTIONS") == "true"
 }
 
+// reachabilityKey defines the conditions for looking up destination reachability on GitHub runners
+type reachabilityKey struct {
+	os        string
+	hostname  string
+	protocol  traceroute.Protocol
+	tcpMethod traceroute.TCPMethod
+}
+
+// reachabilityMap defines which combinations result in a reachable destination when running on GitHub
+// The key combines: OS, hostname, protocol, and TCP method
+var reachabilityMap = map[reachabilityKey]bool{
+	// GitHub runner - Linux
+	{"linux", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
+	{"linux", localhostTarget, traceroute.ProtocolUDP, ""}:                               true,
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
+	{"linux", publicTarget, traceroute.ProtocolICMP, ""}:                                 false,
+	{"linux", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            true,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             true,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        true,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: true,
+
+	// GitHub runner - macOS (darwin)
+	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
+	{"darwin", localhostTarget, traceroute.ProtocolUDP, ""}:                               false,
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
+	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                                 true,
+	{"darwin", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
+	{"darwin", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            true,
+	{"darwin", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             false,
+	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        true,
+	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
+	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: true,
+
+	// GitHub runner - Windows
+	{"windows", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
+	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                               true,
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
+	{"windows", publicTarget, traceroute.ProtocolICMP, ""}:                                 false,
+	{"windows", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
+	{"windows", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            false,
+	{"windows", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             false,
+	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        false,
+	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
+	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: false,
+}
+
 // TestMain runs before all tests and cleans up after all tests complete
 func TestMain(m *testing.M) {
 	// Run all tests
@@ -115,70 +178,32 @@ func (tc *testConfig) expectIntermediateHops() bool {
 // expectDestinationReachable returns whether to expect the destination to be reachable
 // based on the target, protocol, OS, and whether running on GitHub Actions
 func (tc *testConfig) expectDestinationReachable() bool {
-	// Not on GitHub runner: expect destination reachable for all OSes and protocols, except for TCP SACK
+	// Not on GitHub: always reachable except for TCP SACK on Linux and Windows
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
-			return false
+			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+				return false
+			}
 		}
 		return true
 	}
 
-	// On GitHub runner
-	switch runtime.GOOS {
-	case "linux":
-		switch tc.hostname {
-		case localhostTarget:
-			return true
-		case publicTarget:
-			switch tc.protocol {
-			case traceroute.ProtocolICMP:
-				return false
-			case traceroute.ProtocolUDP:
-				return false
-			case traceroute.ProtocolTCP:
-				if tc.tcpMethod == traceroute.TCPConfigSACK {
-					return false
-				}
-			default:
-				return false
-			}
-		case fakeNetworkTarget:
-			return true
-		default:
-			return false
-		}
-	case "darwin":
-		if tc.protocol == traceroute.ProtocolUDP {
-			return false
-		}
-		return true
-	case "windows":
-		switch tc.hostname {
-		case localhostTarget:
-			return true
-		case publicTarget:
-			switch tc.protocol {
-			case traceroute.ProtocolICMP:
-				return false
-			case traceroute.ProtocolUDP:
-				return false
-			case traceroute.ProtocolTCP:
-				if tc.tcpMethod == traceroute.TCPConfigSACK {
-					return false
-				}
-			default:
-				return false
-			}
-		case fakeNetworkTarget:
-			return false
-		default:
-			return false
-		}
-	default:
+	// On GitHub: look up in the reachability map
+	key := reachabilityKey{
+		os:        runtime.GOOS,
+		hostname:  tc.hostname,
+		protocol:  tc.protocol,
+		tcpMethod: tc.tcpMethod,
+	}
+
+	reachable, found := reachabilityMap[key]
+	if !found {
+		// If not found in map, default to false for safety
+		// This ensures tests fail loudly if we're missing a configuration
 		return false
 	}
 
-	return false
+	return reachable
 }
 
 // testName returns a test name combining protocol and TCP method
