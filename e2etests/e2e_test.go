@@ -31,11 +31,13 @@ import (
 )
 
 const (
-	// JMW add localhostname
-	publicEndpointHostname = "github.com"
-	publicEndpointPort     = 443
-	// JMW fakeNetworkHostname --> fakeNetworkDestination? OR fakeNetworkTarget?
-	fakeNetworkHostname = "198.51.100.2"
+	localhostTarget = "127.0.0.1"
+
+	publicTarget = "github.com"
+	publicPort     = 443
+
+	// JMW fakeNetworkTarget --> fakeNetworkDestination? OR fakeNetworkTarget?
+	fakeNetworkTarget = "198.51.100.2"
 )
 
 var (
@@ -48,38 +50,16 @@ var (
 	serverBinaryPath         string
 	serverBinaryOnce         sync.Once
 	serverBinaryNeedsCleanup bool
+
+	// HTTP server process state for reuse across tests
+	serverProcess     *exec.Cmd
+	serverProcessOnce sync.Once
+	serverAddr        = "127.0.0.1:3765"
 )
 
 // isGitHubRunner returns true if running on GitHub Actions
 func isGitHubRunner() bool {
 	return os.Getenv("GITHUB_ACTIONS") == "true"
-}
-
-// getExpectIntermediateHops returns whether to expect intermediate hops based on
-// the protocol, OS, and whether running on GitHub Actions
-func getExpectIntermediateHops(protocol traceroute.Protocol, tcpMethod traceroute.TCPMethod) bool {
-	// Not on GitHub runner: expect intermediate hops for all OSes
-	if !isGitHubRunner() {
-		return true
-	}
-
-	// On GitHub runner
-	switch runtime.GOOS {
-	case "linux":
-		// GitHub runner, Linux: false for all protocols
-		return false
-	case "darwin":
-		// GitHub runner, macOS: true for all protocols except TCP SACK
-		if protocol == traceroute.ProtocolTCP && tcpMethod == traceroute.TCPConfigSACK {
-			return false
-		}
-		return true
-	case "windows":
-		// GitHub runner, Windows: false for all protocols
-		return false
-	default:
-		return false
-	}
 }
 
 // TestMain runs before all tests and cleans up after all tests complete
@@ -90,6 +70,7 @@ func TestMain(m *testing.M) {
 	// Cleanup binaries if they were built
 	cleanupCLIBinary()
 	cleanupServerBinary()
+	cleanupServerProcess()
 
 	// Exit with the test result code
 	os.Exit(exitCode)
@@ -101,8 +82,34 @@ type testConfig struct {
 	port                   int
 	protocol               traceroute.Protocol
 	tcpMethod              traceroute.TCPMethod
-	expectIntermediateHops bool
 	expectError            string // when non-empty, assert that the test fails with an error message containing this string
+}
+
+// expectIntermediateHops returns whether to expect intermediate hops based on
+// the target, protocol, OS, and whether running on GitHub Actions
+func (tc *testConfig) expectIntermediateHops() bool {
+	// Not on GitHub runner: expect intermediate hops for all OSes and protocols, except for localhost target
+	if !isGitHubRunner() {
+		if tc.hostname == localhostTarget {
+			return false
+		}
+		return true
+	}
+
+	// On GitHub runner
+	switch runtime.GOOS {
+	case "linux":
+		if tc.hostname == fakeNetworkTarget {
+			return true
+		}
+		return false
+	case "darwin":
+		return true
+	case "windows":
+		return false
+	default:
+		return false
+	}
 }
 
 // testName returns a test name combining protocol and TCP method
@@ -186,9 +193,8 @@ func TestLocalhost(t *testing.T) {
 	for _, baseConfig := range AllProtocolsExceptSACK {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = "127.0.0.1"
+			config.hostname = localhostTarget
 			config.port = 0
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -200,9 +206,8 @@ func TestPublicEndpointICMP(t *testing.T) {
 	for _, baseConfig := range ICMPProtocol {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = publicEndpointHostname
-			config.port = publicEndpointPort
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
+			config.hostname = publicTarget
+			config.port = publicPort
 			testCommon(t, config)
 		})
 	}
@@ -214,9 +219,8 @@ func TestPublicEndpointUDP(t *testing.T) {
 	for _, baseConfig := range UDPProtocol {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = publicEndpointHostname
-			config.port = publicEndpointPort
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
+			config.hostname = publicTarget
+			config.port = publicPort
 			testCommon(t, config)
 		})
 	}
@@ -228,9 +232,8 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 	for _, baseConfig := range TCPSYNProtocol {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = publicEndpointHostname
-			config.port = publicEndpointPort
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
+			config.hostname = publicTarget
+			config.port = publicPort
 			testCommon(t, config)
 		})
 	}
@@ -242,9 +245,8 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 	for _, baseConfig := range TCPPreferSACKProtocol {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = publicEndpointHostname
-			config.port = publicEndpointPort
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
+			config.hostname = publicTarget
+			config.port = publicPort
 			testCommon(t, config)
 		})
 	}
@@ -260,9 +262,8 @@ func TestFakeNetwork(t *testing.T) {
 	for _, baseConfig := range AllProtocolsExceptSACK {
 		t.Run(baseConfig.testName(), func(t *testing.T) {
 			config := baseConfig
-			config.hostname = fakeNetworkHostname
+			config.hostname = fakeNetworkTarget
 			config.port = 0
-			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -364,6 +365,68 @@ func cleanupServerBinary() {
 	}
 }
 
+// isServerRunning checks if a server is already running on the given address
+func isServerRunning(addr string) bool {
+	conn, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+	if err != nil {
+		return false
+	}
+	conn.Body.Close()
+	return conn.StatusCode == http.StatusOK
+}
+
+// ensureServerRunning ensures the HTTP server is running on serverAddr
+// It checks if a server is already running (e.g., in CI), and if not, starts one
+func ensureServerRunning(t *testing.T) string {
+	t.Helper()
+
+	serverProcessOnce.Do(func() {
+		// First check if server is already running (CI scenario)
+		if isServerRunning(serverAddr) {
+			t.Logf("HTTP server already running on %s", serverAddr)
+			return
+		}
+
+		// Server not running, start it
+		t.Logf("HTTP server not running, starting on %s", serverAddr)
+		binaryPath := getServerBinaryPath(t)
+
+		cmd := exec.Command(binaryPath, "--addr", serverAddr, "--log-level", "error")
+
+		// Capture stdout and stderr
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		// Start the server
+		err := cmd.Start()
+		if err != nil {
+			t.Fatalf("Failed to start datadog-traceroute-server: %v", err)
+		}
+
+		serverProcess = cmd
+
+		// Wait for server to be ready
+		time.Sleep(500 * time.Millisecond)
+
+		// Verify server is now running
+		if !isServerRunning(serverAddr) {
+			t.Fatalf("Server failed to start. Stderr: %s", stderr.String())
+		}
+
+		t.Logf("HTTP server started successfully on %s", serverAddr)
+	})
+
+	return serverAddr
+}
+
+func cleanupServerProcess() {
+	if serverProcess != nil && serverProcess.Process != nil {
+		serverProcess.Process.Kill()
+		serverProcess.Wait()
+	}
+}
+
 // JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
@@ -395,6 +458,7 @@ func testCLI(t *testing.T, config testConfig) {
 
 	args = append(args, config.hostname)
 
+	t.Logf("Running command: %s %v", binaryPath, args)
 	cmd := exec.Command(binaryPath, args...)
 
 	// Capture stdout (JSON output) and stderr (logs) separately
@@ -435,37 +499,28 @@ func testCLI(t *testing.T, config testConfig) {
 func TestLocalhostCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               "127.0.0.1",
-			port:                   0,
+			hostname:               localhostTarget,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
-			hostname:               "127.0.0.1",
-			port:                   0,
+			hostname:               localhostTarget,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
-			hostname:               "127.0.0.1",
-			port:                   0,
+			hostname:               localhostTarget,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
-			hostname:    "127.0.0.1",
-			port:        0,
-			protocol:    traceroute.ProtocolTCP,
-			tcpMethod:   traceroute.TCPConfigSACK,
-			expectError: "SACK not supported for this target/source",
+			hostname:               localhostTarget,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigSACK,
+			expectError:            "SACK not supported for this target/source",
 		},
 		{
-			hostname:               "127.0.0.1",
-			port:                   0,
+			hostname:               localhostTarget,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -478,40 +533,36 @@ func TestLocalhostCLI(t *testing.T) {
 
 // TestPublicEndpointCLI runs CLI tests to a public endpoint for all protocols
 // In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpointCLI(t *testing.T) {
+func TestPublicTargetCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               publicEndpointHostname,
-			port:                   publicEndpointPort,
+			hostname:               publicTarget,
+			port:                   publicPort,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
-			hostname:               publicEndpointHostname,
-			port:                   publicEndpointPort,
+			hostname:               publicTarget,
+			port:                   publicPort,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
-			hostname:               publicEndpointHostname,
-			port:                   publicEndpointPort,
+			hostname:               publicTarget,
+			port:                   publicPort,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
-			hostname:    publicEndpointHostname,
-			port:        publicEndpointPort,
+			hostname:    publicTarget,
+			port:        publicPort,
 			protocol:    traceroute.ProtocolTCP,
 			tcpMethod:   traceroute.TCPConfigSACK,
 			expectError: "SACK not supported for this target/source",
 		},
 		{
-			hostname:               publicEndpointHostname,
-			port:                   publicEndpointPort,
+			hostname:               publicTarget,
+			port:                   publicPort,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -527,32 +578,28 @@ func TestPublicEndpointCLI(t *testing.T) {
 func TestFakeNetworkCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               fakeNetworkHostname,
+			hostname:               fakeNetworkTarget,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
-			hostname:               fakeNetworkHostname,
+			hostname:               fakeNetworkTarget,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
-			hostname:               fakeNetworkHostname,
+			hostname:               fakeNetworkTarget,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
-			hostname:    fakeNetworkHostname,
+			hostname:    fakeNetworkTarget,
 			protocol:    traceroute.ProtocolTCP,
 			tcpMethod:   traceroute.TCPConfigSACK,
 			expectError: "SACK not supported for this target/source",
 		},
 		{
-			hostname:               fakeNetworkHostname,
+			hostname:               fakeNetworkTarget,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -567,64 +614,8 @@ func TestFakeNetworkCLI(t *testing.T) {
 func testHTTPServer(t *testing.T, config testConfig) {
 	t.Helper()
 
-	binaryPath := getServerBinaryPath(t)
-
-	// Start the HTTP server on a random available port
-	serverAddr := "127.0.0.1:0" // Port 0 means pick a random available port
-
-	cmd := exec.Command(binaryPath, "--addr", serverAddr, "--log-level", "error")
-
-	// Capture stdout and stderr
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Start the server
-	err := cmd.Start()
-	if err != nil {
-		t.Fatalf("Failed to start datadog-traceroute-server: %v", err)
-	}
-
-	// Ensure server is killed when test completes
-	defer func() {
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-			cmd.Wait()
-		}
-	}()
-
-	// Wait a bit for server to start and parse the actual port from output
-	// The server prints: "Starting traceroute HTTP server on :PORT"
-	time.Sleep(500 * time.Millisecond)
-
-	// Since we used port 0, we need to find the actual port the server is listening on
-	// For now, use a fixed port for testing
-	testServerAddr := "127.0.0.1:3765" // Use default port
-
-	// Restart server with fixed port
-	cmd.Process.Kill()
-	cmd.Wait()
-
-	cmd = exec.Command(binaryPath, "--addr", testServerAddr, "--log-level", "error")
-	stdout.Reset()
-	stderr.Reset()
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err = cmd.Start()
-	if err != nil {
-		t.Fatalf("Failed to start datadog-traceroute-server: %v", err)
-	}
-
-	defer func() {
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-			cmd.Wait()
-		}
-	}()
-
-	// Wait for server to be ready
-	time.Sleep(500 * time.Millisecond)
+	// Ensure server is running (either already running in CI or start it once)
+	testServerAddr := ensureServerRunning(t)
 
 	// Build the HTTP request URL
 	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&max-ttl=5&traceroute-queries=3&e2e-queries=10&timeout=500",
@@ -638,9 +629,10 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	}
 
 	// Make HTTP GET request
+	t.Logf("Making HTTP GET request: %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		t.Fatalf("Failed to make HTTP request: %v\nServer stderr: %s", err, stderr.String())
+		t.Fatalf("Failed to make HTTP request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -677,30 +669,26 @@ func testHTTPServer(t *testing.T, config testConfig) {
 func TestLocalhostHTTPServer(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               "127.0.0.1",
+			hostname:               localhostTarget,
 			port:                   0,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
-			hostname:               "127.0.0.1",
+			hostname:               localhostTarget,
 			port:                   0,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
-			hostname:               "127.0.0.1",
+			hostname:               localhostTarget,
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
-			hostname:               "127.0.0.1",
+			hostname:               localhostTarget,
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -752,7 +740,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
 		// Otherwise, we just need at least 1 reachable hop (the destination)
 		minReachableHops := 1
-		if config.expectIntermediateHops {
+		if config.expectIntermediateHops() {
 			minReachableHops = 2
 		}
 		assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
