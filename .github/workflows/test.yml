@@ -322,7 +322,10 @@ jobs:
   # 8. You can run tests, debug issues, and interact with the runner as needed
   #    Examples:
   #      CLI:
-  #        sudo ./datadog-traceroute --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com | tee /tmp/tr
+  #        Linux/MacOS:
+  #          sudo ./datadog-traceroute --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com | tee /tmp/tr
+  #        Windows:
+  #          ./datadog-traceroute.exe --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com | tee /tmp/tr
   #      HTTP Server:
   #        curl "http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1" | jq . | tee /tmp/tr
   #
