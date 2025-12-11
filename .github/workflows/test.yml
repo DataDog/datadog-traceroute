@@ -39,7 +39,6 @@ jobs:
         #JMW why not windows? os: [ubuntu-latest, macos-latest]
         os: [ubuntu-latest, windows-latest, macos-latest]
     env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
@@ -56,7 +55,7 @@ jobs:
         run: go build -o $BUILD_TARGET .
 
       - name: TestLocalhostCLI
-        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
 
   e2e_public_endpoint_cli_tests:
     name: "E2E Public Endpoint CLI Tests"
@@ -70,7 +69,6 @@ jobs:
         #JMWos: [ubuntu-latest, windows-latest, macos-latest]
         os: [ubuntu-latest, macos-latest]
     env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
@@ -87,7 +85,7 @@ jobs:
         run: go build -o $BUILD_TARGET .
 
       - name: TestPublicEndpointCLI
-        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestPublicEndpointCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicEndpointCLI
 
   e2e_fake_network_cli_tests:
     name: "E2E Fake Network CLI Tests"
@@ -100,7 +98,6 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
@@ -121,7 +118,7 @@ jobs:
         run: sudo bash testutils/router_setup.sh
 
       - name: TestFakeNetworkCLI
-        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
 
   # #JMWTHU
   # windows_driver_cli_tests:
@@ -280,7 +277,6 @@ jobs:
         #JMW does it work for windows?
         os: [ubuntu-latest, windows-latest, macos-latest]
     env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
       SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
@@ -299,16 +295,16 @@ jobs:
         run: |
           go build -o $BUILD_TARGET .
           echo "Built CLI executable: $EXECUTABLE"
-          echo "Example test: $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com"
+          echo "Example test (will use sudo automatically on Unix): $EXECUTABLE --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com"
 
       # Build the HTTP server binary
       - name: Build HTTP Server
         run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
 
-      # Run the HTTP server in the background
+      # Run the HTTP server in the background (server doesn't need sudo, just the traceroute commands it runs)
       - name: Run HTTP Server
         run: |
-          $SUDO_CMD $SERVER_EXECUTABLE &
+          $SERVER_EXECUTABLE &
           echo "HTTP server started on default port 3765"
           echo "Example test:"
           echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""

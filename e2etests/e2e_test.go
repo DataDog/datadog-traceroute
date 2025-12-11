@@ -58,8 +58,22 @@ var (
 )
 
 // isGitHubRunner returns true if running on GitHub Actions
+// Checks both GITHUB_ACTIONS and CI environment variables since sudo may not preserve GITHUB_ACTIONS
 func isGitHubRunner() bool {
-	return os.Getenv("GITHUB_ACTIONS") == "true"
+	githubActions := os.Getenv("GITHUB_ACTIONS")
+	ci := os.Getenv("CI")
+	githubWorkflow := os.Getenv("GITHUB_WORKFLOW")
+
+	// GITHUB_ACTIONS is the most specific, but may be lost with sudo
+	// CI is set by most CI systems including GitHub Actions
+	// GITHUB_WORKFLOW is another GitHub-specific variable that might be preserved
+	result := githubActions == "true" || (ci == "true" && githubWorkflow != "")
+
+	// Debug log to help diagnose environment detection issues
+	fmt.Printf("DEBUG isGitHubRunner: GITHUB_ACTIONS=%q, CI=%q, GITHUB_WORKFLOW=%q, result=%v\n",
+		githubActions, ci, githubWorkflow, result)
+
+	return result
 }
 
 // reachabilityKey defines the conditions for looking up test expectations on GitHub runners
@@ -583,8 +597,19 @@ func testCLI(t *testing.T, config testConfig) {
 
 	t.Logf("Running with testConfig %+v expectDestinationReachable %v expectIntermediateHops=%v expectedError=%s",
 		config, config.expectDestinationReachable(t), config.expectIntermediateHops(t), config.expectError(t))
-	t.Logf("Running command: %s %v", binaryPath, args)
-	cmd := exec.Command(binaryPath, args...)
+
+	// On Unix systems (not Windows), traceroute needs elevated privileges
+	// Run with sudo when not on Windows
+	var cmd *exec.Cmd
+	if runtime.GOOS != "windows" {
+		// Prepend sudo to the command
+		sudoArgs := append([]string{binaryPath}, args...)
+		t.Logf("Running command: sudo %s %v", binaryPath, args)
+		cmd = exec.Command("sudo", sudoArgs...)
+	} else {
+		t.Logf("Running command: %s %v", binaryPath, args)
+		cmd = exec.Command(binaryPath, args...)
+	}
 
 	// Capture stdout (JSON output) and stderr (logs) separately
 	var stdout, stderr bytes.Buffer
