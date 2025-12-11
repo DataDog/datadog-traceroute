@@ -112,11 +112,11 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
 
-	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false, expectedError: ""},
 	{"darwin", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false, expectedError: ""},
-	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
 	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
-	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 
 	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true, expectedError: ""},
 	{"darwin", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false, expectedError: ""},
@@ -162,7 +162,7 @@ type testConfig struct {
 // expectIntermediateHops returns whether to expect intermediate hops based on
 // the target, protocol, OS, and whether running on GitHub Actions
 func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
-	t.Helper()
+	//JMWt.Helper()
 
 	// Not on GitHub runner: expect intermediate hops for all OSes and protocols, except for localhost target
 	if !isGitHubRunner() {
@@ -180,7 +180,7 @@ func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
 // expectDestinationReachable returns whether to expect the destination to be reachable
 // based on the target, protocol, OS, and whether running on GitHub Actions
 func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
-	t.Helper()
+	//JMWt.Helper()
 
 	// Not on GitHub: always reachable except for TCP SACK on Linux and Windows
 	if !isGitHubRunner() {
@@ -200,7 +200,7 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 // expectError returns the expected error message for this test configuration
 // Returns empty string if no error is expected
 func (tc *testConfig) expectError(t *testing.T) string {
-	t.Helper()
+	//JMWt.Helper()
 
 	var expectedError string
 
@@ -226,7 +226,7 @@ func (tc *testConfig) expectError(t *testing.T) string {
 // getGitHubExpectations returns the test expectations for GitHub runner environments
 // Fails the test if the configuration is not found in the map
 func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
-	t.Helper()
+	//JMWt.Helper()
 
 	key := reachabilityKey{
 		os:        runtime.GOOS,
@@ -288,7 +288,7 @@ var (
 
 // testCommon runs a library traceroute test with the given configuration
 func testCommon(t *testing.T, config testConfig) {
-	t.Helper()
+	//JMWt.Helper()
 
 	ctx := context.Background()
 	params := traceroute.TracerouteParams{
@@ -408,7 +408,7 @@ func TestFakeNetwork(t *testing.T) {
 
 // getCLIBinaryPath returns the path to the CLI binary, building it if necessary
 func getCLIBinaryPath(t *testing.T) string {
-	t.Helper()
+	//JMWt.Helper()
 
 	cliBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
