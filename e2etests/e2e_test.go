@@ -35,7 +35,7 @@ const (
 	publicEndpointHostname = "github.com"
 	publicEndpointPort     = 443
 	// JMW fakeNetworkHostname --> fakeNetworkDestination? OR fakeNetworkTarget?
-	fakeNetworkHostname    = "198.51.100.2"
+	fakeNetworkHostname = "198.51.100.2"
 )
 
 var (
@@ -49,6 +49,38 @@ var (
 	serverBinaryOnce         sync.Once
 	serverBinaryNeedsCleanup bool
 )
+
+// isGitHubRunner returns true if running on GitHub Actions
+func isGitHubRunner() bool {
+	return os.Getenv("GITHUB_ACTIONS") == "true"
+}
+
+// getExpectIntermediateHops returns whether to expect intermediate hops based on
+// the protocol, OS, and whether running on GitHub Actions
+func getExpectIntermediateHops(protocol traceroute.Protocol, tcpMethod traceroute.TCPMethod) bool {
+	// Not on GitHub runner: expect intermediate hops for all OSes
+	if !isGitHubRunner() {
+		return true
+	}
+
+	// On GitHub runner
+	switch runtime.GOOS {
+	case "linux":
+		// GitHub runner, Linux: false for all protocols
+		return false
+	case "darwin":
+		// GitHub runner, macOS: true for all protocols except TCP SACK
+		if protocol == traceroute.ProtocolTCP && tcpMethod == traceroute.TCPConfigSACK {
+			return false
+		}
+		return true
+	case "windows":
+		// GitHub runner, Windows: false for all protocols
+		return false
+	default:
+		return false
+	}
+}
 
 // TestMain runs before all tests and cleans up after all tests complete
 func TestMain(m *testing.M) {
@@ -156,7 +188,7 @@ func TestLocalhost(t *testing.T) {
 			config := baseConfig
 			config.hostname = "127.0.0.1"
 			config.port = 0
-			config.expectIntermediateHops = false
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -170,7 +202,7 @@ func TestPublicEndpointICMP(t *testing.T) {
 			config := baseConfig
 			config.hostname = publicEndpointHostname
 			config.port = publicEndpointPort
-			config.expectIntermediateHops = false
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -184,7 +216,7 @@ func TestPublicEndpointUDP(t *testing.T) {
 			config := baseConfig
 			config.hostname = publicEndpointHostname
 			config.port = publicEndpointPort
-			config.expectIntermediateHops = false
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -198,7 +230,7 @@ func TestPublicEndpointTCPSYN(t *testing.T) {
 			config := baseConfig
 			config.hostname = publicEndpointHostname
 			config.port = publicEndpointPort
-			config.expectIntermediateHops = false
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -212,7 +244,7 @@ func TestPublicEndpointTCPPreferSACK(t *testing.T) {
 			config := baseConfig
 			config.hostname = publicEndpointHostname
 			config.port = publicEndpointPort
-			config.expectIntermediateHops = false
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -230,7 +262,7 @@ func TestFakeNetwork(t *testing.T) {
 			config := baseConfig
 			config.hostname = fakeNetworkHostname
 			config.port = 0
-			config.expectIntermediateHops = true
+			config.expectIntermediateHops = getExpectIntermediateHops(config.protocol, config.tcpMethod)
 			testCommon(t, config)
 		})
 	}
@@ -406,20 +438,20 @@ func TestLocalhostCLI(t *testing.T) {
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
 			hostname:    "127.0.0.1",
@@ -433,7 +465,7 @@ func TestLocalhostCLI(t *testing.T) {
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -452,20 +484,20 @@ func TestPublicEndpointCLI(t *testing.T) {
 			hostname:               publicEndpointHostname,
 			port:                   publicEndpointPort,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: false, // JMWTHU in github runners: true for macos, false for linux and windows, find a way to determine if in github runners?
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
 			hostname:               publicEndpointHostname,
 			port:                   publicEndpointPort,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
 			hostname:               publicEndpointHostname,
 			port:                   publicEndpointPort,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
 			hostname:    publicEndpointHostname,
@@ -479,7 +511,7 @@ func TestPublicEndpointCLI(t *testing.T) {
 			port:                   publicEndpointPort,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -497,18 +529,18 @@ func TestFakeNetworkCLI(t *testing.T) {
 		{
 			hostname:               fakeNetworkHostname,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: true,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
 			hostname:               fakeNetworkHostname,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: true,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
 			hostname:               fakeNetworkHostname,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: true,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
 			hostname:    fakeNetworkHostname,
@@ -520,7 +552,7 @@ func TestFakeNetworkCLI(t *testing.T) {
 			hostname:               fakeNetworkHostname,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: true,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
@@ -648,27 +680,27 @@ func TestLocalhostHTTPServer(t *testing.T) {
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolICMP,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolICMP, ""),
 		},
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolUDP,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolUDP, ""),
 		},
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigSYN,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigSYN),
 		},
 		{
 			hostname:               "127.0.0.1",
 			port:                   0,
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
-			expectIntermediateHops: false,
+			expectIntermediateHops: getExpectIntermediateHops(traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK),
 		},
 	}
 
