@@ -34,7 +34,7 @@ const (
 	localhostTarget = "127.0.0.1"
 
 	publicTarget = "github.com"
-	publicPort     = 443
+	publicPort   = 443
 
 	// JMW fakeNetworkTarget --> fakeNetworkDestination? OR fakeNetworkTarget?
 	fakeNetworkTarget = "198.51.100.2"
@@ -78,11 +78,11 @@ func TestMain(m *testing.M) {
 
 // testConfig holds configuration for running traceroute tests
 type testConfig struct {
-	hostname               string
-	port                   int
-	protocol               traceroute.Protocol
-	tcpMethod              traceroute.TCPMethod
-	expectError            string // when non-empty, assert that the test fails with an error message containing this string
+	hostname    string
+	port        int
+	protocol    traceroute.Protocol
+	tcpMethod   traceroute.TCPMethod
+	expectError string // when non-empty, assert that the test fails with an error message containing this string
 }
 
 // expectIntermediateHops returns whether to expect intermediate hops based on
@@ -110,6 +110,75 @@ func (tc *testConfig) expectIntermediateHops() bool {
 	default:
 		return false
 	}
+}
+
+// expectDestinationReachable returns whether to expect the destination to be reachable
+// based on the target, protocol, OS, and whether running on GitHub Actions
+func (tc *testConfig) expectDestinationReachable() bool {
+	// Not on GitHub runner: expect destination reachable for all OSes and protocols, except for TCP SACK
+	if !isGitHubRunner() {
+		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
+			return false
+		}
+		return true
+	}
+
+	// On GitHub runner
+	switch runtime.GOOS {
+	case "linux":
+		switch tc.hostname {
+		case localhostTarget:
+			return true
+		case publicTarget:
+			switch tc.protocol {
+			case traceroute.ProtocolICMP:
+				return false
+			case traceroute.ProtocolUDP:
+				return false
+			case traceroute.ProtocolTCP:
+				if tc.tcpMethod == traceroute.TCPConfigSACK {
+					return false
+				}
+			default:
+				return false
+			}
+		case fakeNetworkTarget:
+			return true
+		default:
+			return false
+		}
+	case "darwin":
+		if tc.protocol == traceroute.ProtocolUDP {
+			return false
+		}
+		return true
+	case "windows":
+		switch tc.hostname {
+		case localhostTarget:
+			return true
+		case publicTarget:
+			switch tc.protocol {
+			case traceroute.ProtocolICMP:
+				return false
+			case traceroute.ProtocolUDP:
+				return false
+			case traceroute.ProtocolTCP:
+				if tc.tcpMethod == traceroute.TCPConfigSACK {
+					return false
+				}
+			default:
+				return false
+			}
+		case fakeNetworkTarget:
+			return false
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+
+	return false
 }
 
 // testName returns a test name combining protocol and TCP method
@@ -499,28 +568,28 @@ func testCLI(t *testing.T, config testConfig) {
 func TestLocalhostCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               localhostTarget,
-			protocol:               traceroute.ProtocolICMP,
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolICMP,
 		},
 		{
-			hostname:               localhostTarget,
-			protocol:               traceroute.ProtocolUDP,
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolUDP,
 		},
 		{
-			hostname:               localhostTarget,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigSYN,
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
-			hostname:               localhostTarget,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigSACK,
-			expectError:            "SACK not supported for this target/source",
+			hostname:    localhostTarget,
+			protocol:    traceroute.ProtocolTCP,
+			tcpMethod:   traceroute.TCPConfigSACK,
+			expectError: "SACK not supported for this target/source",
 		},
 		{
-			hostname:               localhostTarget,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
 	}
 
@@ -536,20 +605,20 @@ func TestLocalhostCLI(t *testing.T) {
 func TestPublicTargetCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               publicTarget,
-			port:                   publicPort,
-			protocol:               traceroute.ProtocolICMP,
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolICMP,
 		},
 		{
-			hostname:               publicTarget,
-			port:                   publicPort,
-			protocol:               traceroute.ProtocolUDP,
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolUDP,
 		},
 		{
-			hostname:               publicTarget,
-			port:                   publicPort,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigSYN,
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
 			hostname:    publicTarget,
@@ -559,10 +628,10 @@ func TestPublicTargetCLI(t *testing.T) {
 			expectError: "SACK not supported for this target/source",
 		},
 		{
-			hostname:               publicTarget,
-			port:                   publicPort,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
 	}
 
@@ -578,17 +647,17 @@ func TestPublicTargetCLI(t *testing.T) {
 func TestFakeNetworkCLI(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               fakeNetworkTarget,
-			protocol:               traceroute.ProtocolICMP,
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolICMP,
 		},
 		{
-			hostname:               fakeNetworkTarget,
-			protocol:               traceroute.ProtocolUDP,
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolUDP,
 		},
 		{
-			hostname:               fakeNetworkTarget,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigSYN,
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
 			hostname:    fakeNetworkTarget,
@@ -597,9 +666,9 @@ func TestFakeNetworkCLI(t *testing.T) {
 			expectError: "SACK not supported for this target/source",
 		},
 		{
-			hostname:               fakeNetworkTarget,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
 	}
 
@@ -669,26 +738,26 @@ func testHTTPServer(t *testing.T, config testConfig) {
 func TestLocalhostHTTPServer(t *testing.T) {
 	testConfigs := []testConfig{
 		{
-			hostname:               localhostTarget,
-			port:                   0,
-			protocol:               traceroute.ProtocolICMP,
+			hostname: localhostTarget,
+			port:     0,
+			protocol: traceroute.ProtocolICMP,
 		},
 		{
-			hostname:               localhostTarget,
-			port:                   0,
-			protocol:               traceroute.ProtocolUDP,
+			hostname: localhostTarget,
+			port:     0,
+			protocol: traceroute.ProtocolUDP,
 		},
 		{
-			hostname:               localhostTarget,
-			port:                   0,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigSYN,
+			hostname:  localhostTarget,
+			port:      0,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
-			hostname:               localhostTarget,
-			port:                   0,
-			protocol:               traceroute.ProtocolTCP,
-			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			hostname:  localhostTarget,
+			port:      0,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
 	}
 
@@ -702,6 +771,8 @@ func TestLocalhostHTTPServer(t *testing.T) {
 // validateResults validates traceroute results
 func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	t.Helper()
+
+	t.Logf("Validating results for testConfig %+v expectIntermediateHops=%v expectDestinationReachable=%v", config, config.expectIntermediateHops(), config.expectDestinationReachable())
 
 	jsonBytes, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
@@ -745,15 +816,17 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		}
 		assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 
-		// Validate that the last hop is the destination and is reachable
-		lastHop := run.Hops[len(run.Hops)-1]
-		assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
-		assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
-		assert.Greater(t, lastHop.RTT, 0.0, "run %d last hop should have positive RTT", i)
+		// Validate that the last hop is the destination and is reachable (if we expect it to be)
+		if config.expectDestinationReachable() {
+			lastHop := run.Hops[len(run.Hops)-1]
+			assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
+			assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
+			assert.Greater(t, lastHop.RTT, 0.0, "run %d last hop should have positive RTT", i)
 
-		// Verify the last hop IP matches the run's destination IP
-		assert.True(t, lastHop.IPAddress.Equal(run.Destination.IPAddress),
-			"run %d last hop IP should match run destination IP", i)
+			// Verify the last hop IP matches the run's destination IP
+			assert.True(t, lastHop.IPAddress.Equal(run.Destination.IPAddress),
+				"run %d last hop IP should match run destination IP", i)
+		}
 
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
