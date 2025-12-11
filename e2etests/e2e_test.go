@@ -203,8 +203,7 @@ func (tc *testConfig) expectError(t *testing.T) string {
 		expectedError = expectations.expectedError
 	}
 
-	t.Logf("expectError: config={hostname=%s, protocol=%s, tcpMethod=%s}, onGitHub=%v, OS=%s, expectedError=%q",
-		tc.hostname, tc.protocol, tc.tcpMethod, isGitHubRunner(), runtime.GOOS, expectedError)
+	//JMWRMt.Logf("expectError: config={hostname=%s, protocol=%s, tcpMethod=%s}, onGitHub=%v, OS=%s, expectedError=%q", tc.hostname, tc.protocol, tc.tcpMethod, isGitHubRunner(), runtime.GOOS, expectedError)
 
 	return expectedError
 }
@@ -227,9 +226,7 @@ func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
 			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod)
 	}
 
-	t.Logf("getGitHubExpectations: key={OS=%s, hostname=%s, protocol=%s, tcpMethod=%s}, expectations={destinationReachable=%v, intermediateHops=%v, expectedError=%q}",
-		key.os, key.hostname, key.protocol, key.tcpMethod,
-		expectations.destinationReachable, expectations.intermediateHops, expectations.expectedError)
+	//JMWRMt.Logf("getGitHubExpectations: key={OS=%s, hostname=%s, protocol=%s, tcpMethod=%s}, expectations={destinationReachable=%v, intermediateHops=%v, expectedError=%q}", key.os, key.hostname, key.protocol, key.tcpMethod, expectations.destinationReachable, expectations.intermediateHops, expectations.expectedError)
 
 	return expectations
 }
