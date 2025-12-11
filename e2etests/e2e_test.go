@@ -139,11 +139,10 @@ func TestMain(m *testing.M) {
 
 // testConfig holds configuration for running traceroute tests
 type testConfig struct {
-	hostname    string
-	port        int
-	protocol    traceroute.Protocol
-	tcpMethod   traceroute.TCPMethod
-	expectError string // when non-empty, assert that the test fails with an error message containing this string
+	hostname  string
+	port      int
+	protocol  traceroute.Protocol
+	tcpMethod traceroute.TCPMethod
 }
 
 // expectIntermediateHops returns whether to expect intermediate hops based on
@@ -178,6 +177,24 @@ func (tc *testConfig) expectDestinationReachable() bool {
 	// On GitHub: look up in the reachability map
 	expectations := tc.getGitHubExpectations()
 	return expectations.destinationReachable
+}
+
+// expectError returns the expected error message for this test configuration
+// Returns empty string if no error is expected
+func (tc *testConfig) expectError() string {
+	// Not on GitHub: TCP SACK fails on Linux and Windows with known error
+	if !isGitHubRunner() {
+		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
+			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+				return "SACK not supported for this target/source"
+			}
+		}
+		return ""
+	}
+
+	// On GitHub: look up in the reachability map
+	expectations := tc.getGitHubExpectations()
+	return expectations.expectedError
 }
 
 // getGitHubExpectations returns the test expectations for GitHub runner environments
@@ -264,9 +281,10 @@ func testCommon(t *testing.T, config testConfig) {
 	results, err := tr.RunTraceroute(ctx, params)
 
 	// If we expect an error, check for it
-	if config.expectError != "" {
+	expectedError := config.expectError()
+	if expectedError != "" {
 		require.Error(t, err, "%s traceroute to %s should fail", config.testName(), config.hostname)
-		assert.Contains(t, err.Error(), config.expectError, "error message should contain expected string")
+		assert.Contains(t, err.Error(), expectedError, "error message should contain expected string")
 		return
 	}
 
@@ -562,11 +580,12 @@ func testCLI(t *testing.T, config testConfig) {
 		t.Logf("datadog-traceroute stderr:\n%s", stderr.String())
 	}
 
-	// If we expect an error, check for it JMW
-	if config.expectError != "" {
+	// If we expect an error, check for it
+	expectedError := config.expectError()
+	if expectedError != "" {
 		require.Error(t, err, "CLI should fail for %s", config.testName())
 		combinedOutput := stdout.String() + stderr.String()
-		assert.Contains(t, combinedOutput, config.expectError, "error message should contain expected string")
+		assert.Contains(t, combinedOutput, expectedError, "error message should contain expected string")
 		return
 	}
 
@@ -601,10 +620,9 @@ func TestLocalhostCLI(t *testing.T) {
 			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
-			hostname:    localhostTarget,
-			protocol:    traceroute.ProtocolTCP,
-			tcpMethod:   traceroute.TCPConfigSACK,
-			expectError: "SACK not supported for this target/source",
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
 		},
 		{
 			hostname:  localhostTarget,
@@ -641,11 +659,10 @@ func TestPublicTargetCLI(t *testing.T) {
 			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
-			hostname:    publicTarget,
-			port:        publicPort,
-			protocol:    traceroute.ProtocolTCP,
-			tcpMethod:   traceroute.TCPConfigSACK,
-			expectError: "SACK not supported for this target/source",
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
 		},
 		{
 			hostname:  publicTarget,
@@ -680,10 +697,9 @@ func TestFakeNetworkCLI(t *testing.T) {
 			tcpMethod: traceroute.TCPConfigSYN,
 		},
 		{
-			hostname:    fakeNetworkTarget,
-			protocol:    traceroute.ProtocolTCP,
-			tcpMethod:   traceroute.TCPConfigSACK,
-			expectError: "SACK not supported for this target/source",
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
 		},
 		{
 			hostname:  fakeNetworkTarget,
@@ -726,7 +742,8 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	defer resp.Body.Close()
 
 	// If we expect an error, check for it in the HTTP response
-	if config.expectError != "" {
+	expectedError := config.expectError()
+	if expectedError != "" {
 		// The server should return a non-200 status code for errors
 		assert.NotEqual(t, http.StatusOK, resp.StatusCode, "HTTP server should return error status for %s", config.testName())
 
@@ -735,7 +752,7 @@ func testHTTPServer(t *testing.T, config testConfig) {
 		_, err = buf.ReadFrom(resp.Body)
 		require.NoError(t, err, "should be able to read error response body")
 
-		assert.Contains(t, buf.String(), config.expectError, "error response should contain expected string")
+		assert.Contains(t, buf.String(), expectedError, "error response should contain expected string")
 		return
 	}
 
