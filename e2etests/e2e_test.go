@@ -62,7 +62,7 @@ func isGitHubRunner() bool {
 	return os.Getenv("GITHUB_ACTIONS") == "true"
 }
 
-// reachabilityKey defines the conditions for looking up destination reachability on GitHub runners
+// reachabilityKey defines the conditions for looking up test expectations on GitHub runners
 type reachabilityKey struct {
 	os        string
 	hostname  string
@@ -70,59 +70,57 @@ type reachabilityKey struct {
 	tcpMethod traceroute.TCPMethod
 }
 
-// reachabilityMap defines which combinations result in a reachable destination when running on GitHub
+// testExpectations defines what to expect from a test run
+type testExpectations struct {
+	destinationReachable bool
+	intermediateHops     bool
+	expectedError        string
+}
+
+// reachabilityMap defines test expectations for different combinations when running on GitHub
 // The key combines: OS, hostname, protocol, and TCP method
-var reachabilityMap = map[reachabilityKey]bool{
-	// GitHub runner - Linux
-	{"linux", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
-	{"linux", localhostTarget, traceroute.ProtocolUDP, ""}:                               true,
-	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
-	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
-	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
-	{"linux", publicTarget, traceroute.ProtocolICMP, ""}:                                 false,
-	{"linux", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
-	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
-	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
-	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
-	{"linux", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            true,
-	{"linux", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             true,
-	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        true,
-	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
-	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: true,
+var reachabilityMap = map[reachabilityKey]testExpectations{
+	{"linux", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"linux", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
+	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 
-	// GitHub runner - macOS (darwin)
-	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
-	{"darwin", localhostTarget, traceroute.ProtocolUDP, ""}:                               false,
-	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
-	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
-	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
-	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                                 true,
-	{"darwin", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
-	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
-	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
-	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
-	{"darwin", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            true,
-	{"darwin", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             false,
-	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        true,
-	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
-	{"darwin", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: true,
+	{"linux", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false, expectedError: ""},
+	{"linux", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false, expectedError: ""},
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: true, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
+	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 
-	// GitHub runner - Windows
-	{"windows", localhostTarget, traceroute.ProtocolICMP, ""}:                              true,
-	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                               true,
-	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:          true,
-	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:         false,
-	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:   true,
-	{"windows", publicTarget, traceroute.ProtocolICMP, ""}:                                 false,
-	{"windows", publicTarget, traceroute.ProtocolUDP, ""}:                                  false,
-	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:             true,
-	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:            false,
-	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}:      true,
-	{"windows", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            false,
-	{"windows", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             false,
-	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        false,
-	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       false,
-	{"windows", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: false,
+	{"linux", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"linux", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: true, expectedError: "SACK not supported for this target/source"},
+	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
+
+	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: true, expectedError: "SACK not supported for this target/source"},
+	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
+
+	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: true, expectedError: ""},
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: true, expectedError: ""},
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: true, intermediateHops: true, expectedError: "SACK not supported for this target/source"},
+	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
+
+	{"windows", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
+	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
+
+	{"windows", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false, expectedError: ""},
+	{"windows", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false, expectedError: ""},
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
+	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 }
 
 // TestMain runs before all tests and cleans up after all tests complete
@@ -159,20 +157,9 @@ func (tc *testConfig) expectIntermediateHops() bool {
 		return true
 	}
 
-	// On GitHub runner
-	switch runtime.GOOS {
-	case "linux":
-		if tc.hostname == fakeNetworkTarget {
-			return true
-		}
-		return false
-	case "darwin":
-		return true
-	case "windows":
-		return false
-	default:
-		return false
-	}
+	// On GitHub: look up in the reachability map
+	expectations := tc.getGitHubExpectations()
+	return expectations.intermediateHops
 }
 
 // expectDestinationReachable returns whether to expect the destination to be reachable
@@ -189,6 +176,13 @@ func (tc *testConfig) expectDestinationReachable() bool {
 	}
 
 	// On GitHub: look up in the reachability map
+	expectations := tc.getGitHubExpectations()
+	return expectations.destinationReachable
+}
+
+// getGitHubExpectations returns the test expectations for GitHub runner environments
+// Panics if the configuration is not found in the map
+func (tc *testConfig) getGitHubExpectations() testExpectations {
 	key := reachabilityKey{
 		os:        runtime.GOOS,
 		hostname:  tc.hostname,
@@ -196,14 +190,15 @@ func (tc *testConfig) expectDestinationReachable() bool {
 		tcpMethod: tc.tcpMethod,
 	}
 
-	reachable, found := reachabilityMap[key]
+	expectations, found := reachabilityMap[key]
 	if !found {
-		// If not found in map, default to false for safety
-		// This ensures tests fail loudly if we're missing a configuration
-		return false
+		// JMW pass testing t instead?
+		// Panic immediately - missing configuration should fail the test loudly
+		panic(fmt.Sprintf("Missing test configuration in reachabilityMap for: OS=%s, hostname=%s, protocol=%s, tcpMethod=%s",
+			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod))
 	}
 
-	return reachable
+	return expectations
 }
 
 // testName returns a test name combining protocol and TCP method
