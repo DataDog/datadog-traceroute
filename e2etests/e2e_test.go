@@ -147,7 +147,9 @@ type testConfig struct {
 
 // expectIntermediateHops returns whether to expect intermediate hops based on
 // the target, protocol, OS, and whether running on GitHub Actions
-func (tc *testConfig) expectIntermediateHops() bool {
+func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
+	t.Helper()
+
 	// Not on GitHub runner: expect intermediate hops for all OSes and protocols, except for localhost target
 	if !isGitHubRunner() {
 		if tc.hostname == localhostTarget {
@@ -157,13 +159,15 @@ func (tc *testConfig) expectIntermediateHops() bool {
 	}
 
 	// On GitHub: look up in the reachability map
-	expectations := tc.getGitHubExpectations()
+	expectations := tc.getGitHubExpectations(t)
 	return expectations.intermediateHops
 }
 
 // expectDestinationReachable returns whether to expect the destination to be reachable
 // based on the target, protocol, OS, and whether running on GitHub Actions
-func (tc *testConfig) expectDestinationReachable() bool {
+func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
+	t.Helper()
+
 	// Not on GitHub: always reachable except for TCP SACK on Linux and Windows
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
@@ -175,31 +179,41 @@ func (tc *testConfig) expectDestinationReachable() bool {
 	}
 
 	// On GitHub: look up in the reachability map
-	expectations := tc.getGitHubExpectations()
+	expectations := tc.getGitHubExpectations(t)
 	return expectations.destinationReachable
 }
 
 // expectError returns the expected error message for this test configuration
 // Returns empty string if no error is expected
-func (tc *testConfig) expectError() string {
+func (tc *testConfig) expectError(t *testing.T) string {
+	t.Helper()
+
+	var expectedError string
+
 	// Not on GitHub: TCP SACK fails on Linux and Windows with known error
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
 			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-				return "SACK not supported for this target/source"
+				expectedError = "SACK not supported for this target/source"
 			}
 		}
-		return ""
+	} else {
+		// On GitHub: look up in the reachability map
+		expectations := tc.getGitHubExpectations(t)
+		expectedError = expectations.expectedError
 	}
 
-	// On GitHub: look up in the reachability map
-	expectations := tc.getGitHubExpectations()
-	return expectations.expectedError
+	t.Logf("expectError: config={hostname=%s, protocol=%s, tcpMethod=%s}, onGitHub=%v, OS=%s, expectedError=%q",
+		tc.hostname, tc.protocol, tc.tcpMethod, isGitHubRunner(), runtime.GOOS, expectedError)
+
+	return expectedError
 }
 
 // getGitHubExpectations returns the test expectations for GitHub runner environments
-// Panics if the configuration is not found in the map
-func (tc *testConfig) getGitHubExpectations() testExpectations {
+// Fails the test if the configuration is not found in the map
+func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
+	t.Helper()
+
 	key := reachabilityKey{
 		os:        runtime.GOOS,
 		hostname:  tc.hostname,
@@ -209,10 +223,8 @@ func (tc *testConfig) getGitHubExpectations() testExpectations {
 
 	expectations, found := reachabilityMap[key]
 	if !found {
-		// JMW pass testing t instead?
-		// Panic immediately - missing configuration should fail the test loudly
-		panic(fmt.Sprintf("Missing test configuration in reachabilityMap for: OS=%s, hostname=%s, protocol=%s, tcpMethod=%s",
-			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod))
+		t.Fatalf("Missing test configuration in reachabilityMap for: OS=%s, hostname=%s, protocol=%s, tcpMethod=%s",
+			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod)
 	}
 
 	return expectations
@@ -281,7 +293,7 @@ func testCommon(t *testing.T, config testConfig) {
 	results, err := tr.RunTraceroute(ctx, params)
 
 	// If we expect an error, check for it
-	expectedError := config.expectError()
+	expectedError := config.expectError(t)
 	if expectedError != "" {
 		require.Error(t, err, "%s traceroute to %s should fail", config.testName(), config.hostname)
 		assert.Contains(t, err.Error(), expectedError, "error message should contain expected string")
@@ -534,9 +546,9 @@ func cleanupServerProcess() {
 	}
 }
 
-// JMWTHU split into two files, cli_test.go and http_test.go
+// JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
-	//JMWt.Helper()
+	t.Helper()
 
 	binaryPath := getCLIBinaryPath(t)
 
@@ -565,7 +577,6 @@ func testCLI(t *testing.T, config testConfig) {
 
 	args = append(args, config.hostname)
 
-	t.Logf("Running test for testConfig %+v expectDestinationReachable=%v expectIntermediateHops=%v expectError=%q", config, config.expectDestinationReachable(), config.expectIntermediateHops(), config.expectError())
 	t.Logf("Running command: %s %v", binaryPath, args)
 	cmd := exec.Command(binaryPath, args...)
 
@@ -582,7 +593,7 @@ func testCLI(t *testing.T, config testConfig) {
 	}
 
 	// If we expect an error, check for it
-	expectedError := config.expectError()
+	expectedError := config.expectError(t)
 	if expectedError != "" {
 		require.Error(t, err, "CLI should fail for %s", config.testName())
 		combinedOutput := stdout.String() + stderr.String()
@@ -743,7 +754,7 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	defer resp.Body.Close()
 
 	// If we expect an error, check for it in the HTTP response
-	expectedError := config.expectError()
+	expectedError := config.expectError(t)
 	if expectedError != "" {
 		// The server should return a non-200 status code for errors
 		assert.NotEqual(t, http.StatusOK, resp.StatusCode, "HTTP server should return error status for %s", config.testName())
@@ -810,7 +821,8 @@ func TestLocalhostHTTPServer(t *testing.T) {
 func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	t.Helper()
 
-	t.Logf("Validating results for testConfig %+v expectIntermediateHops=%v expectDestinationReachable=%v", config, config.expectIntermediateHops(), config.expectDestinationReachable())
+	t.Logf("Validating results with testConfig %+v expectDestinationReachable %v expectIntermediateHops=%v expectedError=%s",
+		config, config.expectDestinationReachable(t), config.expectIntermediateHops(t), config.expectError(t))
 
 	jsonBytes, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
@@ -849,13 +861,13 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
 		// Otherwise, we just need at least 1 reachable hop (the destination)
 		minReachableHops := 1
-		if config.expectIntermediateHops() {
+		if config.expectIntermediateHops(t) {
 			minReachableHops = 2
 		}
 		assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 
 		// Validate that the last hop is the destination and is reachable (if we expect it to be)
-		if config.expectDestinationReachable() {
+		if config.expectDestinationReachable(t) {
 			lastHop := run.Hops[len(run.Hops)-1]
 			assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
 			assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
