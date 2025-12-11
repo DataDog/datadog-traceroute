@@ -58,22 +58,8 @@ var (
 )
 
 // isGitHubRunner returns true if running on GitHub Actions
-// Checks both GITHUB_ACTIONS and CI environment variables since sudo may not preserve GITHUB_ACTIONS
 func isGitHubRunner() bool {
-	githubActions := os.Getenv("GITHUB_ACTIONS")
-	ci := os.Getenv("CI")
-	githubWorkflow := os.Getenv("GITHUB_WORKFLOW")
-
-	// GITHUB_ACTIONS is the most specific, but may be lost with sudo
-	// CI is set by most CI systems including GitHub Actions
-	// GITHUB_WORKFLOW is another GitHub-specific variable that might be preserved
-	result := githubActions == "true" || (ci == "true" && githubWorkflow != "")
-
-	// Debug log to help diagnose environment detection issues
-	fmt.Printf("DEBUG isGitHubRunner: GITHUB_ACTIONS=%q, CI=%q, GITHUB_WORKFLOW=%q, result=%v\n",
-		githubActions, ci, githubWorkflow, result)
-
-	return result
+	return os.Getenv("GITHUB_ACTIONS") == "true"
 }
 
 // reachabilityKey defines the conditions for looking up test expectations on GitHub runners
