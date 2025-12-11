@@ -36,6 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        #JMW why not windows?
         #JMWos: [ubuntu-latest, windows-latest, macos-latest]
         os: [ubuntu-latest, macos-latest]
     env:
@@ -57,6 +58,68 @@ jobs:
 
       - name: TestLocalhostCLI
         run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
+
+  #JMWRM
+  public_endpoint_cli_tests:
+    name: "Public Endpoint CLI Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: go build -o $BUILD_TARGET .
+
+      # Test different protocols against reliable public endpoints
+      - name: Test ICMP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: ${{ matrix.os != 'macos-latest' }}
+
+      - name: Test UDP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+
+      - name: Test TCP sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+        continue-on-error: true
+
+      - name: Test TCP prefer_sack traceroute to GitHub
+        run: |
+          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
+          echo "$OUTPUT"
+          bash testutils/validate_traceroute_json.sh "$OUTPUT"
 
   e2e_public_endpoint_cli_tests:
     name: "E2E Public Endpoint CLI Tests"
@@ -115,6 +178,10 @@ jobs:
       # Build the CLI binary
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
+
+      # Setup fake network environment
+      - name: Setup fake network environment
+        run: sudo bash testutils/router_setup.sh
 
       - name: TestFakeNetworkCLI
         run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI

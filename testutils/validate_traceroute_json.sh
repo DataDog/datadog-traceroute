@@ -6,6 +6,8 @@
 #   expected_error_string: Optional error string that must be present in the output (empty string means no check)
 #                          If provided and found, all other validations are skipped
 
+#JMWRM this file
+
 set -euo pipefail
 
 JSON_OUTPUT="$1"
