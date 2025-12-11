@@ -36,9 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #JMW why not windows?
-        #JMWos: [ubuntu-latest, windows-latest, macos-latest]
-        os: [ubuntu-latest, macos-latest]
+        #JMW why not windows? os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}

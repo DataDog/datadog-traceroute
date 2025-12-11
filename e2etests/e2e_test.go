@@ -534,9 +534,9 @@ func cleanupServerProcess() {
 	}
 }
 
-// JMWTHU split intop two files, cli_test.go and http_test.go
+// JMWTHU split into two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
-	t.Helper()
+	//JMWt.Helper()
 
 	binaryPath := getCLIBinaryPath(t)
 
@@ -565,6 +565,7 @@ func testCLI(t *testing.T, config testConfig) {
 
 	args = append(args, config.hostname)
 
+	t.Logf("Running test for testConfig %+v expectDestinationReachable=%v expectIntermediateHops=%v expectError=%q", config, config.expectDestinationReachable(), config.expectIntermediateHops(), config.expectError())
 	t.Logf("Running command: %s %v", binaryPath, args)
 	cmd := exec.Command(binaryPath, args...)
 
