@@ -291,24 +291,33 @@ jobs:
   # SSH Debug Job - E2E Localhost CLI Tests with SSH Access
   # This job allows you to SSH into the GitHub runner for debugging purposes.
   #
-  # To manually trigger this job:
-  # 1. Go to GitHub.com and navigate to this repository
-  # 2. Click the "Actions" tab at the top
-  # 3. Select the "test" workflow in the left sidebar
-  # 4. Click the blue "Run workflow" button on the right side
-  # 5. Select the branch you want to run on
-  # 6. Click "Run workflow" to start
+  # To manually trigger this job using GitHub CLI:
+  # 1. Install GitHub CLI if you haven't already: https://cli.github.com/
+  # 2. Authenticate: gh auth login
+  # 3. Push your branch to GitHub
+  # 4. Run from your terminal:
+  #      gh workflow run test.yml --ref your-branch-name
+  #    Example:
+  #      gh workflow run test.yml --ref jmw/e2e-tests-in-github-runners
+  # 5. The workflow will start and you'll see: "✓ Created workflow_dispatch event for test.yml"
+  # 6. Monitor the workflow run:
+  #      gh run list
+  #      gh run watch
+  #    Or view in browser: https://github.com/DataDog/datadog-traceroute/actions
   #
-  # Once the workflow is running:
-  # 1. Click on the running workflow to see the jobs
-  # 2. Click on the "E2E Localhost CLI Tests (SSH Debug)" job for your OS
-  # 3. Wait for the "Setup upterm session" step to start
-  # 4. Look for the SSH connection details in the step logs:
+  # Once the "E2E SSH Debug for Manual Tests" job reaches the "Setup upterm session" step:
+  # 1. Go to the Actions page and click on your running workflow
+  # 2. Click on the "E2E SSH Debug for Manual Tests" job for your desired OS
+  # 3. Expand the "Setup upterm session" step
+  # 4. Look for the SSH connection details:
   #    - SSH command to connect (e.g., ssh <session-id>::<host>)
   #    - Web shell URL for browser-based access
-  # 5. Use the provided SSH command or web URL to connect to the runner
-  # 6. The session will remain active for 30 minutes or until you cancel the job
-  # 7. You can interact with the runner, run commands, debug tests, etc.
+  # 5. Copy and run the SSH command in your terminal, or use the web URL in your browser
+  # 6. The session will remain active for 30 minutes or until you cancel the workflow
+  # 7. Both CLI and HTTP server binaries are built and the server is already running on port 3765
+  # 8. You can run tests, debug issues, and interact with the runner as needed
+  #    For example,
+  #    sudo ./datadog-traceroute -v --proto tcp -q 1 -Q 1 github.com
   #
   # Note: This job only runs on workflow_dispatch (manual trigger).
   # Only the person who triggered the workflow can access the SSH session.
@@ -365,6 +374,92 @@ jobs:
       - name: Setup upterm session
         if: always()
         uses: lhotari/action-upterm@v1
+        timeout-minutes: 30
+        with:
+          limit-access-to-actor: true
+
+  # SSH Debug Job (tmate) - E2E Localhost CLI Tests with SSH Access
+  # Alternative SSH debug job using tmate instead of upterm
+  # Use this if upterm has connection issues with your SSH client
+  #
+  # To manually trigger this job using GitHub CLI:
+  # 1. Install GitHub CLI if you haven't already: https://cli.github.com/
+  # 2. Authenticate: gh auth login
+  # 3. Push your branch to GitHub
+  # 4. Run from your terminal:
+  #      gh workflow run test.yml --ref your-branch-name
+  #    Example:
+  #      gh workflow run test.yml --ref jmw/e2e-tests-in-github-runners
+  # 5. The workflow will start and you'll see: "✓ Created workflow_dispatch event for test.yml"
+  # 6. Monitor the workflow run:
+  #      gh run list
+  #      gh run watch
+  #    Or view in browser: https://github.com/DataDog/datadog-traceroute/actions
+  #
+  # Once the "E2E SSH Debug for Manual Tests (tmate)" job reaches the "Setup tmate session" step:
+  # 1. Go to the Actions page and click on your running workflow
+  # 2. Click on the "E2E SSH Debug for Manual Tests (tmate)" job for your desired OS
+  # 3. Expand the "Setup tmate session" step
+  # 4. Look for the SSH connection details:
+  #    - SSH command to connect (e.g., ssh <random-string>@nyc1.tmate.io)
+  #    - Web shell URL for browser-based access
+  # 5. Copy and run the SSH command in your terminal, or use the web URL in your browser
+  # 6. The session will remain active for 30 minutes or until you cancel the workflow
+  # 7. Both CLI and HTTP server binaries are built and the server is already running on port 3765
+  # 8. You can run tests, debug issues, and interact with the runner as needed
+  #
+  e2e_ssh_debug_for_manual_tests_tmate:
+    name: "E2E SSH Debug for Manual Tests (tmate)"
+    runs-on: ${{ matrix.os }}
+    # Only run this job manually to avoid accidental SSH sessions
+    if: github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        #JMW does it work for windows?
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      # Build the CLI binary
+      - name: Build CLI
+        run: |
+          go build -o $BUILD_TARGET .
+          echo "Built CLI executable: $EXECUTABLE"
+          echo "Test with: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --traceroute-queries 3 --e2e-queries 10"
+
+      # Build the HTTP server binary
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      # Run the HTTP server in the background
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE &
+          sleep 2
+          echo "HTTP server started on default port 3765"
+          echo "Test with: curl http://localhost:3765/traceroute?target=127.0.0.1&protocol=icmp"
+
+      # Setup tmate session for SSH access
+      # This will print SSH connection details in the job logs
+      - name: Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
         timeout-minutes: 30
         with:
           limit-access-to-actor: true
