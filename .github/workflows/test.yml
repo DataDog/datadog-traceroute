@@ -317,7 +317,7 @@ jobs:
   # 4. Look for the SSH connection details:
   #    - SSH command to connect (e.g., ssh <random-string>@nyc1.tmate.io)
   # 5. Copy and run the SSH command in your terminal
-  # 6. The session will remain active for 30 minutes or until you cancel the workflow
+  # 6. The session will remain active for 60 minutes or until you cancel the workflow
   # 7. Both CLI and HTTP server binaries are built and the server is running on port 3765
   # 8. You can run tests, debug issues, and interact with the runner as needed
   #    Examples:
@@ -378,6 +378,6 @@ jobs:
       - name: Setup tmate session
         if: always()
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 30
+        timeout-minutes: 60
         with:
           limit-access-to-actor: true
