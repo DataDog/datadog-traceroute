@@ -34,6 +34,7 @@ const (
 	// JMW add localhostname
 	publicEndpointHostname = "github.com"
 	publicEndpointPort     = 443
+	// JMW fakeNetworkHostname --> fakeNetworkDestination?
 	fakeNetworkHostname    = "198.51.100.2"
 )
 
@@ -331,6 +332,7 @@ func cleanupServerBinary() {
 	}
 }
 
+// JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
 	t.Helper()
 
@@ -478,6 +480,47 @@ func TestPublicEndpointCLI(t *testing.T) {
 			protocol:               traceroute.ProtocolTCP,
 			tcpMethod:              traceroute.TCPConfigPreferSACK,
 			expectIntermediateHops: false,
+		},
+	}
+
+	for _, config := range testConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testCLI(t, config)
+		})
+	}
+}
+
+// TestFakeNetworkCLI runs CLI tests to JMW a public endpoint for all protocols
+// In CI this will run on Linux
+func TestFakeNetworkCLI(t *testing.T) {
+	testConfigs := []testConfig{
+		{
+			hostname:               fakeNetworkHostname,
+			protocol:               traceroute.ProtocolICMP,
+			expectIntermediateHops: true,
+		},
+		{
+			hostname:               fakeNetworkHostname,
+			protocol:               traceroute.ProtocolUDP,
+			expectIntermediateHops: true,
+		},
+		{
+			hostname:               fakeNetworkHostname,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigSYN,
+			expectIntermediateHops: true,
+		},
+		{
+			hostname:    fakeNetworkHostname,
+			protocol:    traceroute.ProtocolTCP,
+			tcpMethod:   traceroute.TCPConfigSACK,
+			expectError: "SACK not supported for this target/source",
+		},
+		{
+			hostname:               fakeNetworkHostname,
+			protocol:               traceroute.ProtocolTCP,
+			tcpMethod:              traceroute.TCPConfigPreferSACK,
+			expectIntermediateHops: true,
 		},
 	}
 

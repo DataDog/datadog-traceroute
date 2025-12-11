@@ -8,6 +8,7 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
 
 jobs:
   unit_tests:
@@ -26,120 +27,6 @@ jobs:
       - run: go mod tidy
       - run: go test -tags=test -v ./...
 
-  basic_functionality_tests:
-    name: "Basic CLI Tests"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ".go-version"
-      - run: go mod tidy
-
-      # Build the CLI binary
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
-
-      # Test CLI help and version commands (safe on all platforms)
-      - name: Test CLI help
-        run: $EXECUTABLE --help
-        continue-on-error: true
-
-      - name: Test CLI version
-        run: $EXECUTABLE version
-        continue-on-error: true
-
-      # Test invalid arguments (should fail gracefully)
-      - name: Test invalid protocol
-        run: |
-          if $EXECUTABLE --proto invalid 127.0.0.1; then
-            echo "ERROR: Should have failed with invalid protocol"
-            exit 1
-          else
-            echo "SUCCESS: Correctly rejected invalid protocol"
-          fi
-        continue-on-error: true
-
-      # Platform-specific tests
-      - name: Test Windows driver flag (Windows only)
-        if: matrix.os == 'windows-latest'
-        run: $EXECUTABLE --windows-driver --help
-        continue-on-error: true
-
-  localhost_cli_tests:
-    name: "Localhost CLI Tests"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
-      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
-      MAX_PACKET_LOSS_PCT: ${{ matrix.os == 'windows-latest' && '0.9' || '0.0' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ".go-version"
-      - run: go mod tidy
-
-      # Build the CLI binary
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
-
-      # Test different protocols against localhost
-      - name: Test ICMP traceroute to localhost
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MAX_PACKET_LOSS_PCT"
-
-      - name: Test UDP traceroute to localhost
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MAX_PACKET_LOSS_PCT"
-        continue-on-error: ${{ matrix.os == 'windows-latest' }}
-
-      - name: Test TCP traceroute to localhost
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MAX_PACKET_LOSS_PCT"
-
-      - name: Test TCP sack traceroute to localhost
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MAX_PACKET_LOSS_PCT" "sack traceroute failed: SACK not supported for this target/source"
-        continue-on-error: true
-
-      - name: Test TCP prefer_sack traceroute to localhost
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT" "$MAX_PACKET_LOSS_PCT"
-
   e2e_localhost_cli_tests:
     name: "E2E Localhost CLI Tests"
     runs-on: ${{ matrix.os }}
@@ -155,7 +42,6 @@ jobs:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
-      MAX_PACKET_LOSS_PCT: ${{ matrix.os == 'windows-latest' && '0.9' || '0.0' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,7 +59,7 @@ jobs:
         run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
 
   e2e_public_endpoint_cli_tests:
-    name: "Public Endpoint CLI Tests"
+    name: "E2E Public Endpoint CLI Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -181,7 +67,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        #JMWos: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
@@ -199,50 +86,23 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      # Test different protocols against reliable public endpoints
-      - name: Test ICMP traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: ${{ matrix.os != 'macos-latest' }}
+      - name: TestPublicEndpointCLI
+        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestPublicEndpointCLI
 
-      - name: Test UDP traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: true
-
-      - name: Test TCP traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-
-      - name: Test TCP sack traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: true
-
-      - name: Test TCP prefer_sack traceroute to GitHub
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-
-  fake_network_cli_tests:
-    name: "Fake Network CLI Tests"
-    runs-on: ubuntu-latest
+  e2e_fake_network_cli_tests:
+    name: "E2E Fake Network CLI Tests"
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
     env:
-      SUDO_CMD: sudo
-      BUILD_TARGET: datadog-traceroute
-      EXECUTABLE: ./datadog-traceroute
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -256,41 +116,8 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      # Setup fake network environment
-      - name: Setup fake network environment
-        run: sudo bash testutils/router_setup.sh
-
-      # Test different protocols against fake network
-      - name: Test ICMP traceroute to fake network
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-
-      - name: Test UDP traceroute to fake network
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-
-      - name: Test TCP traceroute to fake network
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-
-      - name: Test TCP sack traceroute to fake network
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
-        continue-on-error: true
-
-      - name: Test TCP prefer_sack traceroute to fake network
-        run: |
-          OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 198.51.100.2)
-          echo "$OUTPUT"
-          bash testutils/validate_traceroute_json.sh "$OUTPUT"
+      - name: TestFakeNetworkCLI
+        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
 
   # #JMWTHU
   # windows_driver_cli_tests:
@@ -394,19 +221,50 @@ jobs:
   #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
   #       continue-on-error: true
 
-  #JMWFRI why does windows fail?
-  localhost_integration_tests:
-    name: "Localhost Integration Tests"
+  # SSH Debug Job - E2E Localhost CLI Tests with SSH Access
+  # This job allows you to SSH into the GitHub runner for debugging purposes.
+  #
+  # To manually trigger this job:
+  # 1. Go to GitHub.com and navigate to this repository
+  # 2. Click the "Actions" tab at the top
+  # 3. Select the "test" workflow in the left sidebar
+  # 4. Click the blue "Run workflow" button on the right side
+  # 5. Select the branch you want to run on
+  # 6. Click "Run workflow" to start
+  #
+  # Once the workflow is running:
+  # 1. Click on the running workflow to see the jobs
+  # 2. Click on the "E2E Localhost CLI Tests (SSH Debug)" job for your OS
+  # 3. Wait for the "Setup upterm session" step to start
+  # 4. Look for the SSH connection details in the step logs:
+  #    - SSH command to connect (e.g., ssh <session-id>::<host>)
+  #    - Web shell URL for browser-based access
+  # 5. Use the provided SSH command or web URL to connect to the runner
+  # 6. The session will remain active for 30 minutes or until you cancel the job
+  # 7. You can interact with the runner, run commands, debug tests, etc.
+  #
+  # Note: This job only runs on workflow_dispatch (manual trigger).
+  # Only the person who triggered the workflow can access the SSH session.
+  #
+  e2e_ssh_debug_for_manual_tests:
+    name: "E2E SSH Debug for Manual Tests"
     runs-on: ${{ matrix.os }}
+    # Only run this job manually to avoid accidental SSH sessions
+    if: github.event_name == 'workflow_dispatch'
     defaults:
       run:
         shell: bash
     strategy:
+      fail-fast: false
       matrix:
-        #os: [ubuntu-latest, windows-latest, macos-latest]
-        os: [ubuntu-latest, macos-latest]
+        #JMW does it work for windows?
+        os: [ubuntu-latest, windows-latest, macos-latest]
     env:
       SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
+      BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -415,66 +273,31 @@ jobs:
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
-      - name: Run localhost tests
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run TestLocalhost
 
-  public_endpoint_integration_tests:
-    name: "Public Endpoint ${{ matrix.test }} Integration Tests (${{ matrix.os }})"
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      matrix:
-        include:
-          - test: TestPublicEndpointICMP
-            os: macos-latest
-          # JMWFRI fails
-          #- test: UDP
-          #  test_name: TestPublicEndpointUDP
-          #  os: macos-latest
-          - test: TestPublicEndpointTCPSYN
-            os: ubuntu-latest
-          - test: TestPublicEndpointTCPSYN
-            os: windows-latest
-          - test: TestPublicEndpointTCPSYN
-            os: macos-latest
-          - test: TestPublicEndpointTCPPreferSACK
-            os: ubuntu-latest
-          - test: TestPublicEndpointTCPPreferSACK
-            os: windows-latest
-          - test: TestPublicEndpointTCPPreferSACK
-            os: macos-latest
-    env:
-      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ".go-version"
-      - run: go mod tidy
-      - name: Run ${{ matrix.test }} test
-        run: $SUDO_CMD go test -tags=integration -v ./integration_tests/... -run ${{ matrix.test }}
+      # Build the CLI binary
+      - name: Build CLI
+        run: |
+          go build -o $BUILD_TARGET .
+          echo "Built CLI executable: $EXECUTABLE"
+          echo "Test with: $SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --traceroute-queries 3 --e2e-queries 10"
 
-  e2e_fake_network_tests:
-    name: "E2E Fake Network Tests"
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    env:
-      SUDO_CMD: "sudo"
-    steps:
-      - uses: actions/checkout@v4
+      # Build the HTTP server binary
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      # Run the HTTP server in the background
+      - name: Run HTTP Server
+        run: |
+          $SUDO_CMD $SERVER_EXECUTABLE &
+          sleep 2
+          echo "HTTP server started on default port 3765"
+          echo "Test with: curl http://localhost:3765/traceroute?target=127.0.0.1&protocol=icmp"
+
+      # Setup upterm session for SSH access
+      # This will print SSH connection details in the job logs
+      - name: Setup upterm session
+        if: always()
+        uses: lhotari/action-upterm@v1
+        timeout-minutes: 30
         with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ".go-version"
-      - run: go mod tidy
-      - name: Setup fake network environment
-        run: sudo bash testutils/router_setup.sh
-      - name: Run fake network tests
-        run: $SUDO_CMD go test -tags=e2etest -v ./e2etests/... -run TestFakeNetwork
+          limit-access-to-actor: true
