@@ -227,6 +227,10 @@ func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
 			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod)
 	}
 
+	t.Logf("getGitHubExpectations: key={OS=%s, hostname=%s, protocol=%s, tcpMethod=%s}, expectations={destinationReachable=%v, intermediateHops=%v, expectedError=%q}",
+		key.os, key.hostname, key.protocol, key.tcpMethod,
+		expectations.destinationReachable, expectations.intermediateHops, expectations.expectedError)
+
 	return expectations
 }
 
@@ -548,7 +552,7 @@ func cleanupServerProcess() {
 
 // JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
-	t.Helper()
+	//JMWt.Helper()
 
 	binaryPath := getCLIBinaryPath(t)
 
@@ -577,6 +581,8 @@ func testCLI(t *testing.T, config testConfig) {
 
 	args = append(args, config.hostname)
 
+	t.Logf("Running with testConfig %+v expectDestinationReachable %v expectIntermediateHops=%v expectedError=%s",
+		config, config.expectDestinationReachable(t), config.expectIntermediateHops(t), config.expectError(t))
 	t.Logf("Running command: %s %v", binaryPath, args)
 	cmd := exec.Command(binaryPath, args...)
 
