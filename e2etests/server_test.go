@@ -67,6 +67,7 @@ func getServerBinaryPath(t *testing.T) string {
 
 func cleanupServerBinary() {
 	if serverBinaryNeedsCleanup && serverBinaryPath != "" {
+		fmt.Printf("JMW Cleaning up server binary: %s\n", serverBinaryPath)
 		os.Remove(serverBinaryPath)
 	}
 }

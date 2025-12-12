@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"fmt" //JMW
 
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +65,9 @@ func getCLIBinaryPath(t *testing.T) string {
 }
 
 func cleanupCLIBinary() {
+	fmt.Printf("JMW in cleanupCLIBinary cliBinaryNeedsCleanup=%v cliBinaryPath=%s\n", cliBinaryNeedsCleanup, cliBinaryPath) //JMW
 	if cliBinaryNeedsCleanup && cliBinaryPath != "" {
+		fmt.Printf("JMW Cleaning up CLI binary: %s\n", cliBinaryPath)
 		os.Remove(cliBinaryPath)
 	}
 }
@@ -79,8 +82,6 @@ func testCLI(t *testing.T, config testConfig) {
 		"--reverse-dns",
 		"--source-public-ip",
 	}
-	//JMW--skip-private-hops        Skip private hops
-	//JMW--windows-driver           Use Windows driver for traceroute (Windows only)
 
 	if config.port > 0 {
 		args = append(args, "--port", strconv.Itoa(config.port))

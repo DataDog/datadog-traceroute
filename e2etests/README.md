@@ -1,140 +1,303 @@
-# Integration Tests
+# End-to-End Tests
 
-This directory contains integration tests that use the datadog-traceroute library programmatically, similar to how it's used in the [datadog-agent](https://github.com/DataDog/datadog-agent/blob/main/pkg/networkpath/traceroute/runner/runner.go).
+This directory contains comprehensive end-to-end tests for the `datadog-traceroute` library and binaries. The tests validate functionality across different protocols, network conditions, and usage patterns.
 
-## Overview
+## Test Structure
 
-The integration tests validate the library's functionality by:
-- Running traceroutes using different protocols (ICMP, UDP, TCP)
-- Testing different TCP methods (SYN, SACK, prefer_sack)
-- Testing against localhost and public endpoints
-- Validating the structure and correctness of returned results
+The e2e test suite includes two types of tests:
+
+### 1. CLI Tests (`cli_test.go`)
+Tests that execute the compiled `datadog-traceroute` CLI binary as a subprocess and validate JSON output.
+
+### 2. HTTP Server Tests (`server_test.go`)
+Tests that validate the HTTP server API (`datadog-traceroute-server`) by making REST API requests and validating JSON responses.
+
+## Test Configurations
+
+Each test type runs against three target categories:
+
+### Localhost Tests
+- Target: `127.0.0.1`
+- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Purpose: Verify basic functionality in a controlled environment
+
+### Public Target Tests
+- Target: `github.com:443`
+- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Purpose: Validate real-world internet traceroutes
+
+### Fake Network Tests
+- Target: `198.51.100.2` (TEST-NET-2)
+- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Purpose: Validate funcctionality with a fake network configuration that should always be reachable with a valid intermediate hop.
 
 ## Running the Tests
 
 ### Prerequisites
 
-1. **Administrative/Root Privileges**: These tests require elevated privileges to create raw sockets and send/receive network packets.
+1. **Administrative/Root Privileges**: (Linux and MacOS) Required to create raw sockets and send/receive network packets.
+2. **Network Access**: Public target tests require internet connectivity.
+3. **Go 1.x**: Compatible Go installation.
 
-2. **Network Access**: Public endpoint tests require internet connectivity.
-
-### Run All Integration Tests
+### Run All E2E Tests
 
 ```bash
 # On Linux/macOS
-sudo go test -tags=integration -v ./integration_tests/
+sudo go test -tags=e2etest -v ./e2etests/
 
 # On Windows (run from an elevated PowerShell/CMD)
-go test -tags=integration -v ./integration_tests/
+go test -tags=e2etest -v ./e2etests/
 ```
 
-### Run Specific Tests
+### Run Specific Test Categories
 
 ```bash
-# Test only localhost ICMP
-sudo go test -tags=integration -v ./integration_tests/ -run TestLocalhostICMP
+# CLI tests only
+sudo go test -tags=e2etest -v ./e2etests/ -run CLI
 
-# Test only public endpoint TCP
-sudo go test -tags=integration -v ./integration_tests/ -run TestPublicEndpointTCP
+# HTTP server tests only
+sudo go test -tags=e2etest -v ./e2etests/ -run HTTPServer
 
-# Test all localhost tests
-sudo go test -tags=integration -v ./integration_tests/ -run TestLocalhost
+# Localhost tests only (both CLI and server)
+sudo go test -tags=e2etest -v ./e2etests/ -run Localhost
 
-# Test all public endpoint tests
-sudo go test -tags=integration -v ./integration_tests/ -run TestPublicEndpoint
+# Public target tests only (both CLI and server)
+sudo go test -tags=e2etest -v ./e2etests/ -run PublicTarget
+
+# Fake network tests only (both CLI and server)
+sudo go test -tags=e2etest -v ./e2etests/ -run FakeNetwork
 ```
 
-## Test Coverage
+### Run Individual Tests
 
-### Localhost Tests
+```bash
+# Specific CLI test
+sudo go test -tags=e2etest -v ./e2etests/ -run TestLocalhostCLI/ICMP
 
-These tests verify basic functionality against localhost (127.0.0.1):
+# Specific HTTP server test
+sudo go test -tags=e2etest -v ./e2etests/ -run TestPublicTargetHTTPServer/TCP-SYN
 
-- **TestLocalhostICMP**: ICMP Echo traceroute to localhost
-- **TestLocalhostUDP**: UDP traceroute to localhost
-- **TestLocalhostTCP**: TCP SYN traceroute to localhost
+# Specific protocol across all targets
+sudo go test -tags=e2etest -v ./e2etests/ -run ICMP
+```
 
-### Public Endpoint Tests
+### Adjust Test Timeout
 
-These tests verify functionality against real internet endpoints (github.com):
+```bash
+# Increase timeout for slow networks (default is 10 minutes)
+sudo go test -tags=e2etest -v -timeout 15m ./e2etests/
+```
 
-- **TestPublicEndpointTCP**: TCP SYN traceroute to github.com:443
-- **TestPublicEndpointTCPSACK**: TCP SACK traceroute to github.com:443
-- **TestPublicEndpointTCPPreferSACK**: TCP prefer_sack traceroute to github.com:443
+## Test Validation
 
-## What's Validated
+Each test performs comprehensive validation:
 
-Each test validates:
+### 1. Error Handling
+- Verifies no unexpected errors during execution
+- For error tests, validates expected error messages are present
 
-1. **No errors during execution**: The traceroute completes successfully
-2. **Result structure**: All expected fields are populated
-3. **Traceroute runs**: 
-   - Correct number of runs (3 as configured)
-   - Each run has a unique RunID
-   - Hops are present and within TTL limits
-   - Source and destination information is correct
-4. **Hop information**:
-   - TTL values are valid
-   - Reachable hops have IP addresses and RTT values
-   - RTT values are positive for reachable hops
-5. **Hop count statistics**:
-   - Average, min, and max hop counts are valid
-   - Stats are consistent (max >= min)
-6. **E2E probe results**:
-   - Correct number of probes (10 as configured)
-   - Packet counts and loss percentage are valid
-   - RTT statistics are valid for received packets
-   - Jitter is calculated
+### 2. Result Structure
+- All expected fields are populated
+- Source and destination information is correct
+- Protocol-specific fields are valid
 
-## Differences from CLI Tests
+### 3. Traceroute Runs
+- Correct number of runs (3 by default)
+- Each run has a unique RunID
+- Hops are present and within TTL limits (1-30)
+- Valid hop information (TTL, IP, RTT, reachability)
 
-The CLI tests in `.github/workflows/test.yml` run the compiled binary as a subprocess, while these integration tests:
+### 4. Hop Information
+- TTL values are in valid range
+- Reachable hops have IP addresses
+- RTT values are positive for reachable hops
+- Multiple responses per hop are properly recorded
 
-1. **Use the library directly**: Import and call the `runner.RunTraceroute()` function
-2. **Validate result structures**: Check the actual data structures returned, not just exit codes
-3. **Provide detailed assertions**: Validate specific fields and their relationships
-4. **Match datadog-agent usage**: Follow the same patterns used in production by the datadog-agent
+### 5. Hop Statistics
+- Average, min, and max hop counts are calculated
+- Statistical consistency (max >= avg >= min)
+- Values match actual hop data
+
+### 6. E2E Probe Results
+- Correct number of probes (10 by default)
+- Packet send/receive counts are valid
+- Packet loss percentage is calculated correctly
+- RTT statistics (avg, min, max) are present when packets received
+- Jitter is calculated
+
+### 7. Reverse DNS
+- When enabled, validates hostname fields are populated
+- Checks for both source and intermediate hop DNS results
+
+### 8. Public IP Detection
+- When enabled, validates source public IP is detected
+- Verifies IP format and validity
+
+## Test Matrix
+
+| Test Type | Target | Protocol | TCP Method | Port | Queries | E2E Probes |
+|-----------|--------|----------|------------|------|---------|------------|
+| Localhost | 127.0.0.1 | ICMP | - | - | 3 | 10 |
+| Localhost | 127.0.0.1 | UDP | - | - | 3 | 10 |
+| Localhost | 127.0.0.1 | TCP | SYN | - | 3 | 10 |
+| Localhost | 127.0.0.1 | TCP | SACK | - | 3 | 10 |
+| Localhost | 127.0.0.1 | TCP | prefer_sack | - | 3 | 10 |
+| Public | github.com | ICMP | - | 443 | 3 | 10 |
+| Public | github.com | UDP | - | 443 | 3 | 10 |
+| Public | github.com | TCP | SYN | 443 | 3 | 10 |
+| Public | github.com | TCP | SACK | 443 | 3 | 10 |
+| Public | github.com | TCP | prefer_sack | 443 | 3 | 10 |
+| Fake Network | 198.51.100.2 | ICMP | - | - | 3 | 10 |
+| Fake Network | 198.51.100.2 | UDP | - | - | 3 | 10 |
+| Fake Network | 198.51.100.2 | TCP | SYN | - | 3 | 10 |
+| Fake Network | 198.51.100.2 | TCP | SACK | - | 3 | 10 |
+| Fake Network | 198.51.100.2 | TCP | prefer_sack | - | 3 | 10 |
+
+Each configuration is tested with both the CLI binary and HTTP server API.
+
+## CI/CD Integration
+
+The tests are integrated into GitHub Actions CI pipeline (`.github/workflows/test.yml`):
+
+- **Platforms**: Ubuntu, Windows, macOS
+- **Execution**: Individual test functions run separately for better visibility
+- **Privileges**: Uses `sudo` on Unix systems, elevated execution on Windows
+- **Binary Reuse**: Pre-built binaries from build stage are used when available
+
+Example CI job:
+
+```yaml
+cli_e2e_localhost:
+  name: "CLI E2E Tests - Localhost"
+  runs-on: ${{ matrix.os }}
+  strategy:
+    matrix:
+      os: [ubuntu-latest, windows-latest, macos-latest]
+  steps:
+    - name: Run Localhost ICMP Test
+      run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI/ICMP
+```
 
 ## Troubleshooting
 
 ### Permission Denied Errors
 
-If you see errors like "permission denied" or "operation not permitted":
-- Ensure you're running with `sudo` on Linux/macOS
-- Ensure you're running from an elevated terminal on Windows
+```
+Error: permission denied / operation not permitted
+```
+
+**Solution**: Ensure elevated privileges
+- Linux/macOS: Use `sudo`
+- Windows: Run from Administrator terminal
 
 ### Timeout Errors
 
-If tests timeout or fail to connect:
-- Check your internet connection (for public endpoint tests)
-- Verify firewall settings aren't blocking ICMP/UDP/TCP packets
-- Some networks may block certain types of traceroute packets
-
-### Windows Driver Errors
-
-On Windows, if you encounter driver-related errors:
-- The tests default to not using the Windows driver (`UseWindowsDriver: false`)
-- You can modify the tests to enable it if needed
-
-## Adding New Tests
-
-To add new integration tests:
-
-1. Create a new test function following the pattern: `TestXXXX(t *testing.T)`
-2. Set the build tag: `//go:build integration`
-3. Configure `TracerouteParams` with your desired settings
-4. Call `runner.RunTraceroute(ctx, params)`
-5. Use the appropriate validation function or create a custom one
-6. Add documentation to this README
-
-## Integration with CI/CD
-
-These tests can be integrated into CI/CD pipelines:
-
-```yaml
-- name: Run Integration Tests
-  run: sudo go test -tags=integration -v ./integration_tests/
+```
+Error: test timed out / context deadline exceeded
 ```
 
-Note: Ensure the CI environment has the necessary privileges and network access.
+**Solution**: Check network connectivity or increase timeout
+```bash
+sudo go test -tags=e2etest -v -timeout 15m ./e2etests/
+```
 
+### Connection Refused (HTTP Server Tests)
+
+```
+Error: connection refused on 127.0.0.1:3765
+```
+
+**Solution**: The test will automatically start the server, but if it fails:
+- Check if port 3765 is available
+- Verify the server binary builds successfully
+- Check firewall settings
+
+### Flaky Public Target Tests
+
+Public endpoint tests may occasionally fail due to:
+- Network congestion
+- Firewall interference
+- Route changes
+
+**Solution**: Re-run the specific failing test or adjust timeout values.
+
+### Binary Build Failures
+
+```
+Error: Failed to build datadog-traceroute
+```
+
+**Solution**: Ensure clean build environment
+```bash
+# Clean and rebuild
+go clean
+go build .
+go build ./cmd/traceroute-server
+```
+
+## Test Development
+
+### Adding New Tests
+
+1. **Add test configuration** to `e2etestutil.go`:
+```go
+myTestConfigs := []testConfig{
+    {
+        hostname: "example.com",
+        port:     80,
+        protocol: traceroute.ProtocolTCP,
+        tcpMethod: traceroute.TCPConfigSYN,
+    },
+}
+```
+
+2. **Add test function** to appropriate test file:
+```go
+func TestMyNewTest(t *testing.T) {
+    for _, config := range myTestConfigs {
+        t.Run(config.testName(), func(t *testing.T) {
+            testCLI(t, config)  // or testHTTPServer(t, config)
+        })
+    }
+}
+```
+
+3. **Update this README** with new test documentation.
+
+4. **Add CI job** to `.github/workflows/test.yml` if needed.
+
+### Custom Validation
+
+For tests requiring custom validation logic, create a custom `expectation` function:
+
+```go
+func (c testConfig) customValidation(t *testing.T) string {
+    if c.hostname == "special-case.com" {
+        return "expected-behavior"
+    }
+    return ""
+}
+```
+
+## Files
+
+- **`cli_test.go`**: CLI binary tests
+- **`server_test.go`**: HTTP server API tests
+- **`e2etestutil.go`**: Shared utilities and test configurations
+- **`doc.go`**: Package-level documentation
+- **`README.md`**: This file
+
+## Best Practices
+
+1. **Run locally before pushing**: Always run the full test suite locally before committing.
+2. **Test new protocols/features**: Add corresponding e2e tests for new functionality.
+3. **Keep tests fast**: Localhost tests should complete in < 5 seconds.
+4. **Document expectations**: Update test configurations with clear expectations.
+5. **Handle flaky tests**: Use appropriate timeouts and retries for network tests.
+
+## Related Documentation
+
+- Main project README: `../readme.md`
+- CI/CD workflow: `../.github/workflows/test.yml`
+- Server API documentation: `../server/README.md`
+- Package documentation: Run `go doc ./e2etests`

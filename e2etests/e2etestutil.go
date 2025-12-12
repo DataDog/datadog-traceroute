@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"fmt" //JMW
 
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
@@ -207,6 +208,7 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
+	fmt.Printf("JMW in TestMain cleanup cliBinaryNeedsCleanup=%v serverBinaryNeedsCleanup=%v\n", cliBinaryNeedsCleanup, serverBinaryNeedsCleanup) //JMW
 	cleanupCLIBinary()
 	cleanupServerBinary()
 	cleanupServerProcess()

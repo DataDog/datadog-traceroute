@@ -3,15 +3,13 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package integration_tests contains integration tests for the datadog-traceroute library.
+// Package e2etests contains end-to-end tests for the datadog-traceroute library.
 // These tests use the library programmatically to validate functionality across different
 // protocols and network conditions.
 //
 // To run these tests, use the integration build tag:
 //
-// JMW
-//	go test -tags=integration -v ./integration_tests/
+//	go test -tags=integration -v ./e2etests/
 //
 // Note: These tests require elevated privileges (root/admin) to create raw sockets.
-// JMW why is this file needed
 package e2etests
