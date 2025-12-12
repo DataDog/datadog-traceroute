@@ -78,12 +78,13 @@ func testCLI(t *testing.T, config testConfig) {
 	binaryPath := getCLIBinaryPath(t)
 
 	args := []string{
-		"--e2e-queries", "10",
-		//"--max-ttl", "5", //JMWRM?
+		//JMW"--e2e-queries", "10",
+		"--e2e-queries", "100",
 		"--proto", strings.ToLower(string(config.protocol)),
-		//"--timeout", "500", //JMWRM?
-		"--traceroute-queries", "3",
+		//JMW"--traceroute-queries", "3",
+		"--traceroute-queries", "10",
 		// JMW more args?
+		"--reverse-dns", // JMW validate?
 	}
 	//JMW--reverse-dns              Enrich IPs with Reverse DNS names
 	//JMW--skip-private-hops        Skip private hops
