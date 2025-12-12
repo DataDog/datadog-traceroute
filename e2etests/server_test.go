@@ -144,7 +144,7 @@ func ensureServerRunning(t *testing.T) string {
 	return serverAddr
 }
 
-//JMWFRI this isn't being clenaed up on my mac
+// JMWFRI this isn't being clenaed up on my mac
 func cleanupServerProcess() {
 	if serverProcess != nil && serverProcess.Process != nil {
 		serverProcess.Process.Kill()
