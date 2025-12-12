@@ -27,7 +27,6 @@ const (
 	publicTarget = "github.com"
 	publicPort   = 443
 
-	// JMW fakeNetworkTarget --> fakeNetworkDestination? OR fakeNetworkTarget?
 	fakeNetworkTarget = "198.51.100.2"
 
 	// Number of traceroute runs to perform in e2e tests
@@ -204,21 +203,18 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 }
 
-// TestMain runs before all tests and cleans up after all tests complete
+// TestMain runs all tests and cleans up after tests complete
 func TestMain(m *testing.M) {
-	// Run all tests
 	exitCode := m.Run()
 
-	// Cleanup binaries if they were built
 	cleanupCLIBinary()
 	cleanupServerBinary()
 	cleanupServerProcess()
 
-	// Exit with the test result code
 	os.Exit(exitCode)
 }
 
-// testConfig holds configuration for running traceroute tests
+// testConfig holds configuration for running one test
 type testConfig struct {
 	hostname  string
 	port      int
@@ -226,12 +222,9 @@ type testConfig struct {
 	tcpMethod traceroute.TCPMethod
 }
 
-// expectDestinationReachable returns whether to expect the destination to be reachable
-// based on the target, protocol, OS, and whether running on GitHub Actions
+// expectDestinationReachable returns whether to expect the destination to be reachable for the specific testConfig
 func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
-	//JMWt.Helper()
-
-	// Not running on GitHub runner, always reachable except for TCP SACK on Linux and Windows, and UDP to github.com
+	// Not running on GitHub runner, always expect reachable except for TCP SACK on Linux and Windows, and UDP to github.com
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
 			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
@@ -249,12 +242,9 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 	return expectations.destinationReachable
 }
 
-// expectIntermediateHops returns whether to expect intermediate hops based on
-// the target, protocol, OS, and whether running on GitHub Actions
+// expectIntermediateHops returns whether to expect intermediate hops for the specific testConfig
 func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
-	//JMWt.Helper()
-
-	// Not on GitHub runner: expect intermediate hops for all OSes and protocols, except for localhost target
+	// Not on GitHub runner: expect intermediate hops for all OSes and protocols, except for localhost target and UDP to github.com
 	if !isGitHubRunner() {
 		if tc.hostname == localhostTarget {
 			return false
@@ -265,7 +255,7 @@ func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
 		return true
 	}
 
-	// On GitHub: look up in the reachability map
+	// When running on GitHub runners look up in the reachability map
 	expectations := tc.getGitHubExpectations(t)
 	return expectations.intermediateHops
 }
@@ -273,8 +263,6 @@ func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
 // expectError returns the expected error message for this test configuration
 // Returns empty string if no error is expected
 func (tc *testConfig) expectError(t *testing.T) string {
-	//JMWt.Helper()
-
 	var expectedError string
 
 	// Not on GitHub: TCP SACK fails on Linux and Windows with known error
@@ -285,12 +273,10 @@ func (tc *testConfig) expectError(t *testing.T) string {
 			}
 		}
 	} else {
-		// On GitHub: look up in the reachability map
+		// When running on GitHub runners look up in the reachability map
 		expectations := tc.getGitHubExpectations(t)
 		expectedError = expectations.expectedError
 	}
-
-	//JMWRMt.Logf("expectError: config={hostname=%s, protocol=%s, tcpMethod=%s}, onGitHub=%v, OS=%s, expectedError=%q", tc.hostname, tc.protocol, tc.tcpMethod, isGitHubRunner(), runtime.GOOS, expectedError)
 
 	return expectedError
 }
@@ -298,8 +284,6 @@ func (tc *testConfig) expectError(t *testing.T) string {
 // getGitHubExpectations returns the test expectations for GitHub runner environments
 // Fails the test if the configuration is not found in the map
 func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
-	//JMWt.Helper()
-
 	key := reachabilityKey{
 		os:        runtime.GOOS,
 		hostname:  tc.hostname,
@@ -312,8 +296,6 @@ func (tc *testConfig) getGitHubExpectations(t *testing.T) testExpectations {
 		t.Fatalf("Missing test configuration in reachabilityMap for: OS=%s, hostname=%s, protocol=%s, tcpMethod=%s",
 			runtime.GOOS, tc.hostname, tc.protocol, tc.tcpMethod)
 	}
-
-	//JMWRMt.Logf("getGitHubExpectations: key={OS=%s, hostname=%s, protocol=%s, tcpMethod=%s}, expectations={destinationReachable=%v, intermediateHops=%v, expectedError=%q}", key.os, key.hostname, key.protocol, key.tcpMethod, expectations.destinationReachable, expectations.intermediateHops, expectations.expectedError)
 
 	return expectations
 }
@@ -329,8 +311,6 @@ func (c testConfig) testName() string {
 
 // validateResults validates traceroute results
 func validateResults(t *testing.T, results *result.Results, config testConfig) {
-	t.Helper()
-
 	t.Logf("Validating results with testConfig %+v expectDestinationReachable %v expectIntermediateHops=%v expectedError=%s",
 		config, config.expectDestinationReachable(t), config.expectIntermediateHops(t), config.expectError(t))
 
@@ -456,10 +436,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		assert.Equal(t, numE2eProbes, len(results.E2eProbe.RTTs), "should have %d E2E probes as requested", numE2eProbes)
 		assert.Equal(t, numE2eProbes, results.E2eProbe.PacketsSent, "should have sent %d E2E packets", numE2eProbes)
 
-		// JMWTHU can we validate 0% packet loss or is that too flaky?
 		// Validate packet loss
-		//JMWassert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
-		//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
 		// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
 		if config.hostname != localhostTarget || runtime.GOOS != "windows" {
 			if config.hostname == publicTarget {
@@ -482,6 +459,4 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			assert.Less(t, results.E2eProbe.RTT.Avg, 5000.0, "E2E average RTT should be less than 5 seconds")
 		}
 	}
-
-	// JMW other checks?
 }

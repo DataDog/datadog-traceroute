@@ -27,8 +27,6 @@ import (
 
 // getServerBinaryPath returns the path to the HTTP server binary, building it if necessary
 func getServerBinaryPath(t *testing.T) string {
-	t.Helper()
-
 	serverBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
 
@@ -91,8 +89,6 @@ func isServerRunning(addr string) bool {
 // ensureServerRunning ensures the HTTP server is running on serverAddr
 // It checks if a server is already running (e.g., in CI), and if not, starts one
 func ensureServerRunning(t *testing.T) string {
-	t.Helper()
-
 	serverProcessOnce.Do(func() {
 		// First check if server is already running (CI scenario)
 		if isServerRunning(serverAddr) {
@@ -153,13 +149,10 @@ func cleanupServerProcess() {
 
 // testHTTPServer runs an HTTP server traceroute test with the given configuration
 func testHTTPServer(t *testing.T, config testConfig) {
-	t.Helper()
-
 	// Ensure server is running (either already running in CI or start it once)
 	testServerAddr := ensureServerRunning(t)
 
 	// Build the HTTP request URL
-	// JMW build the cli cmd and URL similarly
 	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&tcp-method=%s&traceroute-queries=%d&e2e-queries=%d&reverse-dns=true&source-public-ip=true",
 		testServerAddr, config.hostname, strings.ToLower(string(config.protocol)), string(config.tcpMethod), numTraceroutes, numE2eProbes)
 
@@ -207,8 +200,7 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	validateResults(t, &results, config)
 }
 
-// TestLocalhostHTTPServer runs HTTP server tests to localhost for all protocols
-// In CI this will run on Linux, MacOS, and Windows
+// TestLocalhostHTTPServer runs HTTP server tests to localhost
 func TestLocalhostHTTPServer(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
@@ -217,8 +209,7 @@ func TestLocalhostHTTPServer(t *testing.T) {
 	}
 }
 
-// TestPublicTargetHTTPServer runs HTTP server tests to a public target for all protocols
-// In CI this will run on Linux, MacOS, and Windows
+// TestPublicTargetHTTPServer runs HTTP server tests to a public target
 func TestPublicTargetHTTPServer(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
@@ -227,8 +218,7 @@ func TestPublicTargetHTTPServer(t *testing.T) {
 	}
 }
 
-// TestFakeNetworkHTTPServer runs HTTP server tests to JMW for all protocols
-// In CI this will run on Linux
+// TestFakeNetworkHTTPServer runs HTTP server tests to a local IP address with a fake network config
 func TestFakeNetworkHTTPServer(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {

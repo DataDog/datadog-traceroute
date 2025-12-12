@@ -25,8 +25,6 @@ import (
 
 // getCLIBinaryPath returns the path to the CLI binary, building it if necessary
 func getCLIBinaryPath(t *testing.T) string {
-	//JMWt.Helper()
-
 	cliBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
 
@@ -71,17 +69,13 @@ func cleanupCLIBinary() {
 	}
 }
 
-// JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
-	//JMWt.Helper()
-
 	binaryPath := getCLIBinaryPath(t)
 
 	args := []string{
 		"--e2e-queries", strconv.Itoa(numE2eProbes),
 		"--proto", strings.ToLower(string(config.protocol)),
 		"--traceroute-queries", strconv.Itoa(numTraceroutes),
-		// JMW more args?
 		"--reverse-dns",
 		"--source-public-ip",
 	}
@@ -150,11 +144,7 @@ func testCLI(t *testing.T, config testConfig) {
 	validateResults(t, &results, config)
 }
 
-// JMWFRI this test fails on windows because not all 10 e2e probes are both isDest AND RTT > 0
-// 2025/12/12 00:31:13 [TRACE] found probe &{TTL:1 IP:127.0.0.1 RTT:0s IsDest:true}
-
-// TestLocalhostCLI runs CLI tests to localhost for all protocols
-// In CI this will run on Linux, MacOS, and Windows
+// TestLocalhostCLI runs CLI tests to localhost
 func TestLocalhostCLI(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
@@ -163,8 +153,7 @@ func TestLocalhostCLI(t *testing.T) {
 	}
 }
 
-// TestPublicTargetCLI runs CLI tests to a public target for all protocols
-// In CI this will run on Linux, MacOS, and Windows
+// TestPublicTargetCLI runs CLI tests to a public target
 func TestPublicTargetCLI(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
@@ -173,8 +162,7 @@ func TestPublicTargetCLI(t *testing.T) {
 	}
 }
 
-// TestFakeNetworkCLI runs CLI tests to JMW for all protocols
-// In CI this will run on Linux
+// TestFakeNetworkCLI runs CLI tests to a local IP address with a fake network config
 func TestFakeNetworkCLI(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
