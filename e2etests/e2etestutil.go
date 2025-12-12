@@ -29,6 +29,12 @@ const (
 
 	// JMW fakeNetworkTarget --> fakeNetworkDestination? OR fakeNetworkTarget?
 	fakeNetworkTarget = "198.51.100.2"
+
+	// Number of traceroute runs to perform in e2e tests
+	numTraceroutes = 3
+
+	// Number of E2E probes to perform in e2e tests
+	numE2eProbes = 10
 )
 
 var (
@@ -345,7 +351,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	}
 
 	// Validate traceroute runs
-	assert.Equal(t, 3, len(results.Traceroute.Runs), "should have 3 traceroute runs")
+	assert.Equal(t, numTraceroutes, len(results.Traceroute.Runs), "should have %d traceroute runs", numTraceroutes)
 
 	// For public targets, traceroutes can be flaky, so we only require at least one run to reach the destination
 	// For local targets, all runs should reach the destination
@@ -433,8 +439,8 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	if config.expectDestinationReachable(t) {
 		// Validate E2E probe results
 		assert.NotEmpty(t, results.E2eProbe.RTTs, "should have E2E probe RTTs")
-		assert.Equal(t, 10, len(results.E2eProbe.RTTs), "should have 10 E2E probes as requested")
-		assert.Equal(t, 10, results.E2eProbe.PacketsSent, "should have sent 10 E2E packets")
+		assert.Equal(t, numE2eProbes, len(results.E2eProbe.RTTs), "should have %d E2E probes as requested", numE2eProbes)
+		assert.Equal(t, numE2eProbes, results.E2eProbe.PacketsSent, "should have sent %d E2E packets", numE2eProbes)
 
 		// JMWTHU can we validate 0% packet loss or is that too flaky?
 		// Validate packet loss

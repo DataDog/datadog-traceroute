@@ -78,11 +78,9 @@ func testCLI(t *testing.T, config testConfig) {
 	binaryPath := getCLIBinaryPath(t)
 
 	args := []string{
-		//JMW"--e2e-queries", "10",
-		"--e2e-queries", "100",
+		"--e2e-queries", strconv.Itoa(numE2eProbes),
 		"--proto", strings.ToLower(string(config.protocol)),
-		//JMW"--traceroute-queries", "3",
-		"--traceroute-queries", "10",
+		"--traceroute-queries", strconv.Itoa(numTraceroutes),
 		// JMW more args?
 		"--reverse-dns", // JMW validate?
 	}
