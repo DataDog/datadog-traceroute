@@ -225,3 +225,80 @@ func TestLocalhostHTTPServer(t *testing.T) {
 		})
 	}
 }
+
+// TestPublicTargetHTTPServer runs HTTP server tests to a public target for all protocols
+// In CI this will run on Linux, MacOS, and Windows
+func TestPublicTargetHTTPServer(t *testing.T) {
+	testConfigs := []testConfig{
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+	}
+
+	for _, config := range testConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testHTTPServer(t, config)
+		})
+	}
+}
+
+// TestFakeNetworkHTTPServer runs HTTP server tests to JMW for all protocols
+// In CI this will run on Linux
+func TestFakeNetworkHTTPServer(t *testing.T) {
+	testConfigs := []testConfig{
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+	}
+
+	for _, config := range testConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testHTTPServer(t, config)
+		})
+	}
+}
