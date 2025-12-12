@@ -122,8 +122,10 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 		return 0, nil
 	}
 	// JMWFRI on windows, e2e probes to localhost sometimes return 0 RTT for the isDestHop case.  We have been usig 0 to indicate destination unreachable.  Try this??
-	return float64(0.001), nil
-	//JMWORIGreturn destHop.RTT, nil
+	if destHop.RTT == 0.0 {
+		return float64(0.001), nil
+	}
+	return destHop.RTT, nil
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration, useWindowsDriver bool) (sack.Params, error) {
