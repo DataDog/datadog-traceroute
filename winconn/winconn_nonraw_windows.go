@@ -285,11 +285,15 @@ func (r *Conn) GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (ne
 			return nil, time.Time{}, 0, 0, fmt.Errorf("failed to get hop address: %w", err)
 		}
 		log.Debugf("got hop address: %s", addr)
-		return addr, time.Now(), imcpType, imcpCode, nil
+		endTime := time.Now()
+		log.Debugf("GetHop: WSAEHOSTUNREACH path, capturing end time at %v", endTime)
+		return addr, endTime, imcpType, imcpCode, nil
 	} else if err != nil {
 		log.Errorf("failed to send connect: %s", err.Error())
 		return nil, time.Time{}, 0, 0, fmt.Errorf("failed to send connect: %w", err)
 	}
 
-	return destIP, time.Now(), 0, 0, nil
+	endTime := time.Now()
+	log.Debugf("GetHop: successful connection path (likely localhost), capturing end time at %v", endTime)
+	return destIP, endTime, 0, 0, nil
 }
