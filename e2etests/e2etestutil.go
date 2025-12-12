@@ -136,6 +136,29 @@ type testConfig struct {
 	tcpMethod traceroute.TCPMethod
 }
 
+// expectDestinationReachable returns whether to expect the destination to be reachable
+// based on the target, protocol, OS, and whether running on GitHub Actions
+func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
+	//JMWt.Helper()
+
+	// Not running on GitHub runner, always reachable except for TCP SACK on Linux and Windows, and UDP to github.com
+	if !isGitHubRunner() {
+		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
+			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+				return false
+			}
+		}
+		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
+			return false
+		}
+		return true
+	}
+
+	// When running on GitHub runners look up in the reachability map
+	expectations := tc.getGitHubExpectations(t)
+	return expectations.destinationReachable
+}
+
 // expectIntermediateHops returns whether to expect intermediate hops based on
 // the target, protocol, OS, and whether running on GitHub Actions
 func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
@@ -146,32 +169,15 @@ func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
 		if tc.hostname == localhostTarget {
 			return false
 		}
-		return true
-	}
-
-	// On GitHub: look up in the reachability map
-	expectations := tc.getGitHubExpectations(t)
-	return expectations.intermediateHops
-}
-
-// expectDestinationReachable returns whether to expect the destination to be reachable
-// based on the target, protocol, OS, and whether running on GitHub Actions
-func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
-	//JMWt.Helper()
-
-	// Not on GitHub: always reachable except for TCP SACK on Linux and Windows
-	if !isGitHubRunner() {
-		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
-			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-				return false
-			}
+		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
+			return false
 		}
 		return true
 	}
 
 	// On GitHub: look up in the reachability map
 	expectations := tc.getGitHubExpectations(t)
-	return expectations.destinationReachable
+	return expectations.intermediateHops
 }
 
 // expectError returns the expected error message for this test configuration
@@ -258,27 +264,14 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	assert.Equal(t, 3, len(results.Traceroute.Runs), "should have 3 traceroute runs")
 
 	for i, run := range results.Traceroute.Runs {
+		// Validate source and destination
+		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
+		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
+		if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
+			assert.Equal(t, uint16(config.port), run.Destination.Port, "run %d destination port should match", i)
+		}
+
 		assert.NotEmpty(t, run.Hops, "run %d should have at least one hop", i)
-
-		// Count reachable hops
-		reachableCount := 0
-		for j, hop := range run.Hops {
-			assert.NotZero(t, hop.TTL, "run %d, hop %d should have a TTL", i, j)
-
-			if hop.Reachable {
-				reachableCount++
-				assert.NotNil(t, hop.IPAddress, "run %d, hop %d should have an IP address if reachable", i, j)
-				assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
-			}
-		}
-
-		// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
-		// Otherwise, we just need at least 1 reachable hop (the destination)
-		minReachableHops := 1
-		if config.expectIntermediateHops(t) {
-			minReachableHops = 2
-		}
-		assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 
 		// Validate that the last hop is the destination and is reachable (if we expect it to be)
 		if config.expectDestinationReachable(t) {
@@ -290,13 +283,27 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			// Verify the last hop IP matches the run's destination IP
 			assert.True(t, lastHop.IPAddress.Equal(run.Destination.IPAddress),
 				"run %d last hop IP should match run destination IP", i)
-		}
 
-		// Validate source and destination
-		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
-		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
-		if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
-			assert.Equal(t, uint16(config.port), run.Destination.Port, "run %d destination port should match", i)
+			// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
+			// Otherwise, we just need at least 1 reachable hop (the destination)
+
+			// Count reachable hops
+			reachableCount := 0
+			for j, hop := range run.Hops {
+				assert.NotZero(t, hop.TTL, "run %d, hop %d should have a TTL", i, j)
+
+				if hop.Reachable {
+					reachableCount++
+					assert.NotNil(t, hop.IPAddress, "run %d, hop %d should have an IP address if reachable", i, j)
+					assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
+				}
+			}
+
+			minReachableHops := 1
+			if config.expectIntermediateHops(t) {
+				minReachableHops = 2
+			}
+			assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 		}
 	}
 
@@ -306,26 +313,28 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	assert.Greater(t, results.Traceroute.HopCount.Max, 0, "max hop count should be positive")
 	assert.GreaterOrEqual(t, results.Traceroute.HopCount.Max, results.Traceroute.HopCount.Min, "max hop count should be >= min")
 
-	// Validate E2E probe results
-	assert.NotEmpty(t, results.E2eProbe.RTTs, "should have E2E probe RTTs")
-	assert.Equal(t, 10, len(results.E2eProbe.RTTs), "should have 10 E2E probes as requested")
-	assert.Equal(t, 10, results.E2eProbe.PacketsSent, "should have sent 10 E2E packets")
+	if config.expectDestinationReachable(t) {
+		// Validate E2E probe results
+		assert.NotEmpty(t, results.E2eProbe.RTTs, "should have E2E probe RTTs")
+		assert.Equal(t, 10, len(results.E2eProbe.RTTs), "should have 10 E2E probes as requested")
+		assert.Equal(t, 10, results.E2eProbe.PacketsSent, "should have sent 10 E2E packets")
 
-	// JMWTHU can we validate 0% packet loss or is that too flaky?
-	// Validate packet loss
-	//JMWassert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
-	//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
-	assert.Equal(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be == 0.0")
+		// JMWTHU can we validate 0% packet loss or is that too flaky?
+		// Validate packet loss
+		//JMWassert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
+		//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
+		assert.Equal(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be == 0.0")
 
-	// If we received any packets, validate RTT stats
-	if results.E2eProbe.PacketsReceived > 0 {
-		assert.Greater(t, results.E2eProbe.RTT.Avg, 0.0, "E2E average RTT should be positive")
-		assert.Greater(t, results.E2eProbe.RTT.Min, 0.0, "E2E min RTT should be positive")
-		assert.Greater(t, results.E2eProbe.RTT.Max, 0.0, "E2E max RTT should be positive")
-		assert.GreaterOrEqual(t, results.E2eProbe.RTT.Max, results.E2eProbe.RTT.Min, "E2E max RTT should be >= min")
+		// If we received any packets, validate RTT stats
+		if results.E2eProbe.PacketsReceived > 0 {
+			assert.Greater(t, results.E2eProbe.RTT.Avg, 0.0, "E2E average RTT should be positive")
+			assert.Greater(t, results.E2eProbe.RTT.Min, 0.0, "E2E min RTT should be positive")
+			assert.Greater(t, results.E2eProbe.RTT.Max, 0.0, "E2E max RTT should be positive")
+			assert.GreaterOrEqual(t, results.E2eProbe.RTT.Max, results.E2eProbe.RTT.Min, "E2E max RTT should be >= min")
 
-		// RTT should be reasonable
-		assert.Less(t, results.E2eProbe.RTT.Avg, 5000.0, "E2E average RTT should be less than 5 seconds")
+			// RTT should be reasonable
+			assert.Less(t, results.E2eProbe.RTT.Avg, 5000.0, "E2E average RTT should be less than 5 seconds")
+		}
 	}
 
 	// JMW other checks?

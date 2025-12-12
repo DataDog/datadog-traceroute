@@ -49,9 +49,9 @@ func getServerBinaryPath(t *testing.T) string {
 		}
 
 		t.Log("Pre-built server binary not found, building test server binary")
-		testBinaryName := "datadog-traceroute-server-test"
+		testBinaryName := "datadog-traceroute-server"
 		if runtime.GOOS == "windows" {
-			testBinaryName = "datadog-traceroute-server-test.exe"
+			testBinaryName = "datadog-traceroute-server.exe"
 		}
 		serverBinaryPath = filepath.Join(projectRoot, testBinaryName)
 
@@ -76,12 +76,17 @@ func cleanupServerBinary() {
 
 // isServerRunning checks if a server is already running on the given address
 func isServerRunning(addr string) bool {
-	conn, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+	// Try to make a simple request to the traceroute endpoint with a minimal query
+	// If it returns 400 (bad request) or 200, the server is running
+	// We expect 400 because we're not providing required parameters
+	resp, err := http.Get(fmt.Sprintf("http://%s/traceroute", addr))
 	if err != nil {
 		return false
 	}
-	conn.Body.Close()
-	return conn.StatusCode == http.StatusOK
+	resp.Body.Close()
+	// Server is running if we get any HTTP response (200, 400, etc.)
+	// Just not a connection error
+	return true
 }
 
 // ensureServerRunning ensures the HTTP server is running on serverAddr
@@ -100,7 +105,17 @@ func ensureServerRunning(t *testing.T) string {
 		t.Logf("HTTP server not running, starting on %s", serverAddr)
 		binaryPath := getServerBinaryPath(t)
 
-		cmd := exec.Command(binaryPath, "--addr", serverAddr, "--log-level", "error")
+		// On Unix systems (not Windows), traceroute needs elevated privileges
+		// Run with sudo when not on Windows
+		var cmd *exec.Cmd
+		if runtime.GOOS != "windows" {
+			// Prepend sudo to the command
+			t.Logf("Running command: sudo %s --addr %s --log-level error", binaryPath, serverAddr)
+			cmd = exec.Command("sudo", binaryPath, "--addr", serverAddr, "--log-level", "error")
+		} else {
+			t.Logf("Running command: %s --addr %s --log-level error", binaryPath, serverAddr)
+			cmd = exec.Command(binaryPath, "--addr", serverAddr, "--log-level", "error")
+		}
 
 		// Capture stdout and stderr
 		var stdout, stderr bytes.Buffer
@@ -144,8 +159,9 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	testServerAddr := ensureServerRunning(t)
 
 	// Build the HTTP request URL
-	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&max-ttl=5&traceroute-queries=3&e2e-queries=10&timeout=500",
-		testServerAddr, config.hostname, strings.ToLower(string(config.protocol)))
+	// JMW build the cli cmd and URL similarly
+	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&tcp-method=%s&traceroute-queries=3&e2e-queries=10",
+		testServerAddr, config.hostname, strings.ToLower(string(config.protocol)), string(config.tcpMethod))
 
 	if config.port > 0 {
 		url += fmt.Sprintf("&port=%d", config.port)

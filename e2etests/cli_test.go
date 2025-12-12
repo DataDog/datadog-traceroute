@@ -46,9 +46,9 @@ func getCLIBinaryPath(t *testing.T) string {
 			return
 		}
 
-		testBinaryName := "datadog-traceroute-test"
+		testBinaryName := "datadog-traceroute"
 		if runtime.GOOS == "windows" {
-			testBinaryName = "datadog-traceroute-test.exe"
+			testBinaryName = "datadog-traceroute.exe"
 		}
 		t.Logf("Pre-built binary not found, building test binary: %s", testBinaryName)
 		cliBinaryPath = filepath.Join(projectRoot, testBinaryName)
