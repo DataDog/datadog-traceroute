@@ -343,6 +343,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 
 	// Validate basic parameters
 	assert.Equal(t, strings.ToLower(string(config.protocol)), results.Protocol, "protocol should match")
+	assert.NotNil(t, results.Source.PublicIP, "should have source public IP")
 	assert.Equal(t, config.hostname, results.Destination.Hostname, "hostname should match")
 	// Port validation: ICMP doesn't use ports (it's a network layer protocol),
 	// so we only validate port for TCP and UDP protocols when port > 0
