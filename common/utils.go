@@ -1,7 +1,15 @@
 package common
 
-import "time"
+import (
+	"time"
+
+	"github.com/DataDog/datadog-traceroute/log"
+)
 
 func ConvertDurationToMs(duration time.Duration) float64 {
-	return duration.Seconds() * 1000
+	seconds := duration.Seconds()
+	milliseconds := seconds * 1000
+	log.Debugf("ConvertDurationToMs: duration=%v (nanoseconds=%d) seconds=%f milliseconds=%f", 
+		duration, duration.Nanoseconds(), seconds, milliseconds)
+	return milliseconds
 }
