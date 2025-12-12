@@ -134,7 +134,7 @@ jobs:
     env:
       SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
       SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
-      SUDO_CMD: ${{ matrix.os == 'windows-latest' && '' || 'sudo' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -173,7 +173,7 @@ jobs:
     env:
       SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
       SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
-      SUDO_CMD: ${{ matrix.os == 'windows-latest' && '' || 'sudo' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -211,7 +211,7 @@ jobs:
     env:
       SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
       SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
-      SUDO_CMD: ${{ matrix.os == 'windows-latest' && '' || 'sudo' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -401,7 +401,7 @@ jobs:
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
       SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
       SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
-      SUDO_CMD: ${{ matrix.os == 'windows-latest' && '' || 'sudo' }}
+      SUDO_CMD: ${{ matrix.os != 'windows-latest' && 'sudo' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -416,13 +416,13 @@ jobs:
         run: |
           go build -o $BUILD_TARGET .
           echo "Built CLI executable: $EXECUTABLE"
-          echo "Example test (will use sudo automatically on Unix): $EXECUTABLE --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com"
+          echo "Example test $SUDO_CMD $EXECUTABLE --proto tcp --port 443 --traceroute-queries 1 --e2e-queries 1 github.com"
 
       # Build the HTTP server binary
       - name: Build HTTP Server
         run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
 
-      # Run the HTTP server in the background with sudo (needed for raw socket operations)
+      # Run the HTTP server in the background
       - name: Run HTTP Server
         run: |
           $SUDO_CMD $SERVER_EXECUTABLE &

@@ -280,7 +280,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
 
 			// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
-			if config.Target != localhostTarget || go.runtime.GOOS != "windows" {
+			if config.Target != localhostTarget || runtime.GOOS != "windows" {
 				assert.Greater(t, lastHop.RTT, 0.0, "run %d last hop should have positive RTT", i)
 			}
 
@@ -328,7 +328,7 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		//JMWassert.GreaterOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be >= 0")
 		//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
 		// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
-		if config.Target != localhostTarget || go.runtime.GOOS != "windows" {
+		if config.Target != localhostTarget || runtime.GOOS != "windows" {
 			assert.Equal(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be == 0.0")
 		}
 
