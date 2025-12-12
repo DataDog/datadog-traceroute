@@ -357,8 +357,8 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 
 		assert.NotEmpty(t, run.Hops, "run %d should have at least one hop", i)
 
-		// Validate that the last hop is the destination and is reachable (if we expect it to be)
 		if config.expectDestinationReachable(t) {
+			// Validate that the last hop is the destination and is reachable
 			lastHop := run.Hops[len(run.Hops)-1]
 			assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
 			assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
@@ -416,7 +416,13 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		//JMWassert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(1.0), "packet loss should be <= 1.0")
 		// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
 		if config.hostname != localhostTarget || runtime.GOOS != "windows" {
-			assert.Equal(t, results.E2eProbe.PacketLossPercentage, float32(0.0), "packet loss should be == 0.0")
+			if config.hostname == publicTarget {
+				// The public target "github.com" should be available from Github runners, but since it is a real network traceroute there
+				// can be some flakiness, so some packet loss is acceptable
+				assert.LessOrEqual(t, results.E2eProbe.PacketLossPercentage, float32(0.5), "packet loss should be <= 0.5 for public target")
+			} else {
+				assert.Equal(t, float32(0.0), results.E2eProbe.PacketLossPercentage, "packet loss should be == 0.0")
+			}
 		}
 
 		// If we received any packets, validate RTT stats
