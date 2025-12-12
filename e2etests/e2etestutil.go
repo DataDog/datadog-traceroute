@@ -400,8 +400,9 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
 			// Otherwise, we just need at least 1 reachable hop (the destination)
 
-			// Count reachable hops
+			// Count reachable hops and hops with reverse DNS
 			reachableCount := 0
+			hopsWithReverseDnsCount := 0
 			for j, hop := range run.Hops {
 				assert.NotZero(t, hop.TTL, "run %d, hop %d should have a TTL", i, j)
 
@@ -413,6 +414,11 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 						assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
 					}
 				}
+
+				// Count hops with valid reverse DNS strings
+				if len(hop.ReverseDns) > 0 {
+					hopsWithReverseDnsCount++
+				}
 			}
 
 			minReachableHops := 1
@@ -420,6 +426,13 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 				minReachableHops = 2
 			}
 			assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
+
+			// For public targets, at least one hop should have reverse DNS data in successful runs
+			if isPublicTarget {
+				assert.GreaterOrEqual(t, hopsWithReverseDnsCount, 1,
+					"run %d (public target with reachable destination) should have at least one hop with reverse DNS, got %d",
+					i, hopsWithReverseDnsCount)
+			}
 		}
 	}
 
