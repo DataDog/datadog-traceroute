@@ -148,13 +148,23 @@ jobs:
       # Run the HTTP server in the background with sudo (needed for raw socket operations)
       - name: Run HTTP Server
         run: |
-          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug &
-          echo "HTTP server started on default port 3765"
-          echo "Example test:"
-          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
 
       - name: TestLocalhostHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostHTTPServer
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
 
   e2e_public_target_http_server_tests:
     name: "E2E Public Target HTTP Server Tests"
@@ -186,13 +196,23 @@ jobs:
       # Run the HTTP server in the background with sudo (needed for raw socket operations)
       - name: Run HTTP Server
         run: |
-          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug &
-          echo "HTTP server started on default port 3765"
-          echo "Example test:"
-          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
 
       - name: TestPublicTargetHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
 
   e2e_fake_network_http_server_tests:
     name: "E2E Fake Network HTTP Server Tests"
@@ -224,10 +244,10 @@ jobs:
       # Run the HTTP server in the background with sudo (needed for raw socket operations)
       - name: Run HTTP Server
         run: |
-          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug &
-          echo "HTTP server started on default port 3765"
-          echo "Example test:"
-          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started"
 
       # Setup fake network environment
       - name: Setup fake network environment
@@ -236,107 +256,15 @@ jobs:
       - name: TestFakeNetworkHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkHTTPServer
 
-  # #JMWTHU
-  # windows_driver_cli_tests:
-  #   name: "Windows Driver CLI Tests"
-  #   runs-on: ${{ matrix.os }}
-  #   defaults:
-  #     run:
-  #       shell: bash
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       #os: [windows-latest, windows-11-arm]
-  #       os: [windows-latest]
-  #   env:
-  #     SUDO_CMD: ""
-  #     BUILD_TARGET: "datadog-traceroute.exe"
-  #     EXECUTABLE: "./datadog-traceroute.exe"
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #     - uses: actions/setup-go@v5
-  #       with:
-  #         go-version-file: "go.mod"
-  #     - run: go mod tidy
-
-  #     # Build the CLI binary
-  #     - name: Build CLI
-  #       run: go build -o $BUILD_TARGET .
-
-  #     - name: Test Windows Driver ICMP traceroute to localhost
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --proto icmp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver UDP traceroute to localhost
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --proto udp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP traceroute to localhost
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP sack traceroute to localhost
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP prefer_sack traceroute to localhost
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --proto tcp --tcp-method prefer_sack --max-ttl 5 --traceroute-queries 3 --e2e-queries 10 --timeout 500 127.0.0.1)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     # Test different protocols against reliable public endpoints
-  #     - name: Test Windows Driver ICMP traceroute to GitHub
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto icmp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver UDP traceroute to GitHub
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto udp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP traceroute to GitHub
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP sack traceroute to GitHub
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --tcp-method sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       # JMW confirm success on linux, mac, failure on windows
-  #       # Error: sack traceroute failed: SACK not supported for this target/source: SACK traceroute is not supported on this platform
-  #       continue-on-error: true
-
-  #     - name: Test Windows Driver TCP prefer_sack traceroute to GitHub
-  #       run: |
-  #         OUTPUT=$($SUDO_CMD $EXECUTABLE --windows-driver --proto tcp --tcp-method prefer_sack --port 443 --traceroute-queries 3 --e2e-queries 10 --timeout 1000 github.com)
-  #         echo "$OUTPUT"
-  #         bash testutils/validate_traceroute_json.sh "$OUTPUT"
-  #       continue-on-error: true
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
 
   # SSH Debug Job - allows you to SSH into the GitHub runner for debugging purposes.
   # This job only runs on workflow_dispatch (manual trigger).
@@ -420,10 +348,14 @@ jobs:
       # Run the HTTP server in the background
       - name: Run HTTP Server
         run: |
-          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug &
-          echo "HTTP server started on default port 3765"
+          $SUDO_CMD $SERVER_EXECUTABLE --log-level debug > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+          echo "HTTP server started on default port 3765 (PID: $(cat server.pid))"
+          echo "Logs are being written to server.log"
           echo "Example test:"
           echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+          echo "To view logs during SSH session: tail -f server.log"
 
       # Setup tmate session for SSH access
       # This will print SSH connection details in the job logs
@@ -433,3 +365,13 @@ jobs:
         timeout-minutes: 60
         with:
           limit-access-to-actor: true
+
+      - name: Show Server Logs
+        if: always()
+        run: |
+          if [ -f server.log ]; then
+            echo "=== Server Logs ==="
+            cat server.log
+          else
+            echo "No server.log file found"
+          fi
