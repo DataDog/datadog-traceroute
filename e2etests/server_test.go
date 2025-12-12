@@ -160,7 +160,7 @@ func testHTTPServer(t *testing.T, config testConfig) {
 
 	// Build the HTTP request URL
 	// JMW build the cli cmd and URL similarly
-	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&tcp-method=%s&traceroute-queries=%d&e2e-queries=%d",
+	url := fmt.Sprintf("http://%s/traceroute?target=%s&protocol=%s&tcp-method=%s&traceroute-queries=%d&e2e-queries=%d&reverse-dns=true",
 		testServerAddr, config.hostname, strings.ToLower(string(config.protocol)), string(config.tcpMethod), numTraceroutes, numE2eProbes)
 
 	if config.port > 0 {
