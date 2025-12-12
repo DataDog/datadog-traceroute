@@ -66,8 +66,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #JMWos: [ubuntu-latest, windows-latest, macos-latest]
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        #JMW?os: [ubuntu-latest, macos-latest]
     env:
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
@@ -119,6 +119,123 @@ jobs:
 
       - name: TestFakeNetworkCLI
         run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
+
+  e2e_localhost_http_server_tests:
+    name: "E2E Localhost HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        #JMW why not windows? os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      # Build the HTTP server binary
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      # Run the HTTP server in the background (server doesn't need sudo, just the traceroute commands it runs)
+      - name: Run HTTP Server
+        run: |
+          $SERVER_EXECUTABLE &
+          echo "HTTP server started on default port 3765"
+          echo "Example test:"
+          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+
+      - name: TestLocalhostHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostHTTPServer
+
+  e2e_public_target_http_server_tests:
+    name: "E2E Public Target HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        #JMW?os: [ubuntu-latest, macos-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      # Build the HTTP server binary
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      # Run the HTTP server in the background (server doesn't need sudo, just the traceroute commands it runs)
+      - name: Run HTTP Server
+        run: |
+          $SERVER_EXECUTABLE &
+          echo "HTTP server started on default port 3765"
+          echo "Example test:"
+          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+
+      - name: TestPublicTargetHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
+
+  e2e_fake_network_http_server_tests:
+    name: "E2E Fake Network HTTP Server Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    env:
+      SERVER_BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute-server.exe' || 'datadog-traceroute-server' }}
+      SERVER_EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute-server.exe' || './datadog-traceroute-server' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ".go-version"
+      - run: go mod tidy
+
+      # Build the HTTP server binary
+      - name: Build HTTP Server
+        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+
+      # Run the HTTP server in the background (server doesn't need sudo, just the traceroute commands it runs)
+      - name: Run HTTP Server
+        run: |
+          $SERVER_EXECUTABLE &
+          echo "HTTP server started on default port 3765"
+          echo "Example test:"
+          echo "curl \"http://localhost:3765/traceroute?target=github.com&protocol=tcp&port=443&traceroute-queries=1&e2e-queries=1\""
+
+      # Setup fake network environment
+      - name: Setup fake network environment
+        run: sudo bash testutils/router_setup.sh
+
+      - name: TestFakeNetworkHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkHTTPServer
 
   # #JMWTHU
   # windows_driver_cli_tests:
