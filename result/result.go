@@ -201,7 +201,7 @@ func (r *Results) normalizeE2eProbe() {
 
 	r.E2eProbe.PacketsSent = len(r.E2eProbe.RTTs)
 
-	// Count received packets (non-zero RTTs) and collect valid RTTs
+	// Count received packets (non-zero RTTs) and collect valid RTTs // JMWFRI
 	var validRTTs []float64
 	packetsReceived := 0
 

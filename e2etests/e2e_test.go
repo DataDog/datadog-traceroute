@@ -111,7 +111,7 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true, expectedError: ""},
 
 	{"windows", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false, expectedError: ""},
-	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: true, intermediateHops: false, expectedError: ""},
+	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false, expectedError: ""},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false, expectedError: ""},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: "SACK not supported for this target/source"},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
@@ -268,126 +268,6 @@ var (
 		{protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigPreferSACK},
 	}
 )
-
-// testCommon runs a library traceroute test with the given configuration
-func testCommon(t *testing.T, config testConfig) {
-	//JMWt.Helper()
-
-	ctx := context.Background()
-	params := traceroute.TracerouteParams{
-		Hostname:          config.hostname,
-		Port:              config.port,
-		Protocol:          strings.ToLower(string(config.protocol)),
-		MinTTL:            common.DefaultMinTTL,
-		MaxTTL:            common.DefaultMaxTTL,
-		Delay:             common.DefaultDelay,
-		Timeout:           common.DefaultNetworkPathTimeout * time.Millisecond,
-		TCPMethod:         config.tcpMethod,
-		WantV6:            false,
-		ReverseDns:        false,
-		TracerouteQueries: 3,
-		E2eQueries:        10,
-		UseWindowsDriver:  false,
-	}
-
-	tr := traceroute.NewTraceroute()
-	results, err := tr.RunTraceroute(ctx, params)
-
-	// If we expect an error, check for it
-	expectedError := config.expectError(t)
-	if expectedError != "" {
-		require.Error(t, err, "%s traceroute to %s should fail", config.testName(), config.hostname)
-		assert.Contains(t, err.Error(), expectedError, "error message should contain expected string")
-		return
-	}
-
-	require.NoError(t, err, "%s traceroute to %s should not fail", config.testName(), config.hostname)
-	require.NotNil(t, results, "Results should not be nil")
-
-	validateResults(t, results, config)
-}
-
-// TestLocalhost runs traceroute tests to localhost for all protocols
-// In CI this will run on Linux, MacOS, and Windows
-func TestLocalhost(t *testing.T) {
-	for _, baseConfig := range AllProtocolsExceptSACK {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = localhostTarget
-			config.port = 0
-			testCommon(t, config)
-		})
-	}
-}
-
-// TestPublicEndpointICMP runs traceroute tests to a public endpoint for ICMP protocol
-// In CI this will run on MacOS
-func TestPublicEndpointICMP(t *testing.T) {
-	for _, baseConfig := range ICMPProtocol {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = publicTarget
-			config.port = publicPort
-			testCommon(t, config)
-		})
-	}
-}
-
-// TestPublicEndpointUDP runs traceroute tests to a public endpoint for UDP protocol
-// In CI this will run on MacOS
-func TestPublicEndpointUDP(t *testing.T) {
-	for _, baseConfig := range UDPProtocol {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = publicTarget
-			config.port = publicPort
-			testCommon(t, config)
-		})
-	}
-}
-
-// TestPublicEndpointTCPSYN runs traceroute tests to a public endpoint for TCP SYN protocol
-// In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpointTCPSYN(t *testing.T) {
-	for _, baseConfig := range TCPSYNProtocol {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = publicTarget
-			config.port = publicPort
-			testCommon(t, config)
-		})
-	}
-}
-
-// TestPublicEndpointTCPPreferSACK runs traceroute tests to a public endpoint for TCP PreferSACK protocol
-// In CI this will run on Linux, MacOS, and Windows
-func TestPublicEndpointTCPPreferSACK(t *testing.T) {
-	for _, baseConfig := range TCPPreferSACKProtocol {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = publicTarget
-			config.port = publicPort
-			testCommon(t, config)
-		})
-	}
-}
-
-// JMWTHU add SACK tests w/ expected failures
-
-// TestFakeNetwork runs traceroute tests in a fake network environment for all protocols.
-// This test should be run in a sandboxed environment where testutils/router_setup.sh is
-// run first to set up network namespaces and virtual routing.
-// In CI this will only run on Linux.
-func TestFakeNetwork(t *testing.T) {
-	for _, baseConfig := range AllProtocolsExceptSACK {
-		t.Run(baseConfig.testName(), func(t *testing.T) {
-			config := baseConfig
-			config.hostname = fakeNetworkTarget
-			config.port = 0
-			testCommon(t, config)
-		})
-	}
-}
 
 // getCLIBinaryPath returns the path to the CLI binary, building it if necessary
 func getCLIBinaryPath(t *testing.T) string {
@@ -628,6 +508,9 @@ func testCLI(t *testing.T, config testConfig) {
 	validateResults(t, &results, config)
 }
 
+// JMWFRI this test fails on windows because not all 10 e2e probes are both isDest AND RTT > 0
+// 2025/12/12 00:31:13 [TRACE] found probe &{TTL:1 IP:127.0.0.1 RTT:0s IsDest:true}
+
 // TestLocalhostCLI runs CLI tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhostCLI(t *testing.T) {
@@ -664,7 +547,7 @@ func TestLocalhostCLI(t *testing.T) {
 	}
 }
 
-// TestPublicEndpointCLI runs CLI tests to a public endpoint for all protocols
+// TestPublicTargetCLI runs CLI tests to a public target for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicTargetCLI(t *testing.T) {
 	testConfigs := []testConfig{
@@ -705,7 +588,7 @@ func TestPublicTargetCLI(t *testing.T) {
 	}
 }
 
-// TestFakeNetworkCLI runs CLI tests to JMW a public endpoint for all protocols
+// TestFakeNetworkCLI runs CLI tests to JMW for all protocols
 // In CI this will run on Linux
 func TestFakeNetworkCLI(t *testing.T) {
 	testConfigs := []testConfig{

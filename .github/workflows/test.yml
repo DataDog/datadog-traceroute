@@ -57,8 +57,8 @@ jobs:
       - name: TestLocalhostCLI
         run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
 
-  e2e_public_endpoint_cli_tests:
-    name: "E2E Public Endpoint CLI Tests"
+  e2e_public_target_cli_tests:
+    name: "E2E Public Target CLI Tests"
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -84,8 +84,8 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      - name: TestPublicEndpointCLI
-        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicEndpointCLI
+      - name: TestPublicTargetCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetCLI
 
   e2e_fake_network_cli_tests:
     name: "E2E Fake Network CLI Tests"
