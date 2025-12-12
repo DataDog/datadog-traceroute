@@ -82,11 +82,10 @@ func testCLI(t *testing.T, config testConfig) {
 		"--proto", strings.ToLower(string(config.protocol)),
 		"--traceroute-queries", strconv.Itoa(numTraceroutes),
 		// JMW more args?
-		"--reverse-dns", // JMW validate?
+		"--reverse-dns",
+		"--source-public-ip",
 	}
-	//JMW--reverse-dns              Enrich IPs with Reverse DNS names
 	//JMW--skip-private-hops        Skip private hops
-	//JMW--source-public-ip         Enrich with Source Public IP
 	//JMW--windows-driver           Use Windows driver for traceroute (Windows only)
 
 	if config.port > 0 {
