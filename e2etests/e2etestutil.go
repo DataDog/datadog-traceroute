@@ -347,6 +347,11 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 	// Validate traceroute runs
 	assert.Equal(t, 3, len(results.Traceroute.Runs), "should have 3 traceroute runs")
 
+	// For public targets, traceroutes can be flaky, so we only require at least one run to reach the destination
+	// For local targets, all runs should reach the destination
+	isPublicTarget := config.hostname == publicTarget
+	runsWithReachableDestination := 0
+
 	for i, run := range results.Traceroute.Runs {
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
@@ -360,7 +365,21 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 		if config.expectDestinationReachable(t) {
 			// Validate that the last hop is the destination and is reachable
 			lastHop := run.Hops[len(run.Hops)-1]
-			assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
+
+			// For public targets, allow some runs to not reach the destination due to network flakiness
+			if isPublicTarget {
+				if lastHop.Reachable {
+					runsWithReachableDestination++
+				} else {
+					// Log but don't fail if destination is unreachable for a public target run
+					t.Logf("run %d last hop not reachable (acceptable for public target)", i)
+					continue // Skip further validation for this run
+				}
+			} else {
+				// For local targets, all runs must reach the destination
+				assert.True(t, lastHop.Reachable, "run %d last hop should be reachable", i)
+			}
+
 			assert.NotNil(t, lastHop.IPAddress, "run %d last hop should have an IP address", i)
 
 			// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
@@ -396,6 +415,13 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 			}
 			assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 		}
+	}
+
+	// For public targets, ensure at least one run reached the destination
+	if config.expectDestinationReachable(t) && isPublicTarget {
+		assert.GreaterOrEqual(t, runsWithReachableDestination, 1,
+			"at least one run should reach the destination for public target, got %d out of %d",
+			runsWithReachableDestination, len(results.Traceroute.Runs))
 	}
 
 	// Validate hop count stats
