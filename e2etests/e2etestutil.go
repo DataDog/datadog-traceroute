@@ -299,7 +299,11 @@ func validateResults(t *testing.T, results *result.Results, config testConfig) {
 				if hop.Reachable {
 					reachableCount++
 					assert.NotNil(t, hop.IPAddress, "run %d, hop %d should have an IP address if reachable", i, j)
-					assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
+					JMW
+					// On Windows, RTT for localhost target with destination reachable can be 0 due to the resolution of time.Now() being only ~0.5 ms
+					if config.hostname != localhostTarget || runtime.GOOS != "windows" {
+						assert.Greater(t, hop.RTT, 0.0, "run %d, hop %d should have positive RTT if reachable", i, j)
+					}
 				}
 			}
 
