@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/result"
-	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -211,32 +210,7 @@ func testHTTPServer(t *testing.T, config testConfig) {
 // TestLocalhostHTTPServer runs HTTP server tests to localhost for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestLocalhostHTTPServer(t *testing.T) {
-	testConfigs := []testConfig{
-		{
-			hostname: localhostTarget,
-			port:     0,
-			protocol: traceroute.ProtocolICMP,
-		},
-		{
-			hostname: localhostTarget,
-			port:     0,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  localhostTarget,
-			port:      0,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  localhostTarget,
-			port:      0,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
-	}
-
-	for _, config := range testConfigs {
+	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
 			testHTTPServer(t, config)
 		})
@@ -246,38 +220,7 @@ func TestLocalhostHTTPServer(t *testing.T) {
 // TestPublicTargetHTTPServer runs HTTP server tests to a public target for all protocols
 // In CI this will run on Linux, MacOS, and Windows
 func TestPublicTargetHTTPServer(t *testing.T) {
-	testConfigs := []testConfig{
-		{
-			hostname: publicTarget,
-			port:     publicPort,
-			protocol: traceroute.ProtocolICMP,
-		},
-		{
-			hostname: publicTarget,
-			port:     publicPort,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSACK,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
-	}
-
-	for _, config := range testConfigs {
+	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
 			testHTTPServer(t, config)
 		})
@@ -287,33 +230,7 @@ func TestPublicTargetHTTPServer(t *testing.T) {
 // TestFakeNetworkHTTPServer runs HTTP server tests to JMW for all protocols
 // In CI this will run on Linux
 func TestFakeNetworkHTTPServer(t *testing.T) {
-	testConfigs := []testConfig{
-		{
-			hostname: fakeNetworkTarget,
-			protocol: traceroute.ProtocolICMP,
-		},
-		{
-			hostname: fakeNetworkTarget,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSACK,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
-	}
-
-	for _, config := range testConfigs {
+	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
 			testHTTPServer(t, config)
 		})

@@ -46,6 +46,90 @@ var (
 	serverProcess     *exec.Cmd
 	serverProcessOnce sync.Once
 	serverAddr        = "127.0.0.1:3765"
+
+	// Common test configurations used across CLI and HTTP server tests
+	localhostTestConfigs = []testConfig{
+		{
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+	}
+
+	publicTargetTestConfigs = []testConfig{
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+	}
+
+	fakeNetworkTestConfigs = []testConfig{
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+	}
 )
 
 // isGitHubRunner returns true if running on GitHub Actions
