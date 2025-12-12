@@ -53,7 +53,6 @@ var rootCmd = &cobra.Command{
 			log.SetLogLevel(log.LevelTrace)
 		}
 
-		// JMWDIFF  setup params, call runner.RunTraceroute
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
 			Port:                  Args.port,
