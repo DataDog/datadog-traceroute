@@ -74,15 +74,21 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
+	log.Debugf("sendAndReceiveSocket: start time captured at %v", start)
 	hopIP, end, icmpType, icmpCode, err := s.GetHop(timeout, t.Target, t.DestPort)
 	if err != nil {
 		log.Errorf("failed to get hop: %s", err.Error())
 		return nil, fmt.Errorf("failed to get hop: %w", err)
 	}
+	log.Debugf("sendAndReceiveSocket: end time received as %v", end)
 
 	rtt := time.Duration(0)
 	if !hopIP.Equal(net.IP{}) {
 		rtt = end.Sub(start)
+		log.Debugf("sendAndReceiveSocket: calculated RTT = %v (start=%v, end=%v, diff=%d ns)", 
+			rtt, start, end, rtt.Nanoseconds())
+	} else {
+		log.Debugf("sendAndReceiveSocket: hopIP is empty, setting RTT to 0")
 	}
 
 	return &result.TracerouteHop{

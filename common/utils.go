@@ -1,6 +1,8 @@
 package common
 
-import "time"
+import (
+	"time"
+)
 
 func ConvertDurationToMs(duration time.Duration) float64 {
 	return duration.Seconds() * 1000
