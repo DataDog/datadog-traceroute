@@ -59,19 +59,25 @@ func getCLIBinaryPath(t *testing.T) string {
 		}
 
 		cliBinaryNeedsCleanup = true
+
+		// Register cleanup using t.Cleanup() - this is the idiomatic Go way
+		// The cleanup will run after all tests in this package complete
+		t.Cleanup(func() {
+			if cliBinaryNeedsCleanup && cliBinaryPath != "" {
+				t.Logf("Cleaning up test-built CLI binary: %s", cliBinaryPath)
+				if err := os.Remove(cliBinaryPath); err != nil {
+					t.Logf("Warning: Failed to remove CLI binary %s: %v", cliBinaryPath, err)
+				} else {
+					t.Logf("Successfully removed CLI binary: %s", cliBinaryPath)
+				}
+			}
+		})
 	})
 
 	return cliBinaryPath
 }
 
-func cleanupCLIBinary() {
-	fmt.Printf("JMW in cleanupCLIBinary cliBinaryNeedsCleanup=%v cliBinaryPath=%s\n", cliBinaryNeedsCleanup, cliBinaryPath) //JMW
-	if cliBinaryNeedsCleanup && cliBinaryPath != "" {
-		fmt.Printf("JMW Cleaning up CLI binary: %s\n", cliBinaryPath)
-		os.Remove(cliBinaryPath)
-	}
-}
-
+// JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
 	binaryPath := getCLIBinaryPath(t)
 
