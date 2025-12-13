@@ -228,10 +228,23 @@ func TestMain(m *testing.M) {
 	}
 
 	if serverProcess != nil && serverProcess.Process != nil {
-		// Kill the server process. No need to Wait() since we're exiting immediately
-		// and the OS will clean up the process.
-		if err := serverProcess.Process.Kill(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process: %v\n", err)
+		// Kill the server process. On Unix systems, the process was started with sudo,
+		// so we need to use sudo to kill it as well.
+		pid := serverProcess.Process.Pid
+		var killCmd *exec.Cmd
+		if runtime.GOOS != "windows" {
+			killCmd = exec.Command("sudo", "kill", "-9", fmt.Sprintf("%d", pid))
+		} else {
+			// On Windows, just use the regular Kill() method
+			if err := serverProcess.Process.Kill(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process: %v\n", err)
+			}
+			os.Exit(exitCode)
+			return
+		}
+
+		if err := killCmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process (PID %d): %v\n", pid, err)
 		}
 	}
 
