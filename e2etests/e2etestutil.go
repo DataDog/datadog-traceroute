@@ -60,26 +60,25 @@ var (
 			hostname: localhostTarget,
 			protocol: traceroute.ProtocolICMP,
 		},
-		// JMW
-		// {
-		// 	hostname: localhostTarget,
-		// 	protocol: traceroute.ProtocolUDP,
-		// },
-		// {
-		// 	hostname:  localhostTarget,
-		// 	protocol:  traceroute.ProtocolTCP,
-		// 	tcpMethod: traceroute.TCPConfigSYN,
-		// },
-		// {
-		// 	hostname:  localhostTarget,
-		// 	protocol:  traceroute.ProtocolTCP,
-		// 	tcpMethod: traceroute.TCPConfigSACK,
-		// },
-		// {
-		// 	hostname:  localhostTarget,
-		// 	protocol:  traceroute.ProtocolTCP,
-		// 	tcpMethod: traceroute.TCPConfigPreferSACK,
-		// },
+		{
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  localhostTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
 	}
 
 	publicTargetTestConfigs = []testConfig{

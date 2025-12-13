@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/result"
-	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +76,6 @@ func getCLIBinaryPath(t *testing.T) string {
 	return cliBinaryPath
 }
 
-// JMWTHU split intop two files, cli_test.go and http_test.go
 func testCLI(t *testing.T, config testConfig) {
 	binaryPath := getCLIBinaryPath(t)
 
