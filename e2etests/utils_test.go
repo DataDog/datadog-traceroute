@@ -228,10 +228,11 @@ func TestMain(m *testing.M) {
 	}
 
 	if serverProcess != nil && serverProcess.Process != nil {
+		// Kill the server process. No need to Wait() since we're exiting immediately
+		// and the OS will clean up the process.
 		if err := serverProcess.Process.Kill(); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process: %v\n", err)
 		}
-		serverProcess.Wait()
 	}
 
 	os.Exit(exitCode)
