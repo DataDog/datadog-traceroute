@@ -229,22 +229,34 @@ func TestMain(m *testing.M) {
 
 	if serverProcess != nil && serverProcess.Process != nil {
 		// Kill the server process. On Unix systems, the process was started with sudo,
-		// so we need to use sudo to kill it as well.
-		pid := serverProcess.Process.Pid
-		var killCmd *exec.Cmd
+		// so the PID we have is for the sudo process, not the actual server.
+		// We need to find and kill the actual datadog-traceroute-server process.
 		if runtime.GOOS != "windows" {
-			killCmd = exec.Command("sudo", "kill", "-9", fmt.Sprintf("%d", pid))
+			// Find the actual server process by looking for datadog-traceroute-server
+			findCmd := exec.Command("pgrep", "-f", "datadog-traceroute-server")
+			output, err := findCmd.Output()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to find server process: %v\n", err)
+			} else {
+				pids := strings.TrimSpace(string(output))
+				// Kill all matching processes
+				if pids != "" {
+					for _, pid := range strings.Split(pids, "\n") {
+						pid = strings.TrimSpace(pid)
+						if pid != "" {
+							killCmd := exec.Command("sudo", "kill", "-9", pid)
+							if err := killCmd.Run(); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process (PID %s): %v\n", pid, err)
+							}
+						}
+					}
+				}
+			}
 		} else {
 			// On Windows, just use the regular Kill() method
 			if err := serverProcess.Process.Kill(); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process: %v\n", err)
 			}
-			os.Exit(exitCode)
-			return
-		}
-
-		if err := killCmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process (PID %d): %v\n", pid, err)
 		}
 	}
 
