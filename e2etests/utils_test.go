@@ -9,6 +9,7 @@ package e2etests
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -205,10 +206,36 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 }
 
-// Note: TestMain is no longer needed as we use t.Cleanup() for test cleanup.
-// This is the more idiomatic Go approach for test resource cleanup.
-// Each test that builds binaries or starts processes registers its own cleanup
-// handlers using t.Cleanup(), which run automatically after tests complete.
+// TestMain provides package-level setup and teardown for all tests.
+// This is necessary for cleaning up shared resources (binaries and processes)
+// that are created via sync.Once and used across multiple tests.
+func TestMain(m *testing.M) {
+	// Run all tests
+	exitCode := m.Run()
+
+	// Cleanup: remove test-built binaries and stop processes
+	// This runs after ALL tests complete, not after individual tests
+	if cliBinaryNeedsCleanup && cliBinaryPath != "" {
+		if err := os.Remove(cliBinaryPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to remove CLI binary %s: %v\n", cliBinaryPath, err)
+		}
+	}
+
+	if serverBinaryNeedsCleanup && serverBinaryPath != "" {
+		if err := os.Remove(serverBinaryPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to remove server binary %s: %v\n", serverBinaryPath, err)
+		}
+	}
+
+	if serverProcess != nil && serverProcess.Process != nil {
+		if err := serverProcess.Process.Kill(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process: %v\n", err)
+		}
+		serverProcess.Wait()
+	}
+
+	os.Exit(exitCode)
+}
 
 // testConfig holds configuration for running one test
 type testConfig struct {

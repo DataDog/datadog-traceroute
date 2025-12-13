@@ -58,19 +58,9 @@ func getCLIBinaryPath(t *testing.T) string {
 		}
 
 		cliBinaryNeedsCleanup = true
-
-		// Register cleanup using t.Cleanup() - this is the idiomatic Go way
-		// The cleanup will run after all tests in this package complete
-		t.Cleanup(func() {
-			if cliBinaryNeedsCleanup && cliBinaryPath != "" {
-				t.Logf("Cleaning up test-built CLI binary: %s", cliBinaryPath)
-				if err := os.Remove(cliBinaryPath); err != nil {
-					t.Logf("Warning: Failed to remove CLI binary %s: %v", cliBinaryPath, err)
-				} else {
-					t.Logf("Successfully removed CLI binary: %s", cliBinaryPath)
-				}
-			}
-		})
+		// Note: Cleanup is handled in TestMain to ensure it runs after ALL tests complete,
+		// not after individual subtests. This is necessary because the binary is shared
+		// across multiple tests via sync.Once.
 	})
 
 	return cliBinaryPath

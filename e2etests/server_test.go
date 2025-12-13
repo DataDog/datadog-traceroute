@@ -60,18 +60,9 @@ func getServerBinaryPath(t *testing.T) string {
 		}
 
 		serverBinaryNeedsCleanup = true
-
-		// Register cleanup using t.Cleanup() - this is the idiomatic Go way
-		t.Cleanup(func() {
-			if serverBinaryNeedsCleanup && serverBinaryPath != "" {
-				t.Logf("Cleaning up test-built server binary: %s", serverBinaryPath)
-				if err := os.Remove(serverBinaryPath); err != nil {
-					t.Logf("Warning: Failed to remove server binary %s: %v", serverBinaryPath, err)
-				} else {
-					t.Logf("Successfully removed server binary: %s", serverBinaryPath)
-				}
-			}
-		})
+		// Note: Cleanup is handled in TestMain to ensure it runs after ALL tests complete,
+		// not after individual subtests. This is necessary because the binary is shared
+		// across multiple tests via sync.Once.
 	})
 
 	return serverBinaryPath
@@ -130,19 +121,8 @@ func ensureServerRunning(t *testing.T) string {
 		}
 
 		serverProcess = cmd
-
-		// Register cleanup for the server process using t.Cleanup()
-		t.Cleanup(func() {
-			if serverProcess != nil && serverProcess.Process != nil {
-				t.Logf("Stopping test-started server process (PID: %d)", serverProcess.Process.Pid)
-				if err := serverProcess.Process.Kill(); err != nil {
-					t.Logf("Warning: Failed to kill server process: %v", err)
-				} else {
-					t.Logf("Successfully killed server process")
-				}
-				serverProcess.Wait()
-			}
-		})
+		// Note: Server process cleanup is handled in TestMain to ensure it runs after
+		// ALL tests complete, not after individual subtests.
 
 		// Wait for server to be ready
 		time.Sleep(500 * time.Millisecond)
