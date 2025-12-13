@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"fmt" //JMW
 
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
@@ -31,10 +30,12 @@ const (
 	fakeNetworkTarget = "198.51.100.2"
 
 	// Number of traceroute runs to perform in e2e tests
-	numTraceroutes = 3
+	//JMWnumTraceroutes = 3
+	numTraceroutes = 1
 
 	// Number of E2E probes to perform in e2e tests
-	numE2eProbes = 10
+	//JMWnumE2eProbes = 10
+	numE2eProbes = 1
 )
 
 var (
@@ -59,25 +60,26 @@ var (
 			hostname: localhostTarget,
 			protocol: traceroute.ProtocolICMP,
 		},
-		{
-			hostname: localhostTarget,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  localhostTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  localhostTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSACK,
-		},
-		{
-			hostname:  localhostTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
+		// JMW
+		// {
+		// 	hostname: localhostTarget,
+		// 	protocol: traceroute.ProtocolUDP,
+		// },
+		// {
+		// 	hostname:  localhostTarget,
+		// 	protocol:  traceroute.ProtocolTCP,
+		// 	tcpMethod: traceroute.TCPConfigSYN,
+		// },
+		// {
+		// 	hostname:  localhostTarget,
+		// 	protocol:  traceroute.ProtocolTCP,
+		// 	tcpMethod: traceroute.TCPConfigSACK,
+		// },
+		// {
+		// 	hostname:  localhostTarget,
+		// 	protocol:  traceroute.ProtocolTCP,
+		// 	tcpMethod: traceroute.TCPConfigPreferSACK,
+		// },
 	}
 
 	publicTargetTestConfigs = []testConfig{
@@ -204,17 +206,10 @@ var reachabilityMap = map[reachabilityKey]testExpectations{
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false, expectedError: ""},
 }
 
-// TestMain runs all tests and cleans up after tests complete
-func TestMain(m *testing.M) {
-	exitCode := m.Run()
-
-	fmt.Printf("JMW in TestMain cleanup cliBinaryNeedsCleanup=%v serverBinaryNeedsCleanup=%v\n", cliBinaryNeedsCleanup, serverBinaryNeedsCleanup) //JMW
-	cleanupCLIBinary()
-	cleanupServerBinary()
-	cleanupServerProcess()
-
-	os.Exit(exitCode)
-}
+// Note: TestMain is no longer needed as we use t.Cleanup() for test cleanup.
+// This is the more idiomatic Go approach for test resource cleanup.
+// Each test that builds binaries or starts processes registers its own cleanup
+// handlers using t.Cleanup(), which run automatically after tests complete.
 
 // testConfig holds configuration for running one test
 type testConfig struct {

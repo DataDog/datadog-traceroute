@@ -60,16 +60,21 @@ func getServerBinaryPath(t *testing.T) string {
 		}
 
 		serverBinaryNeedsCleanup = true
+
+		// Register cleanup using t.Cleanup() - this is the idiomatic Go way
+		t.Cleanup(func() {
+			if serverBinaryNeedsCleanup && serverBinaryPath != "" {
+				t.Logf("Cleaning up test-built server binary: %s", serverBinaryPath)
+				if err := os.Remove(serverBinaryPath); err != nil {
+					t.Logf("Warning: Failed to remove server binary %s: %v", serverBinaryPath, err)
+				} else {
+					t.Logf("Successfully removed server binary: %s", serverBinaryPath)
+				}
+			}
+		})
 	})
 
 	return serverBinaryPath
-}
-
-func cleanupServerBinary() {
-	if serverBinaryNeedsCleanup && serverBinaryPath != "" {
-		fmt.Printf("JMW Cleaning up server binary: %s\n", serverBinaryPath)
-		os.Remove(serverBinaryPath)
-	}
 }
 
 // isServerRunning checks if a server is already running on the given address
@@ -126,6 +131,19 @@ func ensureServerRunning(t *testing.T) string {
 
 		serverProcess = cmd
 
+		// Register cleanup for the server process using t.Cleanup()
+		t.Cleanup(func() {
+			if serverProcess != nil && serverProcess.Process != nil {
+				t.Logf("Stopping test-started server process (PID: %d)", serverProcess.Process.Pid)
+				if err := serverProcess.Process.Kill(); err != nil {
+					t.Logf("Warning: Failed to kill server process: %v", err)
+				} else {
+					t.Logf("Successfully killed server process")
+				}
+				serverProcess.Wait()
+			}
+		})
+
 		// Wait for server to be ready
 		time.Sleep(500 * time.Millisecond)
 
@@ -138,14 +156,6 @@ func ensureServerRunning(t *testing.T) string {
 	})
 
 	return serverAddr
-}
-
-// JMWFRI this isn't being clenaed up on my mac
-func cleanupServerProcess() {
-	if serverProcess != nil && serverProcess.Process != nil {
-		serverProcess.Process.Kill()
-		serverProcess.Wait()
-	}
 }
 
 // testHTTPServer runs an HTTP server traceroute test with the given configuration
