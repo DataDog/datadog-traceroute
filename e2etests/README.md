@@ -172,7 +172,7 @@ The tests are integrated into GitHub Actions CI pipeline (`.github/workflows/tes
 
 - **`cli_test.go`**: CLI tests
 - **`server_test.go`**: HTTP server tests
-- **`e2etestutil.go`**: Shared utilities and test configurations
+- **`utils_test.go`**: Shared utilities and test configurations
 - **`doc.go`**: Package-level documentation
 - **`README.md`**: This file
 
