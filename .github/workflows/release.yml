@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: 1.24.11
+      - name: Install cross-compilation tools
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
       - run: go mod tidy
       - run: go test -tags=test -v ./...
       - uses: goreleaser/goreleaser-action@v6
@@ -27,3 +29,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CC_WINDOWS_AMD64: x86_64-w64-mingw32-gcc
