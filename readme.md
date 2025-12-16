@@ -70,3 +70,11 @@ After merging changes to `main` create a release by:
    
    This will create a git tag that can now be referenced in other repos.
    This will trigger go-releaser that will add installable artifacts to the release.
+
+# Usage
+
+`datadog-traceroute` is used by:
+
+  - [datadog-agent](https://github.com/DataDog/datadog-agent)
+  - Datadog Synthetics Managed Location
+  - Datadog Synthetics Private Location
