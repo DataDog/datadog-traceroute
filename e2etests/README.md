@@ -35,13 +35,13 @@ Each test type runs against three target categories:
 
 ### Prerequisites
 
-1. **Administrative/Root Privileges**: (Linux and MacOS) Required to create raw sockets and send/receive network packets.
+1. **Administrative/Root Privileges**: (Linux and macOS) Required to create raw sockets and send/receive network packets.
 2. **Network Access**: Public target tests require internet connectivity.
 
 ### Run E2E Tests
 
 ```bash
-# NOTE: When running tests manually, use 'sudo' as specified in the example commands below on Linux/MacOS, but not on Windows
+# NOTE: When running tests manually, use 'sudo' as specified in the example commands below on Linux/macOS, but not on Windows
 ```
 
 ```bash
@@ -155,18 +155,68 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 | Fake Network | 198.51.100.2 | TCP      | prefer_sack  | -    | 3       | 10         |
 |--------------|--------------|----------|--------------|------|---------|------------|
 
-Each configuration is tested with both the CLI binary and HTTP server API.
+- Localhost and Public target tests are run on Linux, Windows, and macOS.  Fake Network tests are only run on Linux.
+- Each configuration is tested with both the CLI binary and HTTP server API.
 
 ## CI/CD Integration
 
 The tests are integrated into GitHub Actions CI pipeline (`.github/workflows/test.yml`):
 
-- **Platforms**: Ubuntu, Windows, macOS
+- **Platforms**: Linux (Ubuntu), Windows, macOS
 
 ## Troubleshooting
 
 - The output from stderr is included in test output for help in debugging.
 - For more detailed debugging, there is a job in the CI pipeline, `ssh_debug_for_manual_tests` that allows you to connect to an active GitHub runner and manually run tests.  For instructions on how to use this job, see the comments in the job definition in `.github/workflows/test.yml`.
+
+## Limitations
+
+The e2e test suite encounters several limitations based on the test environment (Github runners) and different protocol/target/OS combinations.  The test suite makes use of a `testExpectations` map to define expected behaviors for each protocol/target/OS combination.
+
+### Test Environment, Protocol and OS-Specific Limitations
+
+#### Github Actions Network Restrictions
+- Per https://docs.github.com/en/actions/concepts/runners/github-hosted-runners?supported-runners-and-hardware-resources=&utm_source=chatgpt.com#cloud-hosts-used-by-github-hosted-runners, inbound ICMP packets are blocked for all Azure virtual machines.  This affects Linux and Windows runners.  Inbound ICMP packets are not blocked on macOS runners because they are run as VMs on underlying Apple hardware.
+
+#### ICMP
+- **Linux and Windows**: Because of GitHub Actions network restrictions, ICMP traceroutes to public targets do not work.  ICMP traceroutes to localhost work.
+- **macOS**: ICMP works for all target types.
+
+#### UDP
+- **Linux**: UDP works for localhost and fake network targets, but not public targets.
+- **Windows and macOS**: UDP traceroutes do not work for localhost or public targets.
+
+#### TCP SACK
+- **Linux**: TCP SACK does not work with localhost (`127.0.0.1`) or fake network targets (TEST-NET-2 addresses).  The test validates that the expected error is returned.  TCP SACK generally works for the public target.
+- **Windows**: TCP SACK does not work with localhost or fake network targets.  The test validates that the expected error is returned.
+- **macOS**: TCP SACK generally works for the public target, but can be flaky.  The test suite allows up to 5 attempts for macOS public target TCP SACK tests.  TCP SACK does not work with localhost.  The test validates that the expected error is returned.
+
+#### Intermediate Hops
+- **Linux**: Only fake network targets consistently show intermediate hops on GitHub Actions runners.  Localhost has no intermediate hops because there is only one hop, and public targets don't capture intermediate hops because of GitHub Actions network restrictions.
+- **Windows**: No intermediate hops are captured for the public target because of GitHub Actions network restrictions.
+- **macOS**: The public target using TCP protocol shows intermediate hops.
+
+#### Windows Driver
+- The test suite does not currently validate functionality using the Windows Driver.  All Windows tests are run without the driver.
+
+### Test Coverage Strategy
+
+The test suite attempts to maximize coverage given the above limitations, by use of different target categories,
+providing maximum coverage of cross-platform functionality across all supported protocols.
+
+#### Localhost (`127.0.0.1`)
+- **Purpose**: Validates basic protocol functionality in the most controlled environment
+
+#### Public Target (`github.com:443`)
+- **Purpose**: Validates real-world internet traceroutes with actual network conditions
+
+#### Fake Network (`198.51.100.2`, TEST-NET-2)
+- **Purpose**: Validates traceroute functionality with intermediate hops available in a controlled fake network environment.
+
+### Alternative approaches to consider for improving coverage
+
+- **GitHub Actions Self-Hosted Runners**: Using self-hosted runners would allow more control over network configurations, potentially enabling better UDP and ICMP testing for public targets.  See: https://docs.github.com/en/actions/concepts/runners/self-hosted-runners
+- **Support Datadog e2e test infrastructure**: Leverage Datadog's internal e2e testing infrastructure to run tests in a more controlled environment with fewer network restrictions.  See https://github.com/DataDog/test-infra-definitions
 
 ## Files
 
