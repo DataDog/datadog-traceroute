@@ -76,6 +76,6 @@ After merging changes to `main` create a release by:
 `datadog-traceroute` is used by:
 
   - [datadog-agent](https://github.com/DataDog/datadog-agent)
-  - Datadog Synthetics Managed Location (Network Tests)
-  - Datadog Synthetics Private Location (API Tests)
-  
+  - [Datadog Synthetic Monitoring](https://www.datadoghq.com/product/synthetic-monitoring/)
+    - Used for Network Tests in Managed Locations
+    - Used for API Tests traceroute in Private Locations
