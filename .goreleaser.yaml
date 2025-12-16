@@ -50,19 +50,6 @@ builds:
       - windows
     goarch:
       - amd64
-archives:
-  - id: linux
-    builds:
-      - traceroute-linux
-      - traceroute-server-linux
-    format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: windows
-    builds:
-      - traceroute-windows
-      - traceroute-server-windows
-    format: zip
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 nfpms:
 - maintainer: Datadog
   description: Datadog Traceroute
