@@ -184,28 +184,13 @@ func cleanupHTTPServer() {
 	}
 
 	if serverProcess != nil && serverProcess.Process != nil {
-		// Kill the server process. On Unix systems, the process was started with sudo,
-		// so the PID we have is for the sudo process, not the actual server.
-		// We need to find and kill the actual datadog-traceroute-server process.
+		// On Linux and MacOS the process was started with sudo, so the PID we have is for the sudo process, so we
+		// use pkill to kill the server by name.
 		if runtime.GOOS != "windows" {
-			// Find the actual server process by looking for datadog-traceroute-server
-			findCmd := exec.Command("pgrep", "-f", "datadog-traceroute-server")
-			output, err := findCmd.Output()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to find server process: %v\n", err)
-			} else {
-				pids := strings.TrimSpace(string(output))
-				// Kill all matching processes
-				if pids != "" {
-					for _, pid := range strings.Split(pids, "\n") {
-						pid = strings.TrimSpace(pid)
-						if pid != "" {
-							killCmd := exec.Command("sudo", "kill", "-9", pid)
-							if err := killCmd.Run(); err != nil {
-								fmt.Fprintf(os.Stderr, "Warning: Failed to kill server process (PID %s): %v\n", pid, err)
-							}
-						}
-					}
+			pkillCmd := exec.Command("sudo", "pkill", "-9", "-x", "datadog-traceroute-server")
+			if err := pkillCmd.Run(); err != nil {
+				if _, ok := err.(*exec.ExitError); !ok {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to run pkill: %v\n", err)
 				}
 			}
 		} else {
