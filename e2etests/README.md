@@ -36,41 +36,47 @@ Each test type runs against three target categories:
 ### Prerequisites
 
 1. **Administrative/Root Privileges**: (Linux and macOS) Required to create raw sockets and send/receive network packets.
+NOTE: When running tests manually, use 'sudo' as specified in the example commands below on Linux/macOS, but not on Windows
+
 2. **Network Access**: Public target tests require internet connectivity.
 
 ### Run E2E Tests
 
+The following commands can be used to manually run tests as they are run in the CI pipeline (`.github/workflows/test.yml`).  When run manually the test code will, as necessary, build the CLI and server binaries and start the server before executing the tests.
+
 ```bash
-# NOTE: When running tests manually, use 'sudo' as specified in the example commands below on Linux/macOS, but not on Windows
+# Unit tests
+go test -tags=test -v ./...
+
+# E2E Localhost CLI Tests
+sudo go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
+
+# E2E Public Target CLI Tests
+sudo go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetCLI
+
+# E2E Fake Network CLI Tests (Linux only)
+sudo bash testutils/router_setup.sh
+sudo go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkCLI
+sudo bash testutils/router_teardown.sh
+
+# E2E Localhost HTTP Server Tests
+sudo go test -tags=e2etest -v ./e2etests/... -run TestLocalhostHTTPServer
+
+# E2E Public Target HTTP Server Tests
+sudo go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
+
+# E2E Fake Network HTTP Server Tests (Linux only)
+sudo bash testutils/router_setup.sh
+sudo go test -tags=e2etest -v ./e2etests/... -run TestFakeNetworkHTTPServer
+sudo bash testutils/router_teardown.sh
 ```
+
+Following are more examples of running tests.
 
 ```bash
 # All E2E tests
 sudo go test -tags=e2etest -v ./e2etests/
-```
 
-### Run Specific Test Categories
-
-```bash
-# CLI tests only
-sudo go test -tags=e2etest -v ./e2etests/ -run CLI
-
-# HTTP server tests only
-sudo go test -tags=e2etest -v ./e2etests/ -run HTTPServer
-
-# Localhost tests only (both CLI and server)
-sudo go test -tags=e2etest -v ./e2etests/ -run Localhost
-
-# Public target tests only (both CLI and server)
-sudo go test -tags=e2etest -v ./e2etests/ -run PublicTarget
-
-# Fake network tests only (both CLI and server)
-sudo go test -tags=e2etest -v ./e2etests/ -run FakeNetwork
-```
-
-### Run Individual Tests
-
-```bash
 # Specific CLI test
 sudo go test -tags=e2etest -v ./e2etests/ -run TestLocalhostCLI/ICMP
 
@@ -107,10 +113,11 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 - Last hop RTT is positive (except Windows localhost due to timer resolution)
 - Last hop IP matches the run's destination IP
 - For public targets, allows some runs to fail due to network flakiness (requires at least 1 successful run)
+- For Windows localhost, allows some runs to fail due to timer resolution limitations (requires at least 1 successful run)
 - For local targets, all runs must reach the destination
 
 ### 5. Hop Information
-- Each hop has a non-zero TTL value
+- Each hop has a non-zero TTL value (except for Windows localhost due to timer resolution)
 - Reachable hops have IP addresses
 - Reachable hops have positive RTT values (except Windows localhost due to timer resolution)
 - Minimum number of reachable hops is validated (1 for localhost, 2+ for targets with intermediate hops)
@@ -124,7 +131,7 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 ### 7. E2E Probe Results (when destination is reachable)
 - RTT array is populated with correct number of entries (10 by default)
 - Packets sent count equals requested number of probes
-- Packet loss percentage is reasonable (0.0% for localhost, ≤50% for public targets)
+- Packet loss percentage is reasonable (0.0% for localhost, ≤50% for public targets and Windows localhost)
 - When packets are received:
   - Average RTT is positive and < 5 seconds
   - Min RTT is positive
@@ -132,7 +139,7 @@ Each test performs validation of the results returned by the CLI or HTTP server.
   - Statistical consistency (max >= min)
 
 ### 8. Reverse DNS (for public targets)
-- When reverse DNS is enabled, at least one hop in successful runs has reverse DNS data populated
+- For the public target, at least one hop in successful runs has reverse DNS data populated
 
 ## Test Matrix
 
@@ -153,7 +160,6 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 | Fake Network | 198.51.100.2 | TCP      | SYN          | -    | 3       | 10         |
 | Fake Network | 198.51.100.2 | TCP      | SACK         | -    | 3       | 10         |
 | Fake Network | 198.51.100.2 | TCP      | prefer_sack  | -    | 3       | 10         |
-|--------------|--------------|----------|--------------|------|---------|------------|
 
 - Localhost and Public target tests are run on Linux, Windows, and macOS.  Fake Network tests are only run on Linux.
 - Each configuration is tested with both the CLI binary and HTTP server API.
