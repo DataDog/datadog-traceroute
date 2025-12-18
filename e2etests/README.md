@@ -193,9 +193,9 @@ The e2e test suite encounters several limitations based on the test environment 
 - **Windows and macOS**: UDP traceroutes do not work for localhost or public targets.
 
 #### TCP SACK
-- **Linux**: TCP SACK does not work with localhost (`127.0.0.1`) or fake network targets (TEST-NET-2 addresses).  The test validates that the expected error is returned.  TCP SACK generally works for the public target.
-- **Windows**: TCP SACK does not work with localhost or fake network targets.  The test validates that the expected error is returned.
-- **macOS**: TCP SACK generally works for the public target, but can be flaky.  The test suite allows up to 5 attempts for macOS public target TCP SACK tests.  TCP SACK does not work with localhost.  The test validates that the expected error is returned.
+- **Linux**: TCP SACK does not work with localhost or fake network targets.  The test validates that the expected error is returned.  TCP SACK generally works with the `github.com` public target used by the tests.
+- **Windows**: TCP SACK does not work with localhost or publuc targets.  The test validates that the expected error is returned.
+- **macOS**: TCP SACK does not work with localhost.  The test validates that the expected error is returned.  TCP SACK generally works with the `github.com` public target used by the tests, but can be flaky.  The test suite allows up to 5 attempts for macOS public target TCP SACK tests.
 
 #### Intermediate Hops
 - **Linux**: Only fake network targets consistently show intermediate hops on GitHub Actions runners.  Localhost has no intermediate hops because there is only one hop, and public targets don't capture intermediate hops because of GitHub Actions network restrictions.
