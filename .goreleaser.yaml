@@ -1,6 +1,6 @@
 project_name: datadog-traceroute
 builds:
-  - id: traceroute
+  - id: traceroute-linux
     main: ./traceroute.go
     binary: datadog-traceroute
     env: [CGO_ENABLED=0]
@@ -11,22 +11,45 @@ builds:
       - -X github.com/DataDog/datadog-traceroute/cmd.Date={{.Date}}
     goos:
       - linux
-      #- windows
       #- darwin
     goarch:
       - amd64
       #- arm64
-  - id: traceroute-server
+  - id: traceroute-windows
+    main: ./traceroute.go
+    binary: datadog-traceroute
+    env:
+      - CGO_ENABLED=1
+      - CC=$CC_WINDOWS_AMD64
+    ldflags:
+      - -s -w
+      - -X github.com/DataDog/datadog-traceroute/cmd.Version={{.Version}}
+      - -X github.com/DataDog/datadog-traceroute/cmd.Commit={{.Commit}}
+      - -X github.com/DataDog/datadog-traceroute/cmd.Date={{.Date}}
+    goos:
+      - windows
+    goarch:
+      - amd64
+  - id: traceroute-server-linux
     main: ./cmd/traceroute-server
     binary: datadog-traceroute-server
     env: [CGO_ENABLED=0]
     goos:
       - linux
-      #- windows
       #- darwin
     goarch:
       - amd64
       #- arm64
+  - id: traceroute-server-windows
+    main: ./cmd/traceroute-server
+    binary: datadog-traceroute-server
+    env:
+      - CGO_ENABLED=1
+      - CC=$CC_WINDOWS_AMD64
+    goos:
+      - windows
+    goarch:
+      - amd64
 nfpms:
 - maintainer: Datadog
   description: Datadog Traceroute

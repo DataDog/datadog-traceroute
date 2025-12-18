@@ -70,3 +70,14 @@ After merging changes to `main` create a release by:
    
    This will create a git tag that can now be referenced in other repos.
    This will trigger go-releaser that will add installable artifacts to the release.
+
+# Usage
+
+`datadog-traceroute` is used by:
+
+  - [Network Path](https://docs.datadoghq.com/network_monitoring/network_path)
+    - Used Scheduled Tests and Dynamic Tests in [datadog-agent](https://github.com/DataDog/datadog-agent)
+  - [Datadog Synthetic Monitoring](https://www.datadoghq.com/product/synthetic-monitoring/)
+    - Used for Network Tests in Managed Locations and [datadog-agent](https://github.com/DataDog/datadog-agent)
+    - Used for API Tests traceroute in Private Locations
+
