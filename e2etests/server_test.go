@@ -44,13 +44,12 @@ func getServerBinaryPath(t *testing.T) string {
 	serverBinaryOnce.Do(func() {
 		projectRoot := filepath.Join("..")
 
-		// Determine binary name based on OS
 		binaryName := "datadog-traceroute-server"
 		if runtime.GOOS == "windows" {
 			binaryName = "datadog-traceroute-server.exe"
 		}
 
-		// Check for pre-built binary (CI scenario)
+		// check for pre-built binary (i.e. when running in CI)
 		preBuiltBinaryPath := filepath.Join(projectRoot, binaryName)
 		if _, err := os.Stat(preBuiltBinaryPath); err == nil {
 			t.Logf("using pre-built HTTP server binary: %s", binaryName)
@@ -59,19 +58,15 @@ func getServerBinaryPath(t *testing.T) string {
 			return
 		}
 
-		testBinaryName := "datadog-traceroute-server"
-		if runtime.GOOS == "windows" {
-			testBinaryName = "datadog-traceroute-server.exe"
-		}
-		t.Logf("pre-built server binary not found, building test server binary: %s", testBinaryName)
-		serverBinaryPath = filepath.Join(projectRoot, testBinaryName)
+		t.Logf("pre-built server binary not found, building test server binary: %s", binaryName)
+		serverBinaryPath = filepath.Join(projectRoot, binaryName)
 
-		t.Logf("running command: go build -o %s ./cmd/traceroute-server", testBinaryName)
-		buildCmd := exec.Command("go", "build", "-o", testBinaryName, "./cmd/traceroute-server")
+		t.Logf("running command: go build -o %s ./cmd/traceroute-server", binaryName)
+		buildCmd := exec.Command("go", "build", "-o", binaryName, "./cmd/traceroute-server")
 		buildCmd.Dir = projectRoot
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("Failed to build %s: %v\nOutput: %s", testBinaryName, err, string(buildOutput))
+			t.Fatalf("Failed to build %s: %v\nOutput: %s", binaryName, err, string(buildOutput))
 		}
 
 		serverBinaryNeedsCleanup = true
