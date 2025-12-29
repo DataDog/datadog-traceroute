@@ -31,9 +31,9 @@ var (
 // netlink so we can get the exact source IP/interface the kernel would use. This
 // helps in environments such as WireGuard where the routing table lives in a
 // high-numbered table and the source address may not be derived correctly from a
-// naive dial. If the netlink lookup fails (for example, due to kernel limits
-// returning EOVERFLOW), we gracefully fall back to the standard dial-based
-// implementation.
+// naive dial. RouteGet can return EOVERFLOW on hosts with many routes (including
+// WireGuard policy routing), so we log and fall back to the standard dial-based
+// implementation instead of declaring the path down.
 func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
 	addr, conn, err := localAddrViaNetlink(destIP, destPort)
 	if err == nil {
