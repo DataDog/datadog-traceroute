@@ -17,6 +17,12 @@ import (
 	"github.com/DataDog/datadog-traceroute/log"
 )
 
+var (
+	routeGet    = netlink.RouteGet
+	linkByIndex = netlink.LinkByIndex
+	addrList    = netlink.AddrList
+)
+
 // LocalAddrForHost takes in a destination IP and port and returns the local
 // address that should be used to connect to the destination. The returned connection
 // should be closed by the caller when the local UDP port is no longer needed.
@@ -50,7 +56,7 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 }
 
 func localAddrViaNetlink(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
-	routes, err := netlink.RouteGet(destIP)
+	routes, err := routeGet(destIP)
 	if err != nil {
 		return nil, nil, fmt.Errorf("netlink route lookup failed: %w", err)
 	}
@@ -63,7 +69,7 @@ func localAddrViaNetlink(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn
 
 	// If the kernel didn't provide a source, derive one from the interface addresses.
 	if src == nil && route.LinkIndex != 0 {
-		link, linkErr := netlink.LinkByIndex(route.LinkIndex)
+		link, linkErr := linkByIndex(route.LinkIndex)
 		if linkErr != nil {
 			return nil, nil, fmt.Errorf("netlink failed to fetch link %d: %w", route.LinkIndex, linkErr)
 		}
@@ -72,7 +78,7 @@ func localAddrViaNetlink(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn
 		if destIP.To4() == nil {
 			family = netlink.FAMILY_V6
 		}
-		addrs, addrErr := netlink.AddrList(link, family)
+		addrs, addrErr := addrList(link, family)
 		if addrErr != nil {
 			return nil, nil, fmt.Errorf("netlink failed to list addrs for link %d: %w", route.LinkIndex, addrErr)
 		}
