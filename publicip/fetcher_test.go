@@ -219,14 +219,19 @@ func TestHandleRequest(t *testing.T) {
 }
 
 func TestHandleRequest_ClientDoError(t *testing.T) {
-	// Test client.Do error by using an invalid URL
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://invalid-host-that-does-not-exist-12345.com", nil)
+	client := &http.Client{Transport: &erroringTransport{}}
+	req, err := http.NewRequest("GET", "http://example.com", nil)
 	require.NoError(t, err)
 
 	_, err = handleRequest(client, req)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to fetch req")
+}
+
+type erroringTransport struct{}
+
+func (erroringTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("test roundtrip error")
 }
 
 // errorTransport is a custom RoundTripper that returns a response with an error reader
