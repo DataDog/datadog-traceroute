@@ -81,3 +81,15 @@ After merging changes to `main` create a release by:
     - Used for Network Tests in Managed Locations and [datadog-agent](https://github.com/DataDog/datadog-agent)
     - Used for API Tests traceroute in Private Locations
 
+## WireGuard-aware source address selection
+
+When the tool needs to craft probe packets, it picks a local source IP and
+interface using `LocalAddrForHost` (see `common/localaddr_linux.go` for the
+Linux implementation). The logic now asks the kernel for the route to the
+destination via netlink, which returns the exact source address and interface
+the kernel would use—even when WireGuard stores routes in high-numbered tables
+outside the main routing table. If the netlink lookup fails (for example, due
+to the kernel returning `EOVERFLOW` when enumerating routes), the code falls
+back to the previous dial-based method so traceroutes continue to work rather
+than reporting the path as down.
+
