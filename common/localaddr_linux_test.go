@@ -5,6 +5,7 @@ package common
 import (
 	"errors"
 	"net"
+	"syscall"
 	"testing"
 
 	"github.com/vishvananda/netlink"
@@ -82,6 +83,25 @@ func TestLocalAddrFallsBackWhenNetlinkFails(t *testing.T) {
 
 	routeGet = func(_ net.IP) ([]netlink.Route, error) {
 		return nil, errors.New("boom")
+	}
+
+	addr, conn, err := LocalAddrForHost(net.IPv4(127, 0, 0, 1), 33434)
+	if err != nil {
+		t.Fatalf("LocalAddrForHost returned error: %v", err)
+	}
+	t.Cleanup(func() { conn.Close() })
+
+	if addr.IP == nil {
+		t.Fatalf("expected a local address from dial fallback")
+	}
+}
+
+func TestLocalAddrFallsBackOnNetlinkOverflow(t *testing.T) {
+	originalRouteGet := routeGet
+	defer func() { routeGet = originalRouteGet }()
+
+	routeGet = func(_ net.IP) ([]netlink.Route, error) {
+		return nil, syscall.EOVERFLOW
 	}
 
 	addr, conn, err := LocalAddrForHost(net.IPv4(127, 0, 0, 1), 33434)
