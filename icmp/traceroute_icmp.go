@@ -12,6 +12,7 @@ import (
 	"net/netip"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/localaddr"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -46,7 +47,7 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 		return nil, fmt.Errorf("invalid icmp driver params: %w", err)
 	}
 
-	local, udpConn, err := common.LocalAddrForHost(p.Target.AsSlice(), 80)
+	local, udpConn, err := localaddr.LocalAddrForHost(p.Target.AsSlice(), 80)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}
