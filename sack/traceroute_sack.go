@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/localaddr"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -107,7 +108,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		return nil, fmt.Errorf("invalid sack driver params: %w", err)
 	}
 
-	local, udpConn, err := common.LocalAddrForHost(p.Target.Addr().AsSlice(), p.Target.Port())
+	local, udpConn, err := localaddr.LocalAddrForHost(p.Target.Addr().AsSlice(), p.Target.Port())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}

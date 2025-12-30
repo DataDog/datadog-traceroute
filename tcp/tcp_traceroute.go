@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/localaddr"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/result"
 )
 
 // Traceroute runs a TCP traceroute
 func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
-	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
+	addr, conn, err := localaddr.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
 	}
