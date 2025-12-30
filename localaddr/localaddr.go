@@ -149,15 +149,6 @@ func forHostFallback(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, er
 		// Success! Get the actual bound address (with ephemeral port)
 		boundAddr := conn.LocalAddr().(*net.UDPAddr)
 
-		// Apply loopback handling (same as in ForHost)
-		if destIP.IsLoopback() && !boundAddr.IP.IsLoopback() {
-			if destIP.To4() != nil {
-				boundAddr.IP = net.IPv4(127, 0, 0, 1)
-			} else {
-				boundAddr.IP = net.IPv6loopback
-			}
-		}
-
 		log.Debugf("Successfully selected source IP %s for destination %s", boundAddr.IP, destIP)
 		return boundAddr, conn, nil
 	}
