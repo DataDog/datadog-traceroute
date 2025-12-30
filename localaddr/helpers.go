@@ -23,10 +23,12 @@ func udpAddrFromConn(conn net.Conn) (*net.UDPAddr, error) {
 }
 
 func normalizeLoopbackSource(destIP net.IP, addr *net.UDPAddr) {
-	if destIP.IsLoopback() && addr != nil && !addr.IP.IsLoopback() {
-		if destIP.To4() != nil {
-			addr.IP = net.IPv4(127, 0, 0, 1)
-		} else {
+       // On macOS, net.Dial() to a loopback destination may return a non-loopback local address.
+       // Force the source to be a loopback address so packets can be properly routed.
+       if destIP.IsLoopback() && addr != nil && !addr.IP.IsLoopback() {
+               if destIP.To4() != nil {
+                       addr.IP = net.IPv4(127, 0, 0, 1)
+               } else {
 			addr.IP = net.IPv6loopback
 		}
 	}
