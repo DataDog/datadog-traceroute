@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/localaddr"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/winconn"
@@ -24,7 +25,7 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
-	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
+	addr, conn, err := localaddr.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local address for target: %w", err)
 	}

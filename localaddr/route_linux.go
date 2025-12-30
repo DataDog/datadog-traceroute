@@ -1,6 +1,6 @@
 //go:build linux
 
-package common
+package localaddr
 
 import (
 	"fmt"

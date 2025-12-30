@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/localaddr"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/result"
 )
@@ -23,7 +24,7 @@ func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
 	}
 	u.Target = targetAddr.AsSlice()
 
-	addr, conn, err := common.LocalAddrForHost(u.Target, u.TargetPort)
+	addr, conn, err := localaddr.LocalAddrForHost(u.Target, u.TargetPort)
 	if err != nil {
 		return nil, fmt.Errorf("UDP Traceroute failed to get local address for target: %w", err)
 	}

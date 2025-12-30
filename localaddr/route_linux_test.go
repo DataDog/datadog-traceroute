@@ -1,6 +1,6 @@
 //go:build linux
 
-package common
+package localaddr
 
 import (
 	"errors"
@@ -54,7 +54,7 @@ func TestLocalAddrForHostFallsBackWhenRouteFails(t *testing.T) {
 		return nil, errors.New("boom")
 	}
 
-	addr, conn, err := LocalAddrForHost(net.ParseIP("127.0.0.1"), DefaultPort)
+	addr, conn, err := LocalAddrForHost(net.ParseIP("127.0.0.1"), 33434)
 	require.NoError(t, err)
 	require.NotNil(t, addr)
 	require.NotNil(t, conn)
@@ -73,7 +73,7 @@ func TestLocalAddrForHostUsesRouteSource(t *testing.T) {
 		}}, nil
 	}
 
-	addr, conn, err := LocalAddrForHost(net.ParseIP("127.0.0.1"), DefaultPort)
+	addr, conn, err := LocalAddrForHost(net.ParseIP("127.0.0.1"), 33434)
 	require.NoError(t, err)
 	require.Equal(t, src.String(), addr.IP.String())
 	conn.Close()
