@@ -219,7 +219,8 @@ func TestHandleRequest(t *testing.T) {
 }
 
 func TestHandleRequest_ClientDoError(t *testing.T) {
-	// Test client.Do error by using an invalid URL
+	// Force direct connections so environment proxies can't turn the invalid host into a reachable one
+	// (tests run in proxied CI can otherwise succeed unexpectedly).
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(nil)}}
 	req, err := http.NewRequest("GET", "http://invalid-host-that-does-not-exist-12345.com", nil)
 	require.NoError(t, err)
