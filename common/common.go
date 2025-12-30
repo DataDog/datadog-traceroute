@@ -67,13 +67,12 @@ func (m MismatchError) Error() string {
 // address that should be used to connect to the destination. The returned connection
 // should be closed by the caller when the local UDP port is no longer needed
 func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
-	if addr, conn, err := localAddrFromRoute(destIP, destPort); err == nil {
-		return addr, conn, nil
-	}
-
-	conn, err := net.Dial("udp", net.JoinHostPort(destIP.String(), strconv.Itoa(int(destPort))))
+	conn, err := dialWithRoute(destIP, destPort)
 	if err != nil {
-		return nil, nil, err
+		conn, err = net.Dial("udp", net.JoinHostPort(destIP.String(), strconv.Itoa(int(destPort))))
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	localUDPAddr, err := normalizeLocalAddr(destIP, conn.LocalAddr())
@@ -85,28 +84,22 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 	return localUDPAddr, conn, nil
 }
 
-func localAddrFromRoute(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
+func dialWithRoute(destIP net.IP, destPort uint16) (net.Conn, error) {
 	routeInfo, err := lookupOutboundRoute(destIP)
 	if err != nil {
-		return nil, nil, fmt.Errorf("route lookup failed: %w", err)
+		return nil, fmt.Errorf("route lookup failed: %w", err)
 	}
 	if routeInfo.PrefSrc == nil {
-		return nil, nil, fmt.Errorf("route lookup returned no preferred source IP")
+		return nil, fmt.Errorf("route lookup returned no preferred source IP")
 	}
 
 	localUDPAddr := &net.UDPAddr{IP: routeInfo.PrefSrc}
 	conn, err := net.DialUDP("udp", localUDPAddr, &net.UDPAddr{IP: destIP, Port: int(destPort)})
 	if err != nil {
-		return nil, nil, fmt.Errorf("dialing with route source failed: %w", err)
+		return nil, fmt.Errorf("dialing with route source failed: %w", err)
 	}
 
-	normalizedAddr, err := normalizeLocalAddr(destIP, conn.LocalAddr())
-	if err != nil {
-		conn.Close()
-		return nil, nil, err
-	}
-
-	return normalizedAddr, conn, nil
+	return conn, nil
 }
 
 func normalizeLocalAddr(destIP net.IP, localAddr net.Addr) (*net.UDPAddr, error) {
