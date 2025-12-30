@@ -221,6 +221,7 @@ func TestHandleRequest(t *testing.T) {
 func TestHandleRequest_ClientDoError(t *testing.T) {
 	// Force direct connections so environment proxies can't turn the invalid host into a reachable one
 	// (tests run in proxied CI can otherwise succeed unexpectedly with 403s instead of dial errors).
+	// This was observed in practice, so the proxy bypass is required to keep the test meaningful.
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(nil)}}
 	req, err := http.NewRequest("GET", "http://invalid-host-that-does-not-exist-12345.com", nil)
 	require.NoError(t, err)
