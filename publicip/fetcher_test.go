@@ -219,6 +219,8 @@ func TestHandleRequest(t *testing.T) {
 }
 
 func TestHandleRequest_ClientDoError(t *testing.T) {
+	// Use a deterministic transport error instead of relying on DNS/socket
+	// failures so the test is stable in hermetic environments.
 	client := &http.Client{Transport: &erroringTransport{}}
 	req, err := http.NewRequest("GET", "http://example.com", nil)
 	require.NoError(t, err)
