@@ -76,8 +76,9 @@ func isNetlinkOverflowError(err error) bool {
 }
 
 // forHostFallback is a fallback method to determine the local address for a destination
-// when the standard net.Dial approach fails. It enumerates network interfaces and selects an
-// appropriate source IP address, preferring interfaces in the same subnet as the destination.
+// when the standard net.Dial approach fails. It enumerates network interfaces and tries
+// connecting with each candidate source IP until one succeeds. This handles edge cases
+// like WireGuard interfaces where peer IPs are not in the same subnet (/32 or /128).
 func forHostFallback(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
 	// 1. Get all network interfaces
 	interfaces, err := net.Interfaces()
@@ -85,9 +86,9 @@ func forHostFallback(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, er
 		return nil, nil, fmt.Errorf("failed to enumerate interfaces: %w", err)
 	}
 
-	// 2. Find suitable interface with an IP address
-	var selectedIP net.IP
-	var selectedIPNet *net.IPNet
+	// 2. Collect all candidate IP addresses
+	var candidates []net.IP
+	var sameSubnetCandidates []net.IP
 
 	for _, iface := range interfaces {
 		// Skip down or loopback interfaces (unless destination is loopback)
@@ -103,7 +104,7 @@ func forHostFallback(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, er
 			continue
 		}
 
-		// Find an IP address on this interface
+		// Collect IP addresses from this interface
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
 			if !ok {
@@ -116,51 +117,54 @@ func forHostFallback(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, er
 				continue
 			}
 
-			// Prefer addresses in the same subnet as destination
+			// Separate same-subnet candidates (prioritize them)
 			if ipNet.Contains(destIP) {
-				selectedIP = ip
-				selectedIPNet = ipNet
-				break
+				sameSubnetCandidates = append(sameSubnetCandidates, ip)
+			} else {
+				candidates = append(candidates, ip)
 			}
-
-			// Otherwise, just pick the first valid IP as fallback
-			if selectedIP == nil {
-				selectedIP = ip
-				selectedIPNet = ipNet
-			}
-		}
-
-		// If we found an IP in the same subnet as destination, use it immediately
-		if selectedIP != nil && selectedIPNet != nil && selectedIPNet.Contains(destIP) {
-			break
 		}
 	}
 
-	if selectedIP == nil {
+	// 3. Try same-subnet candidates first, then all others
+	allCandidates := append(sameSubnetCandidates, candidates...)
+
+	if len(allCandidates) == 0 {
 		return nil, nil, fmt.Errorf("no suitable network interface found for destination %s", destIP)
 	}
 
-	log.Debugf("Selected source IP %s for destination %s", selectedIP, destIP)
+	// 4. Try connecting with each candidate until one succeeds
+	var lastErr error
+	for _, candidateIP := range allCandidates {
+		localAddr := &net.UDPAddr{IP: candidateIP, Port: 0}
+		remoteAddr := &net.UDPAddr{IP: destIP, Port: int(destPort)}
 
-	// 3. Create UDP connection with the selected local IP
-	localAddr := &net.UDPAddr{IP: selectedIP, Port: 0}
-	remoteAddr := &net.UDPAddr{IP: destIP, Port: int(destPort)}
-	conn, err := net.DialUDP("udp", localAddr, remoteAddr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to dial with selected source IP %s: %w", selectedIP, err)
-	}
-
-	// Get the actual bound address (with ephemeral port)
-	boundAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	// Apply loopback handling (same as in ForHost)
-	if destIP.IsLoopback() && !boundAddr.IP.IsLoopback() {
-		if destIP.To4() != nil {
-			boundAddr.IP = net.IPv4(127, 0, 0, 1)
-		} else {
-			boundAddr.IP = net.IPv6loopback
+		conn, err := net.DialUDP("udp", localAddr, remoteAddr)
+		if err != nil {
+			lastErr = err
+			log.Debugf("Failed to connect using source IP %s: %v", candidateIP, err)
+			continue
 		}
+
+		// Success! Get the actual bound address (with ephemeral port)
+		boundAddr := conn.LocalAddr().(*net.UDPAddr)
+
+		// Apply loopback handling (same as in ForHost)
+		if destIP.IsLoopback() && !boundAddr.IP.IsLoopback() {
+			if destIP.To4() != nil {
+				boundAddr.IP = net.IPv4(127, 0, 0, 1)
+			} else {
+				boundAddr.IP = net.IPv6loopback
+			}
+		}
+
+		log.Debugf("Successfully selected source IP %s for destination %s", boundAddr.IP, destIP)
+		return boundAddr, conn, nil
 	}
 
-	return boundAddr, conn, nil
+	// All candidates failed
+	if lastErr != nil {
+		return nil, nil, fmt.Errorf("failed to connect with any candidate source IP (tried %d): %w", len(allCandidates), lastErr)
+	}
+	return nil, nil, fmt.Errorf("no suitable source IP found for destination %s", destIP)
 }
