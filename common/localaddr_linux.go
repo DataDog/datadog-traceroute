@@ -41,7 +41,7 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 	}
 
 	log.Debugf("netlink route lookup failed, falling back to dial: %v", err)
-	addr, conn, dialErr := localAddrViaDial(destIP, destPort)
+	addr, conn, dialErr := dialLocalAddr(destIP, destPort)
 	if dialErr == nil {
 		return addr, conn, nil
 	}
@@ -112,45 +112,13 @@ func localAddrViaNetlink(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn
 		conn = listenConn
 	}
 
-	localUDPAddr, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		conn.Close()
-		return nil, nil, fmt.Errorf("invalid address type for %s: want %T, got %T", conn.LocalAddr(), &net.UDPAddr{}, conn.LocalAddr())
-	}
-
-	// On macOS, net.Dial() to a loopback destination may return a non-loopback local address.
-	// Force the source to be a loopback address so packets can be properly routed.
-	if destIP.IsLoopback() && !localUDPAddr.IP.IsLoopback() {
-		if destIP.To4() != nil {
-			localUDPAddr.IP = net.IPv4(127, 0, 0, 1)
-		} else {
-			localUDPAddr.IP = net.IPv6loopback
-		}
-	}
-
-	return localUDPAddr, conn, nil
-}
-
-// localAddrViaDial retains the previous dial-based behaviour as a fallback.
-func localAddrViaDial(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
-	conn, err := net.Dial("udp", net.JoinHostPort(destIP.String(), strconv.Itoa(int(destPort))))
+	localUDPAddr, err := udpAddrFromConn(conn)
 	if err != nil {
+		conn.Close()
 		return nil, nil, err
 	}
-	localAddr := conn.LocalAddr()
 
-	localUDPAddr, ok := localAddr.(*net.UDPAddr)
-	if !ok {
-		return nil, nil, fmt.Errorf("invalid address type for %s: want %T, got %T", localAddr, localUDPAddr, localAddr)
-	}
-
-	if destIP.IsLoopback() && !localUDPAddr.IP.IsLoopback() {
-		if destIP.To4() != nil {
-			localUDPAddr.IP = net.IPv4(127, 0, 0, 1)
-		} else {
-			localUDPAddr.IP = net.IPv6loopback
-		}
-	}
+	normalizeLoopbackSource(destIP, localUDPAddr)
 
 	return localUDPAddr, conn, nil
 }
@@ -170,10 +138,10 @@ func localAddrAny(destIP net.IP) (*net.UDPAddr, net.Conn, error) {
 		return nil, nil, err
 	}
 
-	localUDPAddr, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok {
+	localUDPAddr, err := udpAddrFromConn(conn)
+	if err != nil {
 		conn.Close()
-		return nil, nil, fmt.Errorf("invalid address type for %s: want %T, got %T", conn.LocalAddr(), &net.UDPAddr{}, conn.LocalAddr())
+		return nil, nil, err
 	}
 
 	return localUDPAddr, conn, nil
