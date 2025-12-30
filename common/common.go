@@ -67,18 +67,52 @@ func (m MismatchError) Error() string {
 // address that should be used to connect to the destination. The returned connection
 // should be closed by the caller when the local UDP port is no longer needed
 func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
-	// this is a quick way to get the local address for connecting to the host
-	// using UDP as the network type to avoid actually creating a connection to
-	// the host, just get the OS to give us a local IP and local ephemeral port
+	if addr, conn, err := localAddrFromRoute(destIP, destPort); err == nil {
+		return addr, conn, nil
+	}
+
 	conn, err := net.Dial("udp", net.JoinHostPort(destIP.String(), strconv.Itoa(int(destPort))))
 	if err != nil {
 		return nil, nil, err
 	}
-	localAddr := conn.LocalAddr()
 
+	localUDPAddr, err := normalizeLocalAddr(destIP, conn.LocalAddr())
+	if err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+
+	return localUDPAddr, conn, nil
+}
+
+func localAddrFromRoute(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, error) {
+	routeInfo, err := lookupOutboundRoute(destIP)
+	if err != nil {
+		return nil, nil, fmt.Errorf("route lookup failed: %w", err)
+	}
+	if routeInfo.PrefSrc == nil {
+		return nil, nil, fmt.Errorf("route lookup returned no preferred source IP")
+	}
+
+	localUDPAddr := &net.UDPAddr{IP: routeInfo.PrefSrc}
+	conn, err := net.DialUDP("udp", localUDPAddr, &net.UDPAddr{IP: destIP, Port: int(destPort)})
+	if err != nil {
+		return nil, nil, fmt.Errorf("dialing with route source failed: %w", err)
+	}
+
+	normalizedAddr, err := normalizeLocalAddr(destIP, conn.LocalAddr())
+	if err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+
+	return normalizedAddr, conn, nil
+}
+
+func normalizeLocalAddr(destIP net.IP, localAddr net.Addr) (*net.UDPAddr, error) {
 	localUDPAddr, ok := localAddr.(*net.UDPAddr)
 	if !ok {
-		return nil, nil, fmt.Errorf("invalid address type for %s: want %T, got %T", localAddr, localUDPAddr, localAddr)
+		return nil, fmt.Errorf("invalid address type for %s: want %T, got %T", localAddr, localUDPAddr, localAddr)
 	}
 
 	// On macOS, net.Dial() to a loopback destination may return a non-loopback local address.
@@ -91,7 +125,7 @@ func LocalAddrForHost(destIP net.IP, destPort uint16) (*net.UDPAddr, net.Conn, e
 		}
 	}
 
-	return localUDPAddr, conn, nil
+	return localUDPAddr, nil
 }
 
 // UnmappedAddrFromSlice is the same as netip.AddrFromSlice but it also gets rid of mapped ipv6 addresses.

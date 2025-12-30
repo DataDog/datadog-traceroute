@@ -40,8 +40,12 @@ func TestUnmappedAddrFromSliceMappedIPv4(t *testing.T) {
 
 func TestLocalAddrForHost(t *testing.T) {
 	t.Run("non-loopback destination", func(t *testing.T) {
-		// For a non-loopback destination the returned address should be a valid local address.
-		addr, conn, err := LocalAddrForHost(net.ParseIP("8.8.8.8"), 53)
+		listener, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+		require.NoError(t, err)
+		defer listener.Close()
+
+		destination := listener.LocalAddr().(*net.UDPAddr)
+		addr, conn, err := LocalAddrForHost(destination.IP, uint16(destination.Port))
 		require.NoError(t, err)
 		require.NotNil(t, conn)
 		defer conn.Close()
