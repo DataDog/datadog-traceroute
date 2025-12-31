@@ -288,7 +288,7 @@ const (
 
 **File:** `.github/workflows/test.yml`
 
-Add IPv6 test jobs (may need to verify IPv6 availability on GitHub runners).
+IPv6 e2e tests run on GitHub Actions runners with the existing workflow configuration.
 
 ---
 
