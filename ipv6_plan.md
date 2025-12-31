@@ -80,8 +80,8 @@ flowchart TB
 3. Verify UDP IPv6 packet generation works on macOS
 
 **Testing:**
-- E2E test: `./datadog-traceroute --proto udp --ipv6 ::1`
-- E2E test: `./datadog-traceroute --proto udp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --proto udp --ipv6 ::1`
+- Manual: `./datadog-traceroute --proto udp --ipv6 ipv6.google.com`
 
 ---
 
@@ -98,8 +98,8 @@ flowchart TB
 3. For ICMPv6, may need special handling if raw socket fails
 
 **Testing:**
-- E2E test: `./datadog-traceroute --proto icmp --ipv6 ::1`
-- E2E test: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --proto icmp --ipv6 ::1`
+- Manual: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
 
 ---
 
@@ -133,7 +133,7 @@ func (t *TCPv4) createRawTCPSynBufferV6(packetID uint16, seqNum uint32, ttl int)
 
 **Testing:**
 - Unit test IPv6 TCP SYN packet generation
-- E2E test: `./datadog-traceroute --proto tcp --tcp-method syn --ipv6 ipv6.google.com:443`
+- Manual: `./datadog-traceroute --proto tcp --tcp-method syn --ipv6 ipv6.google.com:443`
 
 ---
 
@@ -160,7 +160,7 @@ if addr.Is6() {
 4. Add IPv6 SYNACK BPF filter
 
 **Testing:**
-- E2E test: `./datadog-traceroute --proto tcp --tcp-method sack --ipv6 ipv6.google.com:443`
+- Manual: `./datadog-traceroute --proto tcp --tcp-method sack --ipv6 ipv6.google.com:443`
 
 ---
 
@@ -194,8 +194,8 @@ if addr.Is6() {
 3. ICMPv6 uses protocol number 58 (`IPPROTO_ICMPV6`) vs ICMPv4's 1
 
 **Testing:**
-- E2E test: `./datadog-traceroute --proto icmp --ipv6 ::1`
-- E2E test: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --proto icmp --ipv6 ::1`
+- Manual: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
 
 ### Step 5c: TCP SYN IPv6 on Linux
 
@@ -232,63 +232,16 @@ case addr.Is6():
 4. Add IPv6 support to driver-based sink for TCP/UDP injection
 
 **Testing:**
-- E2E tests on Windows with `--windows-driver` flag for IPv6
+- Manual tests on Windows with `--windows-driver` flag for IPv6
 - Document that IPv6 on Windows requires driver mode
 
 ---
 
 ## Cross-Platform Changes
 
-### E2E Test Updates
+### E2E Tests
 
-**File:** `e2etests/utils_test.go`
-
-IPv6 test configurations are added directly to the existing test config slices (not as separate variables):
-
-```go
-const (
-    localhostTargetV6 = "::1"
-    publicTargetV6    = "ipv6.google.com"
-)
-
-// IPv6 configs are appended to localhostTestConfigs, publicTargetTestConfigs, etc.
-// Example IPv6 entries in localhostTestConfigs:
-{hostname: localhostTargetV6, protocol: traceroute.ProtocolICMP, wantV6: true},
-{hostname: localhostTargetV6, protocol: traceroute.ProtocolUDP, wantV6: true},
-// TCP IPv6 configs will be added as they are implemented
-```
-
-### CLI Update - COMPLETED
-
-**File:** `e2etests/cli_test.go`
-
-- Added `--ipv6` flag to `getCLICommandAndArgs` when `config.wantV6` is true
-- IPv6 tests are included in existing test functions (`TestLocalhostCLI`, `TestPublicTargetCLI`) with platform-specific skipping
-
-### Server Update - COMPLETED
-
-**File:** `e2etests/server_test.go`
-
-- Added `&ipv6=true` query parameter in `getURL` when `config.wantV6` is true
-- IPv6 tests are included in existing test functions (`TestLocalhostHTTPServer`, `TestPublicTargetHTTPServer`) with platform-specific skipping
-
-### E2E Test Config Updates - COMPLETED
-
-**File:** `e2etests/utils_test.go`
-
-- Added `wantV6` field to `testConfig` struct
-- Added `wantV6` to `expectationsKey` struct
-- Added `localhostTargetV6 = "::1"` and `publicTargetV6 = "ipv6.google.com"` constants
-- Added IPv6 configs directly to `localhostTestConfigs` and `publicTargetTestConfigs` (no separate V6 slices)
-- Added IPv6 Linux expectations to `testExpectations` map
-- Updated `testName()` to include `_v6` suffix for IPv6 tests
-- Updated `getExpectations()` to include `wantV6` in key lookup
-
-### GitHub Workflow Update
-
-**File:** `.github/workflows/test.yml`
-
-IPv6 e2e tests run on GitHub Actions runners with the existing workflow configuration.
+**Note:** E2E tests for IPv6 are not supported yet. GitHub Actions runners do not have IPv6 networking enabled, making automated IPv6 testing infeasible in CI. IPv6 functionality must be validated through manual testing until GitHub Actions adds IPv6 support.
 
 ---
 
@@ -354,6 +307,5 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 - [ ] **step6-windows-ipv6**: IPv6 support on Windows: driver-based approach for all protocols
 
 ### Cross-Platform
-- [x] **e2e-tests**: Add e2e test framework for IPv6 (macOS UDP/ICMP localhost, macOS UDP public)
-- [x] **ci-workflow**: Update GitHub workflow for IPv6 testing
+- [ ] **e2e-tests**: E2E tests for IPv6 not supported (GitHub Actions runners lack IPv6 networking)
 
