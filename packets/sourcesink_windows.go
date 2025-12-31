@@ -38,7 +38,9 @@ func StartDriver() error {
 }
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
+// protocol is the IP protocol number - unused on Windows
+func NewSourceSink(addr netip.Addr, useDriver bool, protocol int) (SourceSinkHandle, error) {
+	_ = protocol // unused on Windows
 	if useDriver {
 		return NewSourceSinkDriver(addr)
 	}

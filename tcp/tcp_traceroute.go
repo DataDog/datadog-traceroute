@@ -45,7 +45,8 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 	}
 
 	// get this platform's Source and Sink implementations
-	handle, err := packets.NewSourceSink(targetAddr, t.UseWindowsDriver)
+	// Protocol 6 = TCP (needed for IPv6 on Darwin which doesn't support IPV6_HDRINCL)
+	handle, err := packets.NewSourceSink(targetAddr, t.UseWindowsDriver, 6)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to make NewSourceSink: %w", err)
 	}

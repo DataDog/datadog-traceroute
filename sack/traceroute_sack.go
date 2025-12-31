@@ -117,7 +117,8 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	defer cancel()
 
 	// create the raw packet connection which watches for TCP/ICMP responses
-	handle, err := packets.NewSourceSink(p.Target.Addr(), p.UseWindowsDriver)
+	// Protocol 6 = TCP (needed for IPv6 on Darwin which doesn't support IPV6_HDRINCL)
+	handle, err := packets.NewSourceSink(p.Target.Addr(), p.UseWindowsDriver, 6)
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to make NewSourceSink: %w", err)
 	}

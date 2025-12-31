@@ -23,32 +23,44 @@ type sinkDarwin struct {
 	sock     *os.File
 	rawConn  syscall.RawConn
 	writeBuf []byte
+	isIPv6   bool
 }
 
 var _ Sink = &sinkDarwin{}
 
 // NewSinkDarwin returns a new sinkDarwin implementing packet sink
-func NewSinkDarwin(addr netip.Addr) (Sink, error) {
-	var domain, protocol int
+// protocol is the IP protocol number (e.g., 17 for UDP, 6 for TCP, 58 for ICMPv6)
+// For IPv6, this is used as the socket protocol since Darwin doesn't support IPV6_HDRINCL.
+func NewSinkDarwin(addr netip.Addr, protocol int) (Sink, error) {
+	var domain, sockOptLevel int
+	var sockProtocol int
+	isIPv6 := false
+
 	switch {
 	case addr.Is4():
 		domain = unix.AF_INET
-		protocol = unix.IPPROTO_IP
+		sockOptLevel = unix.IPPROTO_IP
+		sockProtocol = unix.IPPROTO_RAW
 	case addr.Is6():
 		domain = unix.AF_INET6
-		protocol = unix.IPPROTO_IPV6
+		sockOptLevel = unix.IPPROTO_IPV6
+		// For IPv6 on Darwin, we must use the actual protocol number
+		// because there's no IPV6_HDRINCL option. The kernel builds the
+		// IPv6 header and uses the socket protocol as NextHeader.
+		sockProtocol = protocol
+		isIPv6 = true
 	default:
 		return nil, fmt.Errorf("SinkDarwin supports only IPv4 or IPv6 addresses")
 	}
 
-	fd, err := unix.Socket(domain, unix.SOCK_RAW, unix.IPPROTO_RAW)
+	fd, err := unix.Socket(domain, unix.SOCK_RAW, sockProtocol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create raw socket: %w", err)
 	}
 
 	// darwin only supports IP_HDRINCL for IPv4...
 	if addr.Is4() {
-		err = unix.SetsockoptInt(fd, protocol, unix.IP_HDRINCL, 1)
+		err = unix.SetsockoptInt(fd, sockOptLevel, unix.IP_HDRINCL, 1)
 		if err != nil {
 			unix.Close(fd)
 			return nil, fmt.Errorf("failed to set header include option: %w", err)
@@ -66,6 +78,7 @@ func NewSinkDarwin(addr netip.Addr) (Sink, error) {
 		sock:     sock,
 		rawConn:  rawConn,
 		writeBuf: make([]byte, 4096),
+		isIPv6:   isIPv6,
 	}, nil
 }
 
