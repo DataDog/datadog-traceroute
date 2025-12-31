@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest-dd, ubuntu-latest, windows-latest, macos-latest]
     env:
       BUILD_TARGET: ${{ matrix.os == 'windows-latest' && 'datadog-traceroute.exe' || 'datadog-traceroute' }}
       EXECUTABLE: ${{ matrix.os == 'windows-latest' && './datadog-traceroute.exe' || './datadog-traceroute' }}
@@ -76,6 +76,9 @@ jobs:
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
+
+      - name: Ping
+        run: ping6 2001:4860:4860::8888
 
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
@@ -192,9 +195,6 @@ jobs:
           echo $! > server.pid
           sleep 2
           echo "HTTP server started"
-
-      - name: Ping
-        run: ping6 2001:4860:4860::8888
 
       - name: TestPublicTargetHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
