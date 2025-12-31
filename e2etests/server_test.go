@@ -311,19 +311,25 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	validateResults(t, buf.Bytes(), config)
 }
 
-// TestLocalhostHTTPServer runs HTTP server tests to localhost
+// TestLocalhostHTTPServer runs HTTP server tests to localhost (IPv4 and IPv6)
 func TestLocalhostHTTPServer(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
+			if config.wantV6 && runtime.GOOS != "linux" {
+				t.Skip("IPv6 tests currently only supported on Linux")
+			}
 			testHTTPServer(t, config)
 		})
 	}
 }
 
-// TestPublicTargetHTTPServer runs HTTP server tests to a public target
+// TestPublicTargetHTTPServer runs HTTP server tests to a public target (IPv4 and IPv6)
 func TestPublicTargetHTTPServer(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
+			if config.wantV6 && runtime.GOOS != "linux" {
+				t.Skip("IPv6 tests currently only supported on Linux")
+			}
 			testHTTPServer(t, config)
 		})
 	}
@@ -333,30 +339,9 @@ func TestPublicTargetHTTPServer(t *testing.T) {
 func TestFakeNetworkHTTPServer(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			testHTTPServer(t, config)
-		})
-	}
-}
-
-// TestLocalhostIPv6HTTPServer runs HTTP server tests to IPv6 localhost (::1)
-func TestLocalhostIPv6HTTPServer(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("IPv6 localhost tests currently only supported on Linux")
-	}
-	for _, config := range localhostTestConfigsV6 {
-		t.Run(config.testName(), func(t *testing.T) {
-			testHTTPServer(t, config)
-		})
-	}
-}
-
-// TestPublicTargetIPv6HTTPServer runs HTTP server tests to a public IPv6 target
-func TestPublicTargetIPv6HTTPServer(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("IPv6 public target tests currently only supported on Linux")
-	}
-	for _, config := range publicTargetTestConfigsV6 {
-		t.Run(config.testName(), func(t *testing.T) {
+			if config.wantV6 && runtime.GOOS != "linux" {
+				t.Skip("IPv6 tests currently only supported on Linux")
+			}
 			testHTTPServer(t, config)
 		})
 	}

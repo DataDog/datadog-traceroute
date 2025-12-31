@@ -39,7 +39,9 @@ var (
 	sackNotSupported = "SACK not supported for this target/source"
 
 	// common testConfigs used for both CLI and HTTP server tests
+	// IPv4 configs come first, followed by IPv6 configs
 	localhostTestConfigs = []testConfig{
+		// IPv4 localhost configs
 		{
 			hostname: localhostTarget,
 			protocol: traceroute.ProtocolICMP,
@@ -63,67 +65,7 @@ var (
 			protocol:  traceroute.ProtocolTCP,
 			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
-	}
-
-	publicTargetTestConfigs = []testConfig{
-		{
-			hostname: publicTarget,
-			port:     publicPort,
-			protocol: traceroute.ProtocolICMP,
-		},
-		{
-			hostname: publicTarget,
-			port:     publicPort,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSACK,
-		},
-		{
-			hostname:  publicTarget,
-			port:      publicPort,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
-	}
-
-	fakeNetworkTestConfigs = []testConfig{
-		{
-			hostname: fakeNetworkTarget,
-			protocol: traceroute.ProtocolICMP,
-		},
-		{
-			hostname: fakeNetworkTarget,
-			protocol: traceroute.ProtocolUDP,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSYN,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigSACK,
-		},
-		{
-			hostname:  fakeNetworkTarget,
-			protocol:  traceroute.ProtocolTCP,
-			tcpMethod: traceroute.TCPConfigPreferSACK,
-		},
-	}
-
-	// IPv6 localhost test configs - used for IPv6 traceroute tests
-	localhostTestConfigsV6 = []testConfig{
+		// IPv6 localhost configs
 		{
 			hostname: localhostTargetV6,
 			protocol: traceroute.ProtocolICMP,
@@ -138,8 +80,37 @@ var (
 		// TCP SACK IPv6 - not yet implemented (Step 4)
 	}
 
-	// IPv6 public target test configs - used for IPv6 traceroute tests to public endpoints
-	publicTargetTestConfigsV6 = []testConfig{
+	publicTargetTestConfigs = []testConfig{
+		// IPv4 public target configs
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  publicTarget,
+			port:      publicPort,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+		// IPv6 public target configs
 		// Note: Only UDP is currently implemented for IPv6 (Step 1)
 		// ICMP IPv6 will be added in Step 2
 		// TCP SYN/SACK IPv6 will be added in Steps 3-4
@@ -148,6 +119,33 @@ var (
 			port:     publicPort,
 			protocol: traceroute.ProtocolUDP,
 			wantV6:   true,
+		},
+	}
+
+	fakeNetworkTestConfigs = []testConfig{
+		// IPv4 fake network configs (no IPv6 equivalent currently)
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolICMP,
+		},
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolUDP,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSYN,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigSACK,
+		},
+		{
+			hostname:  fakeNetworkTarget,
+			protocol:  traceroute.ProtocolTCP,
+			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
 	}
 )

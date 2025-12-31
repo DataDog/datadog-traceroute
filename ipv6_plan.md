@@ -243,7 +243,7 @@ case addr.Is6():
 
 **File:** `e2etests/utils_test.go`
 
-Add IPv6 test configurations:
+IPv6 test configurations are added directly to the existing test config slices (not as separate variables):
 
 ```go
 const (
@@ -251,11 +251,11 @@ const (
     publicTargetV6    = "ipv6.google.com"
 )
 
-var localhostTestConfigsV6 = []testConfig{
-    {hostname: localhostTargetV6, protocol: traceroute.ProtocolICMP, wantV6: true},
-    {hostname: localhostTargetV6, protocol: traceroute.ProtocolUDP, wantV6: true},
-    {hostname: localhostTargetV6, protocol: traceroute.ProtocolTCP, tcpMethod: traceroute.TCPConfigSYN, wantV6: true},
-}
+// IPv6 configs are appended to localhostTestConfigs, publicTargetTestConfigs, etc.
+// Example IPv6 entries in localhostTestConfigs:
+{hostname: localhostTargetV6, protocol: traceroute.ProtocolICMP, wantV6: true},
+{hostname: localhostTargetV6, protocol: traceroute.ProtocolUDP, wantV6: true},
+// TCP IPv6 configs will be added as they are implemented
 ```
 
 ### CLI Update - COMPLETED
@@ -263,16 +263,14 @@ var localhostTestConfigsV6 = []testConfig{
 **File:** `e2etests/cli_test.go`
 
 - Added `--ipv6` flag to `getCLICommandAndArgs` when `config.wantV6` is true
-- Added `TestLocalhostIPv6CLI` test function
-- Added `TestPublicTargetIPv6CLI` test function
+- IPv6 tests are included in existing test functions (`TestLocalhostCLI`, `TestPublicTargetCLI`) with platform-specific skipping
 
 ### Server Update - COMPLETED
 
 **File:** `e2etests/server_test.go`
 
 - Added `&ipv6=true` query parameter in `getURL` when `config.wantV6` is true
-- Added `TestLocalhostIPv6HTTPServer` test function
-- Added `TestPublicTargetIPv6HTTPServer` test function
+- IPv6 tests are included in existing test functions (`TestLocalhostHTTPServer`, `TestPublicTargetHTTPServer`) with platform-specific skipping
 
 ### E2E Test Config Updates - COMPLETED
 
@@ -281,8 +279,7 @@ var localhostTestConfigsV6 = []testConfig{
 - Added `wantV6` field to `testConfig` struct
 - Added `wantV6` to `expectationsKey` struct
 - Added `localhostTargetV6 = "::1"` and `publicTargetV6 = "ipv6.google.com"` constants
-- Added `localhostTestConfigsV6` with ICMP and UDP IPv6 tests
-- Added `publicTargetTestConfigsV6` with UDP IPv6 test
+- Added IPv6 configs directly to `localhostTestConfigs` and `publicTargetTestConfigs` (no separate V6 slices)
 - Added IPv6 Linux expectations to `testExpectations` map
 - Updated `testName()` to include `_v6` suffix for IPv6 tests
 - Updated `getExpectations()` to include `wantV6` in key lookup
