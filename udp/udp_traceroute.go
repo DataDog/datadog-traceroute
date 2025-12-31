@@ -32,7 +32,8 @@ func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
 	u.srcPort = uint16(addr.Port)
 
 	// get this platform's Source and Sink implementations
-	handle, err := packets.NewSourceSink(targetAddr, u.UseWindowsDriver)
+	// Protocol 17 = UDP (needed for IPv6 on Darwin which doesn't support IPV6_HDRINCL)
+	handle, err := packets.NewSourceSink(targetAddr, u.UseWindowsDriver, 17)
 	if err != nil {
 		return nil, fmt.Errorf("UDP Traceroute failed to make NewSourceSink: %w", err)
 	}

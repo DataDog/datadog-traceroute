@@ -13,7 +13,9 @@ import (
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
+// protocol is the IP protocol number - unused on Linux since it supports IPV6_HDRINCL
+func NewSourceSink(addr netip.Addr, useDriver bool, protocol int) (SourceSinkHandle, error) {
+	_ = protocol // unused on Linux
 	sink, err := NewSinkLinux(addr)
 	if err != nil {
 		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to make SinkLinux: %w", err)

@@ -57,3 +57,78 @@ func TestCreateRawUDPBuffer(t *testing.T) {
 	assert.Equal(t, expectedPktBytes, pktBytes)
 	assert.Equal(t, expectedChecksum, actualChecksum)
 }
+
+func TestCreateRawUDPBufferIPv6(t *testing.T) {
+	srcIP := net.ParseIP("2001:db8::1")
+	dstIP := net.ParseIP("2001:db8::2")
+	srcPort := uint16(12345)
+	dstPort := uint16(33434)
+	ttl := uint8(4)
+
+	udp := NewUDPv4(dstIP, dstPort, 1, 1, 0, 0, false)
+	udp.srcIP = srcIP
+	udp.srcPort = srcPort
+
+	// For IPv6, the packet ID is the UDP payload length + 8 (UDP header)
+	// UDP payload for IPv6 is: len("NSMNC") + TTL = 5 + 4 = 9 bytes
+	// So packet ID = 9 + 8 = 17
+	expectedPacketID := uint16(len(magic)) + uint16(ttl) + 8
+
+	packetID, pktBytes, checksum, err := udp.createRawUDPBuffer(udp.srcIP, udp.srcPort, udp.Target, udp.TargetPort, ttl)
+
+	require.NoError(t, err)
+	assert.Equal(t, expectedPacketID, packetID)
+	assert.NotEmpty(t, pktBytes)
+	assert.NotZero(t, checksum)
+
+	// Verify the packet starts with IPv6 version (0x60)
+	assert.Equal(t, uint8(0x60), pktBytes[0]&0xf0, "packet should start with IPv6 version")
+
+	// Verify HopLimit is set correctly (byte 7 in IPv6 header)
+	assert.Equal(t, ttl, pktBytes[7], "HopLimit should match TTL")
+
+	// Verify NextHeader is UDP (17) - byte 6 in IPv6 header
+	assert.Equal(t, uint8(17), pktBytes[6], "NextHeader should be UDP (17)")
+}
+
+func TestCreateRawUDPBufferIPv6DifferentTTLs(t *testing.T) {
+	srcIP := net.ParseIP("2001:db8::1")
+	dstIP := net.ParseIP("2001:db8::2")
+	srcPort := uint16(12345)
+	dstPort := uint16(33434)
+
+	udp := NewUDPv4(dstIP, dstPort, 1, 30, 0, 0, false)
+	udp.srcIP = srcIP
+	udp.srcPort = srcPort
+
+	// Test that different TTLs produce different packet IDs and HopLimits
+	ttls := []uint8{1, 5, 10, 30}
+	prevPacketID := uint16(0)
+	prevChecksum := uint16(0)
+
+	for _, ttl := range ttls {
+		packetID, pktBytes, checksum, err := udp.createRawUDPBuffer(udp.srcIP, udp.srcPort, udp.Target, udp.TargetPort, ttl)
+		require.NoError(t, err)
+
+		// Verify HopLimit in IPv6 header matches TTL
+		assert.Equal(t, ttl, pktBytes[7], "HopLimit should match TTL=%d", ttl)
+
+		// Expected packet ID for IPv6: len("NSMNC") + TTL + UDP header (8)
+		expectedPacketID := uint16(len(magic)) + uint16(ttl) + 8
+		assert.Equal(t, expectedPacketID, packetID, "packetID should be %d for TTL=%d", expectedPacketID, ttl)
+
+		// Verify different TTLs produce different packet IDs
+		if prevPacketID != 0 {
+			assert.NotEqual(t, prevPacketID, packetID, "different TTLs should produce different packet IDs")
+		}
+
+		// Verify checksum is computed (different TTLs may produce different checksums)
+		assert.NotZero(t, checksum)
+		if prevChecksum != 0 {
+			assert.NotEqual(t, prevChecksum, checksum, "different TTLs should produce different checksums")
+		}
+
+		prevPacketID = packetID
+		prevChecksum = checksum
+	}
+}

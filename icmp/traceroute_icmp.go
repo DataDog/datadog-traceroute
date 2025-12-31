@@ -53,7 +53,13 @@ func runICMPTraceroute(ctx context.Context, p Params) (*icmpResult, error) {
 	udpConn.Close()
 
 	// get this platform's Source and Sink implementations
-	handle, err := packets.NewSourceSink(p.Target, p.UseWindowsDriver)
+	// For ICMP, the protocol depends on IP version:
+	// ICMPv4 = 1, ICMPv6 = 58 (needed for Darwin which doesn't support IPV6_HDRINCL)
+	icmpProtocol := 1
+	if p.Target.Is6() {
+		icmpProtocol = 58
+	}
+	handle, err := packets.NewSourceSink(p.Target, p.UseWindowsDriver, icmpProtocol)
 	if err != nil {
 		return nil, fmt.Errorf("ICMP Traceroute failed to make NewSourceSink: %w", err)
 	}

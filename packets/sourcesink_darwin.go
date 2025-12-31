@@ -13,10 +13,12 @@ import (
 )
 
 // NewSourceSink returns a Source and Sink implementation for this platform
-func NewSourceSink(addr netip.Addr, useDriver bool) (SourceSinkHandle, error) {
-	sink, err := NewSinkDarwin(addr)
+// protocol is the IP protocol number (e.g., 17 for UDP, 6 for TCP, 58 for ICMPv6)
+// On Darwin, this is needed for IPv6 because there's no IPV6_HDRINCL support.
+func NewSourceSink(addr netip.Addr, useDriver bool, protocol int) (SourceSinkHandle, error) {
+	sink, err := NewSinkDarwin(addr, protocol)
 	if err != nil {
-		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to make SinkLinux: %w", err)
+		return SourceSinkHandle{}, fmt.Errorf("NewSourceSink failed to make SinkDarwin: %w", err)
 	}
 
 	source, err := NewBpfDevice(addr)
