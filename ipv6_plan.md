@@ -339,7 +339,7 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 ## Implementation Todos
 
 ### macOS (First)
-- [ ] **step1-udp-macos**: IPv6 UDP support on macOS: verify packet generation, test end-to-end
+- [x] **step1-udp-macos**: IPv6 UDP support on macOS: verify packet generation, test end-to-end
 - [ ] **step2-icmp-macos**: IPv6 ICMP support on macOS: verify ICMPv6 handling, test end-to-end
 - [ ] **step3-tcp-syn-macos**: IPv6 TCP SYN on macOS: add IPv6 packet generation, BPF filter
 - [ ] **step4-tcp-sack-macos**: IPv6 TCP SACK on macOS: remove restriction, add IPv6 packet gen
