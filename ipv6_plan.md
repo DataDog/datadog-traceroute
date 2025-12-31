@@ -80,8 +80,8 @@ flowchart TB
 3. Verify UDP IPv6 packet generation works on macOS
 
 **Testing:**
-- Manual: `./datadog-traceroute --proto udp --ipv6 ::1`
-- Manual: `./datadog-traceroute --proto udp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto udp --ipv6 ::1`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto udp --ipv6 ipv6.google.com`
 
 ---
 
@@ -98,8 +98,8 @@ flowchart TB
 3. For ICMPv6, may need special handling if raw socket fails
 
 **Testing:**
-- Manual: `./datadog-traceroute --proto icmp --ipv6 ::1`
-- Manual: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto icmp --ipv6 ::1`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto icmp --ipv6 ipv6.google.com`
 
 ---
 
@@ -133,7 +133,7 @@ func (t *TCPv4) createRawTCPSynBufferV6(packetID uint16, seqNum uint32, ttl int)
 
 **Testing:**
 - Unit test IPv6 TCP SYN packet generation
-- Manual: `./datadog-traceroute --proto tcp --tcp-method syn --ipv6 ipv6.google.com:443`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto tcp --tcp-method syn --ipv6 ipv6.google.com:443`
 
 ---
 
@@ -160,7 +160,7 @@ if addr.Is6() {
 4. Add IPv6 SYNACK BPF filter
 
 **Testing:**
-- Manual: `./datadog-traceroute --proto tcp --tcp-method sack --ipv6 ipv6.google.com:443`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto tcp --tcp-method sack --ipv6 ipv6.google.com:443`
 
 ---
 
@@ -194,8 +194,8 @@ if addr.Is6() {
 3. ICMPv6 uses protocol number 58 (`IPPROTO_ICMPV6`) vs ICMPv4's 1
 
 **Testing:**
-- Manual: `./datadog-traceroute --proto icmp --ipv6 ::1`
-- Manual: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto icmp --ipv6 ::1`
+- Manual: `./datadog-traceroute --e2e-queries 5 --proto icmp --ipv6 ipv6.google.com`
 
 ### Step 5c: TCP SYN IPv6 on Linux
 
