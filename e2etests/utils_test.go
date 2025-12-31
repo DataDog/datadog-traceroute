@@ -116,7 +116,6 @@ var (
 		// TCP SYN/SACK IPv6 will be added in Steps 3-4
 		{
 			hostname: publicTargetV6,
-			port:     publicPort,
 			protocol: traceroute.ProtocolUDP,
 			wantV6:   true,
 		},
@@ -202,7 +201,7 @@ var testExpectations = map[expectationsKey]expectations{
 	// TCP SYN IPv6 not yet implemented
 	// TCP SACK IPv6 not yet implemented
 
-	{"darwin", publicTargetV6, traceroute.ProtocolUDP, "", true}: {destinationReachable: false, intermediateHops: false},
+	{"darwin", publicTargetV6, traceroute.ProtocolUDP, "", true}: {destinationReachable: true, intermediateHops: true},
 	// ICMP IPv6 public target not yet tested
 	// TCP IPv6 public target not yet implemented
 
