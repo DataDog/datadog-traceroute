@@ -175,9 +175,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 		found := false
 		for _, r := range ips {
 			if wantIPv6 {
-				// To4() returns nil for true IPv6 addresses
-				// (To16() is never nil - it always returns a value for valid IPs)
-				if r.To4() == nil {
+				if r.To16() != nil {
 					ip = netip.MustParseAddr(r.String())
 					found = true
 					break
