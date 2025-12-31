@@ -2,7 +2,9 @@
 
 ## Overview
 
-Add comprehensive IPv6 support to datadog-traceroute for all protocol variants (UDP, ICMP, TCP SYN, TCP SACK) across all platforms (Linux, macOS, Windows), following the step-by-step approach requested.
+Add comprehensive IPv6 support to datadog-traceroute for all protocol variants (UDP, ICMP, TCP SYN, TCP SACK) across all platforms (macOS, Linux, Windows), following the step-by-step approach requested.
+
+**Platform Order:** macOS → Linux → Windows
 
 ## Current State Analysis
 
@@ -63,48 +65,37 @@ flowchart TB
 
 ---
 
-## Step 1: UDP IPv6 on Linux - COMPLETED
+## Step 1: UDP IPv6 on macOS
 
-**Status:** DONE
+**Challenge:** macOS doesn't support `IPV6_HDRINCL` for raw sockets. ICMPv6 requires `SOCK_DGRAM` per RFC 3542.
 
-**Verification findings:**
-- `udp/udpv4.go`: `createRawUDPBuffer` already supports IPv6 packet creation (lines 112-131)
-- `udp/udp_driver.go`: `handleProbeLayers` already handles both `LayerTypeICMPv4` and `LayerTypeICMPv6` (line 142)
-- `packets/cbpf_filters.go`: `icmpFilter` generated from `'icmp || icmp6'` - already supports ICMPv6
-- `packets/frame_parser.go`: `GetICMPInfo` handles both ICMPv4 and ICMPv6 wrapped packets
+**Files to verify/modify:**
+- `packets/packet_sink_darwin.go` - Already handles IPv6 via `stripIPv6Header`
+- `packets/bpfdev_darwin.go` - Verify IPv6 packet capture
+- `udp/udpv4.go` - Already has IPv6 packet creation
 
-**Tests verified:**
-- `TestUDPDriverTwoHopsIPV6` - comprehensive IPv6 driver flow test (already existed)
-- `TestCreateRawUDPBufferIPv6` - IPv6 packet generation test (added)
-- `TestCreateRawUDPBufferIPv6DifferentTTLs` - TTL variation test (added)
+**Key changes:**
+1. Darwin sink already handles IPv6 by stripping header and setting `IPV6_HOPLIMIT` via socket option
+2. Verify BPF device captures IPv6 traffic correctly (DLT_EN10MB should work)
+3. Verify UDP IPv6 packet generation works on macOS
 
-**All UDP tests passing:**
-```
-=== RUN   TestUDPDriverTwoHops
---- PASS: TestUDPDriverTwoHops
-=== RUN   TestUDPDriverTwoHopsIPV6
---- PASS: TestUDPDriverTwoHopsIPV6
-=== RUN   TestCreateRawUDPBuffer
---- PASS: TestCreateRawUDPBuffer
-=== RUN   TestCreateRawUDPBufferIPv6
---- PASS: TestCreateRawUDPBufferIPv6
-=== RUN   TestCreateRawUDPBufferIPv6DifferentTTLs
---- PASS: TestCreateRawUDPBufferIPv6DifferentTTLs
-```
+**Testing:**
+- E2E test: `./datadog-traceroute --proto udp --ipv6 ::1`
+- E2E test: `./datadog-traceroute --proto udp --ipv6 ipv6.google.com`
 
 ---
 
-## Step 2: ICMP IPv6 on Linux
+## Step 2: ICMP IPv6 on macOS
 
-**Files to modify:**
+**Files to verify/modify:**
 - `icmp/icmp_driver.go` - Already handles ICMPv6
 - `icmp/icmp_packet.go` - Already has `generatePacketV6`
-- `packets/packet_sink_linux.go` - Verify ICMPv6 socket
+- `packets/packet_sink_darwin.go` - Verify ICMPv6 socket
 
 **Key changes:**
-1. Linux raw socket with `IPPROTO_RAW` works for IPv6 (verified in existing code)
-2. Ensure `icmpDriver.handleProbeLayers()` ICMPv6 path is fully tested
-3. ICMPv6 uses protocol number 58 (`IPPROTO_ICMPV6`) vs ICMPv4's 1
+1. Ensure `icmpDriver.handleProbeLayers()` ICMPv6 path works on macOS
+2. ICMPv6 uses protocol number 58 (`IPPROTO_ICMPV6`) vs ICMPv4's 1
+3. For ICMPv6, may need special handling if raw socket fails
 
 **Testing:**
 - E2E test: `./datadog-traceroute --proto icmp --ipv6 ::1`
@@ -112,7 +103,7 @@ flowchart TB
 
 ---
 
-## Step 3: TCP SYN IPv6 on Linux
+## Step 3: TCP SYN IPv6 on macOS
 
 **Files to modify:**
 - `tcp/tcpv4.go` - Add IPv6 packet creation method
@@ -146,7 +137,7 @@ func (t *TCPv4) createRawTCPSynBufferV6(packetID uint16, seqNum uint32, ttl int)
 
 ---
 
-## Step 4: TCP SACK IPv6 on Linux
+## Step 4: TCP SACK IPv6 on macOS
 
 **Files to modify:**
 - `sack/traceroute_sack.go` - Remove IPv6 restriction in `validate()`
@@ -173,7 +164,50 @@ if addr.Is6() {
 
 ---
 
-## Step 5: IPv6 for Windows (All Protocols)
+## Step 5: Complete IPv6 for Linux (All Protocols)
+
+### Step 5a: UDP IPv6 on Linux - COMPLETED
+
+**Status:** DONE
+
+**Verification findings:**
+- `udp/udpv4.go`: `createRawUDPBuffer` already supports IPv6 packet creation (lines 112-131)
+- `udp/udp_driver.go`: `handleProbeLayers` already handles both `LayerTypeICMPv4` and `LayerTypeICMPv6` (line 142)
+- `packets/cbpf_filters.go`: `icmpFilter` generated from `'icmp || icmp6'` - already supports ICMPv6
+- `packets/frame_parser.go`: `GetICMPInfo` handles both ICMPv4 and ICMPv6 wrapped packets
+
+**Tests verified:**
+- `TestUDPDriverTwoHopsIPV6` - comprehensive IPv6 driver flow test (already existed)
+- `TestCreateRawUDPBufferIPv6` - IPv6 packet generation test (added)
+- `TestCreateRawUDPBufferIPv6DifferentTTLs` - TTL variation test (added)
+
+### Step 5b: ICMP IPv6 on Linux
+
+**Files to modify:**
+- `icmp/icmp_driver.go` - Already handles ICMPv6
+- `icmp/icmp_packet.go` - Already has `generatePacketV6`
+- `packets/packet_sink_linux.go` - Verify ICMPv6 socket
+
+**Key changes:**
+1. Linux raw socket with `IPPROTO_RAW` works for IPv6 (verified in existing code)
+2. Ensure `icmpDriver.handleProbeLayers()` ICMPv6 path is fully tested
+3. ICMPv6 uses protocol number 58 (`IPPROTO_ICMPV6`) vs ICMPv4's 1
+
+**Testing:**
+- E2E test: `./datadog-traceroute --proto icmp --ipv6 ::1`
+- E2E test: `./datadog-traceroute --proto icmp --ipv6 ipv6.google.com`
+
+### Step 5c: TCP SYN IPv6 on Linux
+
+Same changes as Step 3 (macOS), applied to Linux.
+
+### Step 5d: TCP SACK IPv6 on Linux
+
+Same changes as Step 4 (macOS), applied to Linux.
+
+---
+
+## Step 6: IPv6 for Windows (All Protocols)
 
 **Challenge:** Windows raw sockets (`SOCK_RAW`) don't support `IPV6_HDRINCL`. Per Microsoft docs, IPv6 raw sockets receive data after the IPv6 header, and cannot send packets with custom IPv6 headers.
 
@@ -200,25 +234,6 @@ case addr.Is6():
 **Testing:**
 - E2E tests on Windows with `--windows-driver` flag for IPv6
 - Document that IPv6 on Windows requires driver mode
-
----
-
-## Step 6: IPv6 for macOS (All Protocols)
-
-**Challenge:** macOS doesn't support `IPV6_HDRINCL` for raw sockets. ICMPv6 requires `SOCK_DGRAM` per RFC 3542.
-
-**Files to modify:**
-- `packets/packet_sink_darwin.go` - Already handles IPv6 via `stripIPv6Header`
-- `packets/bpfdev_darwin.go` - Verify IPv6 packet capture
-
-**Key changes:**
-1. Darwin sink already handles IPv6 by stripping header and setting `IPV6_HOPLIMIT` via socket option
-2. Verify BPF device captures IPv6 traffic correctly (DLT_EN10MB should work)
-3. For ICMPv6, may need special handling if raw socket fails
-
-**Testing:**
-- E2E tests on macOS for all protocols with `--ipv6`
-- Test both loopback (::1) and public IPv6 targets
 
 ---
 
@@ -295,11 +310,14 @@ New test files/additions needed:
 
 | Platform | Protocol | Risk Level | Notes |
 |----------|----------|------------|-------|
-| Linux | UDP | Low | Infrastructure exists |
+| macOS | UDP | Low | Infrastructure exists, verify BPF capture |
+| macOS | ICMP | Medium | May need ICMPv6 socket workaround |
+| macOS | TCP SYN | Medium | Needs new packet generation |
+| macOS | TCP SACK | Medium | Needs new packet generation + filter |
+| Linux | UDP | Low | Already completed |
 | Linux | ICMP | Low | Code exists, needs testing |
-| Linux | TCP SYN | Medium | Needs new packet generation |
-| Linux | TCP SACK | Medium | Needs new packet generation + filter |
-| macOS | All | Medium | May need ICMPv6 socket workaround |
+| Linux | TCP SYN | Low | Reuse macOS implementation |
+| Linux | TCP SACK | Low | Reuse macOS implementation |
 | Windows | All | High | Requires driver mode, no raw IPv6 |
 
 ---
@@ -308,12 +326,14 @@ New test files/additions needed:
 
 Execute in strict sequence as specified, validating each step before proceeding:
 
-1. **Step 1 (UDP/Linux)**: Foundation - verify infrastructure works
-2. **Step 2 (ICMP/Linux)**: Validate ICMPv6 handling
-3. **Step 3 (TCP SYN/Linux)**: Add TCP IPv6 packet generation
-4. **Step 4 (TCP SACK/Linux)**: Complete Linux IPv6 support
-5. **Step 5 (Windows)**: Platform-specific challenges
-6. **Step 6 (macOS)**: Complete cross-platform support
+**Platform Order: macOS → Linux → Windows**
+
+1. **Step 1 (UDP/macOS)**: Verify UDP IPv6 works on macOS
+2. **Step 2 (ICMP/macOS)**: Verify ICMPv6 handling on macOS
+3. **Step 3 (TCP SYN/macOS)**: Add TCP IPv6 packet generation (shared with Linux)
+4. **Step 4 (TCP SACK/macOS)**: Complete macOS IPv6 support
+5. **Step 5 (Linux)**: Complete all protocols on Linux (UDP already done)
+6. **Step 6 (Windows)**: Platform-specific challenges with driver mode
 
 After each step: run CLI manually, add unit tests, add e2e tests, verify CI passes.
 
@@ -321,12 +341,22 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 
 ## Implementation Todos
 
-- [x] **step1-udp-linux**: IPv6 UDP support on Linux: verify/fix packet generation, test end-to-end
-- [ ] **step2-icmp-linux**: IPv6 ICMP support on Linux: verify ICMPv6 handling, test end-to-end
-- [ ] **step3-tcp-syn-linux**: IPv6 TCP SYN on Linux: add IPv6 packet generation, BPF filter, ICMPv6 handling
-- [ ] **step4-tcp-sack-linux**: IPv6 TCP SACK on Linux: remove restriction, add IPv6 packet gen, test
-- [ ] **step5-windows-ipv6**: IPv6 support on Windows: driver-based approach for all protocols
-- [ ] **step6-macos-ipv6**: IPv6 support on macOS: verify all protocols, handle ICMPv6 if needed
+### macOS (First)
+- [ ] **step1-udp-macos**: IPv6 UDP support on macOS: verify packet generation, test end-to-end
+- [ ] **step2-icmp-macos**: IPv6 ICMP support on macOS: verify ICMPv6 handling, test end-to-end
+- [ ] **step3-tcp-syn-macos**: IPv6 TCP SYN on macOS: add IPv6 packet generation, BPF filter
+- [ ] **step4-tcp-sack-macos**: IPv6 TCP SACK on macOS: remove restriction, add IPv6 packet gen
+
+### Linux (Second)
+- [x] **step5a-udp-linux**: IPv6 UDP support on Linux: verify/fix packet generation, test end-to-end
+- [ ] **step5b-icmp-linux**: IPv6 ICMP support on Linux: verify ICMPv6 handling, test end-to-end
+- [ ] **step5c-tcp-syn-linux**: IPv6 TCP SYN on Linux: verify TCP IPv6 works after macOS impl
+- [ ] **step5d-tcp-sack-linux**: IPv6 TCP SACK on Linux: verify SACK IPv6 works after macOS impl
+
+### Windows (Third)
+- [ ] **step6-windows-ipv6**: IPv6 support on Windows: driver-based approach for all protocols
+
+### Cross-Platform
 - [x] **e2e-tests**: Add e2e test framework for IPv6 (Linux UDP/ICMP localhost, Linux UDP public)
 - [ ] **ci-workflow**: Update GitHub workflow for IPv6 testing
 
