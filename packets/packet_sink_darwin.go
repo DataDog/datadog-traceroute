@@ -110,15 +110,15 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 			return fmt.Errorf("failed to strip IPv6 header: %w", err)
 		}
 		var controlErr error
-		// set the TTL via IPV6_HOPLIMIT
+		// set the hop limit via IPV6_UNICAST_HOPS (not IPV6_HOPLIMIT which is for receiving)
 		err = p.rawConn.Control(func(fd uintptr) {
-			controlErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_HOPLIMIT, int(ttl))
+			controlErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_UNICAST_HOPS, int(ttl))
 		})
 		if err != nil {
-			return fmt.Errorf("failed to call Control() for IPV6_HOPLIMIT: %w", controlErr)
+			return fmt.Errorf("failed to call Control() for IPV6_UNICAST_HOPS: %w", controlErr)
 		}
 		if controlErr != nil {
-			return fmt.Errorf("failed to set IPV6_HOPLIMIT: %w", controlErr)
+			return fmt.Errorf("failed to set IPV6_UNICAST_HOPS: %w", controlErr)
 		}
 	default:
 		return fmt.Errorf("invalid address family %s", addr)
