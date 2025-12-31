@@ -98,9 +98,6 @@ func getCLICommandAndArgs(t *testing.T, config testConfig) (string, []string) {
 	if config.tcpMethod != "" {
 		args = append(args, "--tcp-method", string(config.tcpMethod))
 	}
-	if config.wantV6 {
-		args = append(args, "--ipv6")
-	}
 	if testing.Verbose() {
 		args = append(args, "--verbose")
 	}
@@ -189,25 +186,19 @@ func testCLI(t *testing.T, config testConfig) {
 	validateResults(t, stdout.Bytes(), config)
 }
 
-// TestLocalhostCLI runs CLI tests to localhost (IPv4 and IPv6)
+// TestLocalhostCLI runs CLI tests to localhost
 func TestLocalhostCLI(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testCLI(t, config)
 		})
 	}
 }
 
-// TestPublicTargetCLI runs CLI tests to a public target (IPv4 and IPv6)
+// TestPublicTargetCLI runs CLI tests to a public target
 func TestPublicTargetCLI(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testCLI(t, config)
 		})
 	}
@@ -217,9 +208,6 @@ func TestPublicTargetCLI(t *testing.T) {
 func TestFakeNetworkCLI(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testCLI(t, config)
 		})
 	}

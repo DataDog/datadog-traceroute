@@ -208,9 +208,6 @@ func getURL(serverAddr string, config testConfig) string {
 	if config.tcpMethod != "" {
 		url += fmt.Sprintf("&tcp-method=%s", string(config.tcpMethod))
 	}
-	if config.wantV6 {
-		url += "&ipv6=true"
-	}
 
 	return url
 }
@@ -311,25 +308,19 @@ func testHTTPServer(t *testing.T, config testConfig) {
 	validateResults(t, buf.Bytes(), config)
 }
 
-// TestLocalhostHTTPServer runs HTTP server tests to localhost (IPv4 and IPv6)
+// TestLocalhostHTTPServer runs HTTP server tests to localhost
 func TestLocalhostHTTPServer(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testHTTPServer(t, config)
 		})
 	}
 }
 
-// TestPublicTargetHTTPServer runs HTTP server tests to a public target (IPv4 and IPv6)
+// TestPublicTargetHTTPServer runs HTTP server tests to a public target
 func TestPublicTargetHTTPServer(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testHTTPServer(t, config)
 		})
 	}
@@ -339,9 +330,6 @@ func TestPublicTargetHTTPServer(t *testing.T) {
 func TestFakeNetworkHTTPServer(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "darwin" {
-				t.Skip("IPv6 tests currently only supported on macOS")
-			}
 			testHTTPServer(t, config)
 		})
 	}
