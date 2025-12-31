@@ -194,7 +194,7 @@ jobs:
           echo "HTTP server started"
 
       - name: Ping
-        run: ping6 ipv6.google.com
+        run: ping6 2001:4860:4860::8888
 
       - name: TestPublicTargetHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
