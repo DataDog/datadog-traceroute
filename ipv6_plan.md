@@ -358,5 +358,5 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 
 ### Cross-Platform
 - [x] **e2e-tests**: Add e2e test framework for IPv6 (Linux UDP/ICMP localhost, Linux UDP public)
-- [ ] **ci-workflow**: Update GitHub workflow for IPv6 testing
+- [x] **ci-workflow**: Update GitHub workflow for IPv6 testing
 
