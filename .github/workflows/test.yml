@@ -52,8 +52,8 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      - name: TestLocalhostCLI (IPv4 + IPv6)
-        run: go test -tags=e2etest -v ./e2etests/... -run 'TestLocalhostCLI|TestLocalhostIPv6CLI'
+      - name: TestLocalhostCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
 
   e2e_public_target_cli_tests:
     name: "E2E Public Target CLI Tests"
@@ -80,8 +80,8 @@ jobs:
       - name: Build CLI
         run: go build -o $BUILD_TARGET .
 
-      - name: TestPublicTargetCLI (IPv4 + IPv6)
-        run: go test -tags=e2etest -v ./e2etests/... -run 'TestPublicTargetCLI|TestPublicTargetIPv6CLI'
+      - name: TestPublicTargetCLI
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetCLI
 
   e2e_fake_network_cli_tests:
     name: "E2E Fake Network CLI Tests"
@@ -147,8 +147,8 @@ jobs:
           sleep 2
           echo "HTTP server started"
 
-      - name: TestLocalhostHTTPServer (IPv4 + IPv6)
-        run: go test -tags=e2etest -v ./e2etests/... -run 'TestLocalhostHTTPServer|TestLocalhostIPv6HTTPServer'
+      - name: TestLocalhostHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostHTTPServer
 
       - name: Show Server Logs
         if: always()
@@ -193,8 +193,8 @@ jobs:
           sleep 2
           echo "HTTP server started"
 
-      - name: TestPublicTargetHTTPServer (IPv4 + IPv6)
-        run: go test -tags=e2etest -v ./e2etests/... -run 'TestPublicTargetHTTPServer|TestPublicTargetIPv6HTTPServer'
+      - name: TestPublicTargetHTTPServer
+        run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
 
       - name: Show Server Logs
         if: always()
