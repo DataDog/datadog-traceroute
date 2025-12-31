@@ -252,7 +252,7 @@ func isGitHubRunner() bool {
 // expectDestinationReachable returns whether to expect the destination to be reachable for the specific testConfig
 func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 	// When not running on GitHub runner, always expect destination to be reachable except for TCP SACK on Linux
-	// and Windows, and UDP to github.com or ipv6.google.com
+	// and Windows, and UDP to github.com
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
 			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
@@ -260,10 +260,6 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 			}
 		}
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
-			return false
-		}
-		// UDP to IPv6 targets typically doesn't reach destination (no port unreachable response)
-		if tc.wantV6 && tc.protocol == traceroute.ProtocolUDP {
 			return false
 		}
 		return true
