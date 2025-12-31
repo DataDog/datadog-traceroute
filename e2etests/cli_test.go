@@ -193,8 +193,8 @@ func testCLI(t *testing.T, config testConfig) {
 func TestLocalhostCLI(t *testing.T) {
 	for _, config := range localhostTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "linux" {
-				t.Skip("IPv6 tests currently only supported on Linux")
+			if config.wantV6 && runtime.GOOS != "darwin" {
+				t.Skip("IPv6 tests currently only supported on macOS")
 			}
 			testCLI(t, config)
 		})
@@ -205,8 +205,8 @@ func TestLocalhostCLI(t *testing.T) {
 func TestPublicTargetCLI(t *testing.T) {
 	for _, config := range publicTargetTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "linux" {
-				t.Skip("IPv6 tests currently only supported on Linux")
+			if config.wantV6 && runtime.GOOS != "darwin" {
+				t.Skip("IPv6 tests currently only supported on macOS")
 			}
 			testCLI(t, config)
 		})
@@ -217,8 +217,8 @@ func TestPublicTargetCLI(t *testing.T) {
 func TestFakeNetworkCLI(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
-			if config.wantV6 && runtime.GOOS != "linux" {
-				t.Skip("IPv6 tests currently only supported on Linux")
+			if config.wantV6 && runtime.GOOS != "darwin" {
+				t.Skip("IPv6 tests currently only supported on macOS")
 			}
 			testCLI(t, config)
 		})

@@ -196,13 +196,13 @@ var testExpectations = map[expectationsKey]expectations{
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK, false}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK, false}: {destinationReachable: true, intermediateHops: true},
 
-	// IPv6 Linux expectations
-	{"linux", localhostTargetV6, traceroute.ProtocolICMP, "", true}: {destinationReachable: true, intermediateHops: false},
-	{"linux", localhostTargetV6, traceroute.ProtocolUDP, "", true}:  {destinationReachable: true, intermediateHops: false},
+	// IPv6 Darwin expectations
+	{"darwin", localhostTargetV6, traceroute.ProtocolICMP, "", true}: {destinationReachable: true, intermediateHops: false},
+	{"darwin", localhostTargetV6, traceroute.ProtocolUDP, "", true}:  {destinationReachable: true, intermediateHops: false},
 	// TCP SYN IPv6 not yet implemented
 	// TCP SACK IPv6 not yet implemented
 
-	{"linux", publicTargetV6, traceroute.ProtocolUDP, "", true}: {destinationReachable: false, intermediateHops: false},
+	{"darwin", publicTargetV6, traceroute.ProtocolUDP, "", true}: {destinationReachable: false, intermediateHops: false},
 	// ICMP IPv6 public target not yet tested
 	// TCP IPv6 public target not yet implemented
 

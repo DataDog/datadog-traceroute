@@ -345,7 +345,7 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 - [ ] **step4-tcp-sack-macos**: IPv6 TCP SACK on macOS: remove restriction, add IPv6 packet gen
 
 ### Linux (Second)
-- [x] **step5a-udp-linux**: IPv6 UDP support on Linux: verify/fix packet generation, test end-to-end
+- [ ] **step5a-udp-linux**: IPv6 UDP support on Linux: verify/fix packet generation, test end-to-end
 - [ ] **step5b-icmp-linux**: IPv6 ICMP support on Linux: verify ICMPv6 handling, test end-to-end
 - [ ] **step5c-tcp-syn-linux**: IPv6 TCP SYN on Linux: verify TCP IPv6 works after macOS impl
 - [ ] **step5d-tcp-sack-linux**: IPv6 TCP SACK on Linux: verify SACK IPv6 works after macOS impl
@@ -354,6 +354,6 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 - [ ] **step6-windows-ipv6**: IPv6 support on Windows: driver-based approach for all protocols
 
 ### Cross-Platform
-- [x] **e2e-tests**: Add e2e test framework for IPv6 (Linux UDP/ICMP localhost, Linux UDP public)
+- [x] **e2e-tests**: Add e2e test framework for IPv6 (macOS UDP/ICMP localhost, macOS UDP public)
 - [x] **ci-workflow**: Update GitHub workflow for IPv6 testing
 
