@@ -193,6 +193,9 @@ jobs:
           sleep 2
           echo "HTTP server started"
 
+      - name: Ping
+        run: ping6 ipv6.google.com
+
       - name: TestPublicTargetHTTPServer
         run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetHTTPServer
 
