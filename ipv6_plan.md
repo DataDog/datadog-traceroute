@@ -243,17 +243,34 @@ var localhostTestConfigsV6 = []testConfig{
 }
 ```
 
-### CLI Update
+### CLI Update - COMPLETED
 
 **File:** `e2etests/cli_test.go`
 
-Add `--ipv6` flag to test command args when `wantV6` is true.
+- Added `--ipv6` flag to `getCLICommandAndArgs` when `config.wantV6` is true
+- Added `TestLocalhostIPv6CLI` test function
+- Added `TestPublicTargetIPv6CLI` test function
 
-### Server Update
+### Server Update - COMPLETED
 
-**File:** `server/utils.go`
+**File:** `e2etests/server_test.go`
 
-Ensure `wantV6` query parameter is parsed and passed to traceroute.
+- Added `&ipv6=true` query parameter in `getURL` when `config.wantV6` is true
+- Added `TestLocalhostIPv6HTTPServer` test function
+- Added `TestPublicTargetIPv6HTTPServer` test function
+
+### E2E Test Config Updates - COMPLETED
+
+**File:** `e2etests/utils_test.go`
+
+- Added `wantV6` field to `testConfig` struct
+- Added `wantV6` to `expectationsKey` struct
+- Added `localhostTargetV6 = "::1"` and `publicTargetV6 = "ipv6.google.com"` constants
+- Added `localhostTestConfigsV6` with ICMP and UDP IPv6 tests
+- Added `publicTargetTestConfigsV6` with UDP IPv6 test
+- Added IPv6 Linux expectations to `testExpectations` map
+- Updated `testName()` to include `_v6` suffix for IPv6 tests
+- Updated `getExpectations()` to include `wantV6` in key lookup
 
 ### GitHub Workflow Update
 
@@ -310,6 +327,6 @@ After each step: run CLI manually, add unit tests, add e2e tests, verify CI pass
 - [ ] **step4-tcp-sack-linux**: IPv6 TCP SACK on Linux: remove restriction, add IPv6 packet gen, test
 - [ ] **step5-windows-ipv6**: IPv6 support on Windows: driver-based approach for all protocols
 - [ ] **step6-macos-ipv6**: IPv6 support on macOS: verify all protocols, handle ICMPv6 if needed
-- [ ] **e2e-tests**: Add comprehensive e2e tests for IPv6 on all platforms
+- [x] **e2e-tests**: Add e2e test framework for IPv6 (Linux UDP/ICMP localhost, Linux UDP public)
 - [ ] **ci-workflow**: Update GitHub workflow for IPv6 testing
 

@@ -98,6 +98,9 @@ func getCLICommandAndArgs(t *testing.T, config testConfig) (string, []string) {
 	if config.tcpMethod != "" {
 		args = append(args, "--tcp-method", string(config.tcpMethod))
 	}
+	if config.wantV6 {
+		args = append(args, "--ipv6")
+	}
 	if testing.Verbose() {
 		args = append(args, "--verbose")
 	}
@@ -207,6 +210,30 @@ func TestPublicTargetCLI(t *testing.T) {
 // TestFakeNetworkCLI runs CLI tests to a local IP address with a fake network config
 func TestFakeNetworkCLI(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testCLI(t, config)
+		})
+	}
+}
+
+// TestLocalhostIPv6CLI runs CLI tests to IPv6 localhost (::1)
+func TestLocalhostIPv6CLI(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("IPv6 localhost tests currently only supported on Linux")
+	}
+	for _, config := range localhostTestConfigsV6 {
+		t.Run(config.testName(), func(t *testing.T) {
+			testCLI(t, config)
+		})
+	}
+}
+
+// TestPublicTargetIPv6CLI runs CLI tests to a public IPv6 target
+func TestPublicTargetIPv6CLI(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("IPv6 public target tests currently only supported on Linux")
+	}
+	for _, config := range publicTargetTestConfigsV6 {
 		t.Run(config.testName(), func(t *testing.T) {
 			testCLI(t, config)
 		})

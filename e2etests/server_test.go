@@ -208,6 +208,9 @@ func getURL(serverAddr string, config testConfig) string {
 	if config.tcpMethod != "" {
 		url += fmt.Sprintf("&tcp-method=%s", string(config.tcpMethod))
 	}
+	if config.wantV6 {
+		url += "&ipv6=true"
+	}
 
 	return url
 }
@@ -329,6 +332,30 @@ func TestPublicTargetHTTPServer(t *testing.T) {
 // TestFakeNetworkHTTPServer runs HTTP server tests to a local IP address with a fake network config
 func TestFakeNetworkHTTPServer(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
+		t.Run(config.testName(), func(t *testing.T) {
+			testHTTPServer(t, config)
+		})
+	}
+}
+
+// TestLocalhostIPv6HTTPServer runs HTTP server tests to IPv6 localhost (::1)
+func TestLocalhostIPv6HTTPServer(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("IPv6 localhost tests currently only supported on Linux")
+	}
+	for _, config := range localhostTestConfigsV6 {
+		t.Run(config.testName(), func(t *testing.T) {
+			testHTTPServer(t, config)
+		})
+	}
+}
+
+// TestPublicTargetIPv6HTTPServer runs HTTP server tests to a public IPv6 target
+func TestPublicTargetIPv6HTTPServer(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("IPv6 public target tests currently only supported on Linux")
+	}
+	for _, config := range publicTargetTestConfigsV6 {
 		t.Run(config.testName(), func(t *testing.T) {
 			testHTTPServer(t, config)
 		})
