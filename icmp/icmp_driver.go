@@ -156,7 +156,6 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 	if err != nil {
 		return nil, fmt.Errorf("icmpDriver failed to get IP pair: %w", err)
 	}
-	return nil, fmt.Errorf("icmpDriver failed to get IP pair: %w", err)
 	switch parser.GetTransportLayer() {
 	case layers.LayerTypeICMPv4:
 		t := parser.ICMP4.TypeCode.Type()
