@@ -57,6 +57,10 @@ var (
 			protocol:  traceroute.ProtocolTCP,
 			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
+		{
+			hostname: localhostTarget,
+			protocol: traceroute.ProtocolICMP,
+		},
 	}
 
 	publicTargetTestConfigs = []testConfig{
@@ -83,6 +87,11 @@ var (
 			protocol:  traceroute.ProtocolTCP,
 			tcpMethod: traceroute.TCPConfigPreferSACK,
 		},
+		{
+			hostname: publicTarget,
+			port:     publicPort,
+			protocol: traceroute.ProtocolICMP,
+		},
 	}
 
 	fakeNetworkTestConfigs = []testConfig{
@@ -104,6 +113,10 @@ var (
 			hostname:  fakeNetworkTarget,
 			protocol:  traceroute.ProtocolTCP,
 			tcpMethod: traceroute.TCPConfigPreferSACK,
+		},
+		{
+			hostname: fakeNetworkTarget,
+			protocol: traceroute.ProtocolICMP,
 		},
 	}
 )
@@ -137,37 +150,44 @@ var testExpectations = map[expectationsKey]expectations{
 	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
 	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"linux", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false},
+	{"linux", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false},
 
 	{"linux", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false},
 	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
 	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: true, intermediateHops: false},
 	{"linux", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false},
+	{"linux", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false}, // GitHub blocks ICMP Echo
 
 	{"linux", fakeNetworkTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: true, intermediateHops: true},
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: true},
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"linux", fakeNetworkTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true},
+	{"linux", fakeNetworkTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true},
 
 	{"darwin", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false},
 	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
 	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"darwin", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false},
+	{"darwin", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false},
 
 	{"darwin", publicTarget, traceroute.ProtocolUDP, ""}:                      {destinationReachable: false, intermediateHops: false},
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}: {destinationReachable: true, intermediateHops: true},
 	// use maxAttempts of 5 here because TCP SACK usually works on macOS but can sometimes fail
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: true, intermediateHops: true, maxAttempts: 5},
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true},
+	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false}, // GitHub blocks ICMP Echo
 
 	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false},
+	{"windows", localhostTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: false},
 
 	{"windows", publicTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false},
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: false, intermediateHops: false, expectedError: sackNotSupported},
 	{"windows", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: false},
+	{"windows", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false}, // GitHub blocks ICMP Echo
 }
 
 // TestMain provides package-level setup and teardown for all tests.
@@ -198,6 +218,10 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
 			return false
 		}
+		// ICMP to github.com - GitHub blocks ICMP Echo
+		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolICMP {
+			return false
+		}
 		// UDP to localhost on darwin doesn't reach destination
 		if tc.hostname == localhostTarget && tc.protocol == traceroute.ProtocolUDP && runtime.GOOS == "darwin" {
 			return false
@@ -211,12 +235,16 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 
 // expectIntermediateHops returns whether to expect intermediate hops for the specific testConfig
 func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
-	// When not running on GitHub runner, always expect intermediate hops, except for localhost target and UDP to github.com
+	// When not running on GitHub runner, always expect intermediate hops, except for localhost target and UDP/ICMP to github.com
 	if !isGitHubRunner() {
 		if tc.hostname == localhostTarget {
 			return false
 		}
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
+			return false
+		}
+		// ICMP to github.com - GitHub blocks ICMP Echo, so we don't expect intermediate hops
+		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolICMP {
 			return false
 		}
 		return true

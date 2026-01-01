@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmpecho"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -69,6 +70,25 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
 		if err != nil {
 			return nil, err
+		}
+
+	case "icmp":
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
+		if err != nil {
+			return nil, fmt.Errorf("invalid target: %w", err)
+		}
+
+		cfg := icmpecho.NewICMPv4(
+			target.Addr().AsSlice(),
+			uint8(params.MinTTL),
+			uint8(params.MaxTTL),
+			time.Duration(params.Delay)*time.Millisecond,
+			params.Timeout,
+			params.UseWindowsDriver)
+
+		trRun, err = cfg.Traceroute()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
 
 	default:

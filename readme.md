@@ -11,6 +11,7 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | UDP              |    Yes    |    `traceroute` |
 | TCP SYN          |    Yes    | `tcptraceroute` |
 | TCP SACK         |    Yes    |                 |
+| ICMP             |    Yes    |    `traceroute` |
 
 ### Windows
 
@@ -21,6 +22,7 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | UDP              |          Yes          |                |
 | TCP SYN          |          Yes          |                |
 | TCP SACK         | Yes (req. win driver) |                |
+| ICMP             |          Yes          |                |
 
 *Windows Client:*
 
@@ -30,6 +32,7 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | TCP SYN          |   Yes (req. win driver)    |                |
 | TCP SACK         |   Yes (req. win driver)    |                |
 | TCP SYN SOCKET   |            Yes             |                |
+| ICMP             |   Yes (req. win driver)    |                |
 
 Note: TCP syn_socket is only useful for Windows Client without Windows Driver.
 
@@ -40,6 +43,7 @@ Note: TCP syn_socket is only useful for Windows Client without Windows Driver.
 | UDP              |    Yes    |    `traceroute` |
 | TCP SYN          |    Yes    | `tcptraceroute` |
 | TCP SACK         |    Yes    |                 |
+| ICMP             |    Yes    |    `traceroute` |
 
 
 ## IPv6 Support
