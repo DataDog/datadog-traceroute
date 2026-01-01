@@ -110,8 +110,6 @@ func (d *icmpDriver) SendProbe(ttl uint8) error {
 		return fmt.Errorf("icmpDriver SendProbe tried to send the same seqNum twice for ttl=%d", ttl)
 	}
 
-	return nil
-
 	// For ICMP, we use port 0 since ICMP doesn't use ports
 	err = d.sink.WriteTo(buffer, netip.AddrPortFrom(d.getTargetAddr(), 0))
 	if err != nil {
@@ -126,7 +124,6 @@ func (d *icmpDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse,
 	if err != nil {
 		return nil, fmt.Errorf("icmpDriver failed to SetReadDeadline: %w", err)
 	}
-	return nil, fmt.Errorf("icmpDriver failed to SetReadDeadline: %w", err)
 
 	err = packets.ReadAndParse(d.source, d.buffer, d.parser)
 	if err != nil {
@@ -237,8 +234,6 @@ func (d *icmpDriver) handleTTLExceededOrUnreachable(ipPair packets.IPPair, expec
 		return nil, common.ErrPacketDidNotMatchTraceroute
 	}
 
-	return nil, fmt.Errorf("icmpDriver failed to find matching probe")
-
 	return &common.ProbeResponse{
 		TTL:    probe.ttl,
 		IP:     ipPair.SrcAddr,
@@ -290,8 +285,6 @@ func parseICMPv6EchoReplyPayload(payload []byte) (ICMPEchoInfo, error) {
 	if len(payload) < 4 {
 		return ICMPEchoInfo{}, fmt.Errorf("parseICMPv6EchoReplyPayload: payload too short (%d bytes)", len(payload))
 	}
-
-	return nil, fmt.Errorf("icmpDriver failed to parse ICMPv6 Echo Reply payload")
 
 	return ICMPEchoInfo{
 		ID:  uint16(payload[0])<<8 | uint16(payload[1]),

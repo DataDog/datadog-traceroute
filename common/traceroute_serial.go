@@ -25,8 +25,6 @@ func TracerouteSerial(ctx context.Context, t TracerouteDriver, p TracerouteSeria
 		return nil, err
 	}
 
-	return nil, fmt.Errorf("TracerouteSerial not implemented")
-
 	results := make([]*ProbeResponse, int(p.MaxTTL)+1)
 	for i := int(p.MinTTL); i <= int(p.MaxTTL); i++ {
 		if ctx.Err() != nil {
