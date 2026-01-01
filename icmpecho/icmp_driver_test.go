@@ -415,36 +415,38 @@ func TestICMPDriverEchoReplyMismatchedID(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrPacketDidNotMatchTraceroute)
 }
 
-func TestParseInnerICMPv4(t *testing.T) {
-	// Valid Echo Request
-	payload := []byte{8, 0, 0, 0, 0x30, 0x39, 0x00, 0x05} // type=8, code=0, checksum=0, id=12345, seq=5
-	info, err := parseInnerICMPv4(payload)
-	require.NoError(t, err)
-	require.Equal(t, uint16(12345), info.ID)
-	require.Equal(t, uint16(5), info.Seq)
+func TestParseInnerICMPEchoRequest(t *testing.T) {
+	t.Run("ICMPv4", func(t *testing.T) {
+		// Valid Echo Request
+		payload := []byte{8, 0, 0, 0, 0x30, 0x39, 0x00, 0x05} // type=8, code=0, checksum=0, id=12345, seq=5
+		info, err := parseInnerICMPEchoRequest(payload, icmpv4EchoRequestType)
+		require.NoError(t, err)
+		require.Equal(t, uint16(12345), info.ID)
+		require.Equal(t, uint16(5), info.Seq)
 
-	// Payload too short
-	_, err = parseInnerICMPv4([]byte{8, 0, 0, 0})
-	require.Error(t, err)
+		// Payload too short
+		_, err = parseInnerICMPEchoRequest([]byte{8, 0, 0, 0}, icmpv4EchoRequestType)
+		require.Error(t, err)
 
-	// Wrong type (not Echo Request)
-	_, err = parseInnerICMPv4([]byte{0, 0, 0, 0, 0, 0, 0, 0}) // type=0 (Echo Reply)
-	require.Error(t, err)
-}
+		// Wrong type (not Echo Request)
+		_, err = parseInnerICMPEchoRequest([]byte{0, 0, 0, 0, 0, 0, 0, 0}, icmpv4EchoRequestType) // type=0 (Echo Reply)
+		require.Error(t, err)
+	})
 
-func TestParseInnerICMPv6(t *testing.T) {
-	// Valid Echo Request
-	payload := []byte{128, 0, 0, 0, 0x30, 0x39, 0x00, 0x05} // type=128, code=0, checksum=0, id=12345, seq=5
-	info, err := parseInnerICMPv6(payload)
-	require.NoError(t, err)
-	require.Equal(t, uint16(12345), info.ID)
-	require.Equal(t, uint16(5), info.Seq)
+	t.Run("ICMPv6", func(t *testing.T) {
+		// Valid Echo Request
+		payload := []byte{128, 0, 0, 0, 0x30, 0x39, 0x00, 0x05} // type=128, code=0, checksum=0, id=12345, seq=5
+		info, err := parseInnerICMPEchoRequest(payload, icmpv6EchoRequestType)
+		require.NoError(t, err)
+		require.Equal(t, uint16(12345), info.ID)
+		require.Equal(t, uint16(5), info.Seq)
 
-	// Payload too short
-	_, err = parseInnerICMPv6([]byte{128, 0, 0, 0})
-	require.Error(t, err)
+		// Payload too short
+		_, err = parseInnerICMPEchoRequest([]byte{128, 0, 0, 0}, icmpv6EchoRequestType)
+		require.Error(t, err)
 
-	// Wrong type (not Echo Request)
-	_, err = parseInnerICMPv6([]byte{129, 0, 0, 0, 0, 0, 0, 0}) // type=129 (Echo Reply)
-	require.Error(t, err)
+		// Wrong type (not Echo Request)
+		_, err = parseInnerICMPEchoRequest([]byte{129, 0, 0, 0, 0, 0, 0, 0}, icmpv6EchoRequestType) // type=129 (Echo Reply)
+		require.Error(t, err)
+	})
 }
