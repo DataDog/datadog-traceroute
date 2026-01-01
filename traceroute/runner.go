@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmpecho"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -70,24 +69,6 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
 		if err != nil {
 			return nil, err
-		}
-
-	case "icmp":
-		target, err := parseTargetNoPort(params.Hostname, params.WantV6)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		cfg := icmpecho.NewICMPv4(
-			target.AsSlice(),
-			uint8(params.MinTTL),
-			uint8(params.MaxTTL),
-			time.Duration(params.Delay)*time.Millisecond,
-			params.Timeout,
-			params.UseWindowsDriver)
-
-		trRun, err = cfg.Traceroute()
-		if err != nil {
-			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
 
 	default:
@@ -180,13 +161,6 @@ func hasPort(s string) bool {
 		return strings.Contains(s, "]:")
 	}
 	return strings.Count(s, ":") == 1
-}
-
-// parseTargetNoPort resolves a hostname or IP address without a port (for ICMP traceroute)
-func parseTargetNoPort(raw string, wantIPv6 bool) (netip.Addr, error) {
-	// Remove any brackets from IPv6 addresses
-	host := strings.Trim(raw, "[]")
-	return resolveHost(host, wantIPv6)
 }
 
 // resolveHost resolves a hostname or IP address string to a netip.Addr.

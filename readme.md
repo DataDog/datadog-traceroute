@@ -31,8 +31,7 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 | TCP SACK         |   Yes (req. win driver)    |                |
 | TCP SYN SOCKET   |            Yes             |                |
 
-Note: Default firewall on windows can block the ICMP responses when not using Windows Driver.
-Note2: TCP syn_socket is only useful for Windows Client without Windows Driver.
+Note: TCP syn_socket is only useful for Windows Client without Windows Driver.
 
 ### macOS
 

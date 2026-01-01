@@ -178,9 +178,6 @@ The e2e test suite encounters several limitations based on the test environment 
 
 ### Test Environment, Protocol and OS-Specific Limitations
 
-#### Github Actions Network Restrictions
-- Per https://docs.github.com/en/actions/concepts/runners/github-hosted-runners?supported-runners-and-hardware-resources=&utm_source=chatgpt.com#cloud-hosts-used-by-github-hosted-runners, inbound ICMP packets are blocked for all Azure virtual machines.  This affects Linux and Windows runners.  Inbound ICMP packets are not blocked on macOS runners because they are run as VMs on underlying Apple hardware.
-
 #### UDP
 - **Linux**: UDP works for localhost and fake network targets, but not public targets.
 - **Windows and macOS**: UDP traceroutes do not work for localhost or public targets.
