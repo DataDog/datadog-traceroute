@@ -24,3 +24,9 @@ These instructions apply to the entire repository.
 ## Github CI Tests
 When explicitely asked to check that the Github CI checks are passing for a PR branch, you can use github MCP tool. If some tests are failing, fix them.
 If CI test are still running, wait, then check again repeatedly.
+
+## Test expectations
+- Do not assume infrastructure or network restrictions without evidence. For example, do not assume GitHub runners block ICMP or other protocols unless there is concrete evidence of failures.
+- Follow existing test patterns: if similar protocols (e.g., TCP) expect success on a platform, new protocols (e.g., ICMP) should start with the same expectation.
+- Distinguish between different failure modes: a target not responding to a protocol (application behavior) is different from network-level blocking (infrastructure restriction).
+- When adding E2E test expectations, default to expecting functionality to work; only add exceptions after observing actual failures in CI.
