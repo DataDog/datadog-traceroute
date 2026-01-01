@@ -34,8 +34,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	tcpMethod := getStringParam(query, "tcp-method", common.DefaultTcpMethod)
 	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
 
-	maxTTL = 1
-
 	// Parse boolean flags
 	wantV6 := getBoolParam(query, "ipv6", common.DefaultWantV6)
 	reverseDns := getBoolParam(query, "reverse-dns", common.DefaultReverseDns)
