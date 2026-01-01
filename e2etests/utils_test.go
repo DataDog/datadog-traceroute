@@ -175,7 +175,7 @@ var testExpectations = map[expectationsKey]expectations{
 	// use maxAttempts of 5 here because TCP SACK usually works on macOS but can sometimes fail
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSACK}:       {destinationReachable: true, intermediateHops: true, maxAttempts: 5},
 	{"darwin", publicTarget, traceroute.ProtocolTCP, traceroute.TCPConfigPreferSACK}: {destinationReachable: true, intermediateHops: true},
-	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: false, intermediateHops: false}, // GitHub blocks ICMP Echo
+	{"darwin", publicTarget, traceroute.ProtocolICMP, ""}:                            {destinationReachable: true, intermediateHops: true},
 
 	{"windows", localhostTarget, traceroute.ProtocolUDP, ""}:                             {destinationReachable: false, intermediateHops: false},
 	{"windows", localhostTarget, traceroute.ProtocolTCP, traceroute.TCPConfigSYN}:        {destinationReachable: true, intermediateHops: false},
@@ -208,7 +208,7 @@ func isGitHubRunner() bool {
 // expectDestinationReachable returns whether to expect the destination to be reachable for the specific testConfig
 func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 	// When not running on GitHub runner, always expect destination to be reachable except for TCP SACK on Linux
-	// and Windows, UDP to github.com, and ICMP to github.com (GitHub blocks ICMP Echo)
+	// and Windows, UDP to github.com, and ICMP to github.com on non-macOS platforms
 	if !isGitHubRunner() {
 		if tc.protocol == traceroute.ProtocolTCP && tc.tcpMethod == traceroute.TCPConfigSACK {
 			if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
@@ -218,9 +218,11 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
 			return false
 		}
-		// ICMP to github.com - GitHub blocks ICMP Echo
+		// ICMP to github.com - works on macOS, blocked on Linux/Windows GitHub runners
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolICMP {
-			return false
+			if runtime.GOOS != "darwin" {
+				return false
+			}
 		}
 		// UDP to localhost on darwin doesn't reach destination
 		if tc.hostname == localhostTarget && tc.protocol == traceroute.ProtocolUDP && runtime.GOOS == "darwin" {
@@ -235,7 +237,7 @@ func (tc *testConfig) expectDestinationReachable(t *testing.T) bool {
 
 // expectIntermediateHops returns whether to expect intermediate hops for the specific testConfig
 func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
-	// When not running on GitHub runner, always expect intermediate hops, except for localhost target and UDP/ICMP to github.com
+	// When not running on GitHub runner, always expect intermediate hops, except for localhost target and UDP/ICMP to github.com on non-macOS
 	if !isGitHubRunner() {
 		if tc.hostname == localhostTarget {
 			return false
@@ -243,9 +245,11 @@ func (tc *testConfig) expectIntermediateHops(t *testing.T) bool {
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolUDP {
 			return false
 		}
-		// ICMP to github.com - GitHub blocks ICMP Echo, so we don't expect intermediate hops
+		// ICMP to github.com - works on macOS, blocked on Linux/Windows GitHub runners
 		if tc.hostname == publicTarget && publicTarget == "github.com" && tc.protocol == traceroute.ProtocolICMP {
-			return false
+			if runtime.GOOS != "darwin" {
+				return false
+			}
 		}
 		return true
 	}
