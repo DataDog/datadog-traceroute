@@ -8,7 +8,6 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 | Protocol-Variant | Supported |  Traceroute CLI |
 |------------------|:---------:|----------------:|
-| ICMP             |    Yes    | `traceroute -I` |
 | UDP              |    Yes    |    `traceroute` |
 | TCP SYN          |    Yes    | `tcptraceroute` |
 | TCP SACK         |    Yes    |                 |
@@ -19,7 +18,6 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 | Protocol-Variant |       Supported       | Traceroute CLI |
 |------------------|:---------------------:|---------------:|
-| ICMP             |          Yes          |      `tracert` |
 | UDP              |          Yes          |                |
 | TCP SYN          |          Yes          |                |
 | TCP SACK         | Yes (req. win driver) |                |
@@ -28,7 +26,6 @@ Datadog Traceroute produce traceroute results reflecting real traffic paths.
 
 | Protocol-Variant |         Supported          | Traceroute CLI |
 |------------------|:--------------------------:|---------------:|
-| ICMP             |   Yes (req. win driver)    |      `tracert` |
 | UDP              |   Yes (req. win driver)    |                |
 | TCP SYN          |   Yes (req. win driver)    |                |
 | TCP SACK         |   Yes (req. win driver)    |                |
@@ -41,7 +38,6 @@ Note2: TCP syn_socket is only useful for Windows Client without Windows Driver.
 
 | Protocol-Variant | Supported |  Traceroute CLI |
 |------------------|:---------:|----------------:|
-| ICMP             |    Yes    | `traceroute -I` |
 | UDP              |    Yes    |    `traceroute` |
 | TCP SYN          |    Yes    | `tcptraceroute` |
 | TCP SACK         |    Yes    |                 |

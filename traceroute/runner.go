@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -70,28 +69,6 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
 		if err != nil {
 			return nil, err
-		}
-	case "icmp":
-		target, err := parseTarget(params.Hostname, 80, params.WantV6)
-		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
-		}
-		cfg := icmp.Params{
-			Target: target.Addr(),
-			ParallelParams: common.TracerouteParallelParams{
-				TracerouteParams: common.TracerouteParams{
-					MinTTL:            uint8(params.MinTTL),
-					MaxTTL:            uint8(params.MaxTTL),
-					TracerouteTimeout: params.Timeout,
-					PollFrequency:     100 * time.Millisecond,
-					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
-				},
-			},
-			UseWindowsDriver: params.UseWindowsDriver,
-		}
-		trRun, err = icmp.RunICMPTraceroute(ctx, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)

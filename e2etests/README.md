@@ -18,17 +18,17 @@ Each test type runs against three target categories:
 
 ### Localhost Tests
 - Target: `127.0.0.1`
-- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Protocols: UDP, TCP (SYN, SACK, prefer_sack)
 - Purpose: Verify basic functionality in a controlled environment
 
 ### Public Target Tests
 - Target: `github.com:443`
-- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Protocols: UDP, TCP (SYN, SACK, prefer_sack)
 - Purpose: Validate real-world internet traceroutes
 
 ### Fake Network Tests
 - Target: `198.51.100.2` (TEST-NET-2)
-- Protocols: ICMP, UDP, TCP (SYN, SACK, prefer_sack)
+- Protocols: UDP, TCP (SYN, SACK, prefer_sack)
 - Purpose: Validate functionality with a fake network configuration that should always be reachable with a valid intermediate hop.
 
 ## Running the Tests
@@ -78,13 +78,13 @@ Following are more examples of running tests.
 sudo go test -tags=e2etest -v ./e2etests/
 
 # Specific CLI test
-sudo go test -tags=e2etest -v ./e2etests/ -run TestLocalhostCLI/ICMP
+sudo go test -tags=e2etest -v ./e2etests/ -run TestLocalhostCLI/UDP
 
 # Specific HTTP server test
 sudo go test -tags=e2etest -v ./e2etests/ -run TestPublicTargetHTTPServer/TCP_syn
 
 # Specific protocol across all targets
-sudo go test -tags=e2etest -v ./e2etests/ -run ICMP
+sudo go test -tags=e2etest -v ./e2etests/ -run UDP
 ```
 
 ## Test Validation
@@ -99,12 +99,12 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 - Protocol matches the requested protocol
 - Source public IP is populated
 - Destination hostname matches the target
-- Port matches the requested port (for TCP/UDP only, not ICMP)
+- Port matches the requested port
 
 ### 3. Traceroute Runs
 - Correct number of runs (3 by default)
 - Each run has source and destination IP addresses
-- Destination port matches (for TCP/UDP only, not ICMP)
+- Destination port matches
 - Each run has at least one hop
 
 ### 4. Destination Reachability (when expected)
@@ -145,17 +145,14 @@ Each test performs validation of the results returned by the CLI or HTTP server.
 
 | Test Type    | Target       | Protocol | TCP Method   | Port | Queries | E2E Probes |
 |--------------|--------------|----------|--------------|------|---------|------------|
-| Localhost    | 127.0.0.1    | ICMP     | -            | -    | 3       | 10         |
 | Localhost    | 127.0.0.1    | UDP      | -            | -    | 3       | 10         |
 | Localhost    | 127.0.0.1    | TCP      | SYN          | -    | 3       | 10         |
 | Localhost    | 127.0.0.1    | TCP      | SACK         | -    | 3       | 10         |
 | Localhost    | 127.0.0.1    | TCP      | prefer_sack  | -    | 3       | 10         |
-| Public       | github.com   | ICMP     | -            | 443  | 3       | 10         |
 | Public       | github.com   | UDP      | -            | 443  | 3       | 10         |
 | Public       | github.com   | TCP      | SYN          | 443  | 3       | 10         |
 | Public       | github.com   | TCP      | SACK         | 443  | 3       | 10         |
 | Public       | github.com   | TCP      | prefer_sack  | 443  | 3       | 10         |
-| Fake Network | 198.51.100.2 | ICMP     | -            | -    | 3       | 10         |
 | Fake Network | 198.51.100.2 | UDP      | -            | -    | 3       | 10         |
 | Fake Network | 198.51.100.2 | TCP      | SYN          | -    | 3       | 10         |
 | Fake Network | 198.51.100.2 | TCP      | SACK         | -    | 3       | 10         |
@@ -183,10 +180,6 @@ The e2e test suite encounters several limitations based on the test environment 
 
 #### Github Actions Network Restrictions
 - Per https://docs.github.com/en/actions/concepts/runners/github-hosted-runners?supported-runners-and-hardware-resources=&utm_source=chatgpt.com#cloud-hosts-used-by-github-hosted-runners, inbound ICMP packets are blocked for all Azure virtual machines.  This affects Linux and Windows runners.  Inbound ICMP packets are not blocked on macOS runners because they are run as VMs on underlying Apple hardware.
-
-#### ICMP
-- **Linux and Windows**: Because of GitHub Actions network restrictions, ICMP traceroutes to public targets do not work.  ICMP traceroutes to localhost work.
-- **macOS**: ICMP works for all target types.
 
 #### UDP
 - **Linux**: UDP works for localhost and fake network targets, but not public targets.
@@ -221,7 +214,7 @@ providing maximum coverage of cross-platform functionality across all supported 
 
 ### Alternative approaches to consider for improving coverage
 
-- **GitHub Actions Self-Hosted Runners**: Using self-hosted runners would allow more control over network configurations, potentially enabling better UDP and ICMP testing for public targets.  See: https://docs.github.com/en/actions/concepts/runners/self-hosted-runners
+- **GitHub Actions Self-Hosted Runners**: Using self-hosted runners would allow more control over network configurations, potentially enabling better UDP testing for public targets.  See: https://docs.github.com/en/actions/concepts/runners/self-hosted-runners
 - **Support Datadog e2e test infrastructure**: Leverage Datadog's internal e2e testing infrastructure to run tests in a more controlled environment with fewer network restrictions.  See https://github.com/DataDog/test-infra-definitions
 
 ## Files
