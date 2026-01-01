@@ -55,7 +55,7 @@ func TracerouteSerial(ctx context.Context, t TracerouteDriver, p TracerouteSeria
 				return nil, err
 			}
 		}
-
+		1 / 0
 		if probe != nil {
 			log.Tracef("found probe %+v", probe)
 			// if we found the destination, no need to keep going
