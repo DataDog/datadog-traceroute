@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/icmpecho"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -70,6 +71,25 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		if err != nil {
 			return nil, err
 		}
+
+	case "icmp":
+		target, err := parseTargetNoPort(params.Hostname, params.WantV6)
+		if err != nil {
+			return nil, fmt.Errorf("invalid target: %w", err)
+		}
+		cfg := icmpecho.NewICMPv4(
+			target.AsSlice(),
+			uint8(params.MinTTL),
+			uint8(params.MaxTTL),
+			time.Duration(params.Delay)*time.Millisecond,
+			params.Timeout,
+			params.UseWindowsDriver)
+
+		trRun, err = cfg.Traceroute()
+		if err != nil {
+			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
@@ -187,6 +207,46 @@ func hasPort(s string) bool {
 		return strings.Contains(s, "]:")
 	}
 	return strings.Count(s, ":") == 1
+}
+
+// parseTargetNoPort resolves a hostname or IP address without a port (for ICMP traceroute)
+func parseTargetNoPort(raw string, wantIPv6 bool) (netip.Addr, error) {
+	// Remove any brackets from IPv6 addresses
+	host := strings.Trim(raw, "[]")
+
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		// Not an IP — do DNS resolution
+		ips, err := net.LookupIP(host)
+		if err != nil || len(ips) == 0 {
+			return netip.Addr{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
+		}
+
+		found := false
+		for _, r := range ips {
+			if wantIPv6 {
+				if r.To16() != nil {
+					ip = netip.MustParseAddr(r.String())
+					found = true
+					break
+				}
+			} else {
+				if r.To4() != nil {
+					ip = netip.MustParseAddr(r.String())
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return netip.Addr{}, fmt.Errorf("failed to resolve host %q: no matching address found", host)
+		}
+		if !ip.IsValid() {
+			ip = netip.MustParseAddr(ips[0].String())
+		}
+	}
+
+	return ip, nil
 }
 
 type tracerouteImpl func() (*result.TracerouteRun, error)

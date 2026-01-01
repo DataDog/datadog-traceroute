@@ -10,6 +10,8 @@ const (
 	ProtocolTCP Protocol = "TCP"
 	// ProtocolUDP is the UDP protocol.
 	ProtocolUDP Protocol = "UDP"
+	// ProtocolICMP is the ICMP protocol.
+	ProtocolICMP Protocol = "ICMP"
 )
 
 // TCPMethod is the method used to run a TCP traceroute.
