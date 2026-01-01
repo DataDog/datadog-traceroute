@@ -89,7 +89,7 @@ var (
 		},
 		{
 			hostname: publicTarget,
-			port:     publicPort,
+			port:     0, // ICMP doesn't use ports
 			protocol: traceroute.ProtocolICMP,
 		},
 	}
@@ -322,8 +322,8 @@ func validateResults(t *testing.T, buf []byte, config testConfig) {
 	assert.Equal(t, strings.ToLower(string(config.protocol)), results.Protocol, "protocol should match")
 	assert.NotNil(t, results.Source.PublicIP, "should have source public IP")
 	assert.Equal(t, config.hostname, results.Destination.Hostname, "hostname should match")
-	// Validate port for TCP and UDP protocols when port > 0
-	if config.port > 0 {
+	// Validate port for TCP and UDP protocols when port > 0 (ICMP doesn't use ports)
+	if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
 		assert.Equal(t, config.port, results.Destination.Port, "port should match")
 	}
 
@@ -339,7 +339,8 @@ func validateResults(t *testing.T, buf []byte, config testConfig) {
 		// Validate source and destination
 		assert.NotNil(t, run.Source.IPAddress, "run %d should have source IP", i)
 		assert.NotNil(t, run.Destination.IPAddress, "run %d should have destination IP", i)
-		if config.port > 0 {
+		// Validate port for TCP and UDP protocols (ICMP doesn't use ports)
+		if config.port > 0 && config.protocol != traceroute.ProtocolICMP {
 			assert.Equal(t, uint16(config.port), run.Destination.Port, "run %d destination port should match", i)
 		}
 
