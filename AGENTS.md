@@ -23,3 +23,4 @@ These instructions apply to the entire repository.
 
 ## Github CI Tests
 When explicitely asked to check that the Github CI checks are passing for a PR branch, you can use github MCP tool. If some tests are failing, fix them.
+If CI test are still running, wait, then check again repeatedly.
