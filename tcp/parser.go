@@ -63,9 +63,9 @@ func (tp *parser) parseTCP(header *ipv4.Header, payload []byte) (*tcpResponse, e
 
 	resp := &tcpResponse{
 		SrcIP:   header.Src,
-		DstIP:   header.Dst,
+		DstIP:   header.Src,
 		SrcPort: uint16(tp.layer.SrcPort),
-		DstPort: uint16(tp.layer.DstPort),
+		DstPort: uint16(tp.layer.SrcPort),
 		SYN:     tp.layer.SYN,
 		ACK:     tp.layer.ACK,
 		RST:     tp.layer.RST,
