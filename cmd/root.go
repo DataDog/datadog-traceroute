@@ -61,7 +61,7 @@ var rootCmd = &cobra.Command{
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
 			Timeout:               timeout,
-			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
+			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod) + "a",
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
 			CollectSourcePublicIP: Args.collectSourcePublicIP,
