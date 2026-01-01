@@ -61,7 +61,7 @@ var rootCmd = &cobra.Command{
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
 			Timeout:               timeout,
-			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod) + "a",
+			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
 			CollectSourcePublicIP: Args.collectSourcePublicIP,
@@ -105,7 +105,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries")
 	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
-	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-methodx", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
+	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
