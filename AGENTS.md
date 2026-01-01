@@ -21,3 +21,5 @@ These instructions apply to the entire repository.
 ## Production safety
 - Assume changes may affect production traceroute behavior; call out risks when touching network packet handling, CLI flags, or server command behavior.
 
+## Github CI Tests
+When explicitely asked to check that the Github CI checks are passing for a PR branch, you can use github MCP tool. If some tests are failing, fix them.
