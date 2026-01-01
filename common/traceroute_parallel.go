@@ -118,9 +118,15 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 		}
 	})
 
+	err := g.Wait()
+
 	// finally, if we got externally cancelled, report that
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	return clipResults(p.MinTTL, results), nil
