@@ -69,7 +69,6 @@ func (p *UDPParser) Parse(header *ipv4.Header, payload []byte) (*Response, error
 		return nil, err
 	}
 
-	return nil, nil
 	// clear layers between each run
 	p.icmpLayer = layers.ICMPv4{}
 	p.innerIPLayer = layers.IPv4{}

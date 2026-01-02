@@ -110,8 +110,8 @@ func (p *TCPParser) Parse(header *ipv4.Header, payload []byte) (*Response, error
 	if err := p.innerPacketParser.DecodeLayers(icmpPayload, &decoded); err != nil {
 		return nil, fmt.Errorf("failed to decode inner ICMP payload: %w", err)
 	}
-	p.icmpResponse.InnerSrcIP = nil
-	p.icmpResponse.InnerDstIP = nil
+	p.icmpResponse.InnerSrcIP = p.innerIPLayer.SrcIP
+	p.icmpResponse.InnerDstIP = p.innerIPLayer.DstIP
 	p.icmpResponse.InnerSrcPort = uint16(p.innerTCPLayer.SrcPort)
 	p.icmpResponse.InnerDstPort = uint16(p.innerTCPLayer.DstPort)
 	p.icmpResponse.InnerIPID = p.innerIPLayer.Id
