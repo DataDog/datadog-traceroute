@@ -108,7 +108,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
 	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
-	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns-test-abc", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
+	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
 	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
