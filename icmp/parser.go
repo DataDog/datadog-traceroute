@@ -3,7 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package icmp provides the logic for parsing ICMP packets
+// Package icmp provides the logic for parsing ICMP response packets
+// (TTL Exceeded, Destination Unreachable, etc.) used by UDP and TCP traceroutes.
 package icmp
 
 import (

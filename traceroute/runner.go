@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/icmp"
+	"github.com/DataDog/datadog-traceroute/icmpecho"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/sack"
 	"github.com/DataDog/datadog-traceroute/tcp"
@@ -71,28 +71,26 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		if err != nil {
 			return nil, err
 		}
+
 	case "icmp":
-		target, err := parseTarget(params.Hostname, 80, params.WantV6)
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, fmt.Errorf("invalid target: %w", err)
 		}
-		cfg := icmp.Params{
-			Target: target.Addr(),
-			ParallelParams: common.TracerouteParallelParams{
-				TracerouteParams: common.TracerouteParams{
-					MinTTL:            uint8(params.MinTTL),
-					MaxTTL:            uint8(params.MaxTTL),
-					TracerouteTimeout: params.Timeout,
-					PollFrequency:     100 * time.Millisecond,
-					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
-				},
-			},
-			UseWindowsDriver: params.UseWindowsDriver,
-		}
-		trRun, err = icmp.RunICMPTraceroute(ctx, cfg)
+
+		cfg := icmpecho.NewICMPv4(
+			target.Addr().AsSlice(),
+			uint8(params.MinTTL),
+			uint8(params.MaxTTL),
+			time.Duration(params.Delay)*time.Millisecond,
+			params.Timeout,
+			params.UseWindowsDriver)
+
+		trRun, err = cfg.Traceroute()
 		if err != nil {
 			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
+
 	default:
 		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
 	}
@@ -164,36 +162,9 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 		return netip.AddrPort{}, fmt.Errorf("invalid address: %w", err)
 	}
 
-	ip, err := netip.ParseAddr(host)
+	ip, err := resolveHost(host, wantIPv6)
 	if err != nil {
-		// Not an IP — do DNS resolution
-		ips, err := net.LookupIP(host)
-		if err != nil || len(ips) == 0 {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
-		}
-
-		found := false
-		for _, r := range ips {
-			if wantIPv6 {
-				if r.To16() != nil {
-					ip = netip.MustParseAddr(r.String())
-					found = true
-					break
-				}
-			} else {
-				if r.To4() != nil {
-					ip = netip.MustParseAddr(r.String())
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
-		}
-		if !ip.IsValid() {
-			ip = netip.MustParseAddr(ips[0].String())
-		}
+		return netip.AddrPort{}, err
 	}
 
 	port, err := strconv.Atoi(portStr)
@@ -210,6 +181,36 @@ func hasPort(s string) bool {
 		return strings.Contains(s, "]:")
 	}
 	return strings.Count(s, ":") == 1
+}
+
+// resolveHost resolves a hostname or IP address string to a netip.Addr.
+// If wantIPv6 is true, it prefers IPv6 addresses; otherwise IPv4.
+func resolveHost(host string, wantIPv6 bool) (netip.Addr, error) {
+	ip, err := netip.ParseAddr(host)
+	if err == nil {
+		return ip, nil
+	}
+
+	// Not an IP — do DNS resolution
+	ips, lookupErr := net.LookupIP(host)
+	if lookupErr != nil || len(ips) == 0 {
+		return netip.Addr{}, fmt.Errorf("failed to resolve host %q: %w", host, lookupErr)
+	}
+
+	for _, r := range ips {
+		if wantIPv6 {
+			if r.To4() == nil && r.To16() != nil {
+				return netip.MustParseAddr(r.String()), nil
+			}
+		} else {
+			if r.To4() != nil {
+				return netip.MustParseAddr(r.String()), nil
+			}
+		}
+	}
+
+	// No matching address found for the preferred IP version, return first available
+	return netip.MustParseAddr(ips[0].String()), nil
 }
 
 type tracerouteImpl func() (*result.TracerouteRun, error)

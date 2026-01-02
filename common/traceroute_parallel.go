@@ -118,15 +118,15 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 		}
 	})
 
-	// check for an error from the goroutines
 	err := g.Wait()
-	if err != nil {
-		return nil, err
-	}
 
 	// finally, if we got externally cancelled, report that
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	return clipResults(p.MinTTL, results), nil
