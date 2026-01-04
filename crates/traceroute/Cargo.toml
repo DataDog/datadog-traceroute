@@ -1,0 +1,8 @@
+[package]
+name = "datadog-traceroute-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+datadog-traceroute-common = { path = "../common" }
+datadog-traceroute-result = { path = "../result" }
