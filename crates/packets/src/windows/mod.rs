@@ -19,7 +19,7 @@ use windows_sys::Win32::Storage::FileSystem::{
     GENERIC_WRITE, OPEN_EXISTING, ReadFile, WriteFile,
 };
 use windows_sys::Win32::System::IO::{
-    CreateIoCompletionPort, DeviceIoControl, GetQueuedCompletionStatus, OVERLAPPED,
+    CancelIoEx, CreateIoCompletionPort, DeviceIoControl, GetQueuedCompletionStatus, OVERLAPPED,
 };
 use windows_sys::Win32::System::Services::{
     ChangeServiceConfigW, CloseServiceHandle, ControlService, OpenSCManagerW, OpenServiceW,
@@ -28,8 +28,6 @@ use windows_sys::Win32::System::Services::{
     SERVICE_QUERY_CONFIG, SERVICE_QUERY_STATUS, SERVICE_RUNNING, SERVICE_START, SERVICE_STATUS,
     SERVICE_STATUS_PROCESS, SERVICE_STOP_PENDING, SERVICE_STOPPED, StartServiceW,
 };
-use windows_sys::Win32::System::Threading::CancelIoEx;
-
 const DRIVER_SERVICE_NAME: &str = "ddnpm";
 const DRIVER_DEVICE_PATH: &str = r"\\.\ddnpm\transporthandle";
 
@@ -75,6 +73,9 @@ struct ReadBuffer {
     overlapped: OVERLAPPED,
     data: [u8; READ_BUFFER_SIZE],
 }
+
+// Read buffers are owned by the driver and only touched via IOCP on one thread.
+unsafe impl Send for ReadBuffer {}
 
 struct DriverState {
     in_use: AtomicU32,
@@ -503,11 +504,11 @@ fn create_synack_filters(spec: PacketFilterSpec) -> Vec<FilterDefinition> {
 
 fn create_none_filters() -> Vec<FilterDefinition> {
     let mut filters = Vec::new();
-    let mut ipv4_capture = create_base_filter_definition(AF_INET as u64);
+    let ipv4_capture = create_base_filter_definition(AF_INET as u64);
     let mut ipv4_discard = ipv4_capture;
     ipv4_discard.discard = 1;
 
-    let mut ipv6_capture = create_base_filter_definition(AF_INET6 as u64);
+    let ipv6_capture = create_base_filter_definition(AF_INET6 as u64);
     let mut ipv6_discard = ipv6_capture;
     ipv6_discard.discard = 1;
 
