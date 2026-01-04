@@ -23,7 +23,7 @@ pub enum LayerType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IPPair {
     pub src_addr: IpAddr,
     pub dst_addr: IpAddr,
@@ -69,7 +69,7 @@ pub struct IcmpInfo {
     pub payload: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TcpPacket {
     pub src_port: u16,
     pub dst_port: u16,
@@ -78,6 +78,13 @@ pub struct TcpPacket {
     pub syn: bool,
     pub ack_flag: bool,
     pub rst: bool,
+    pub options: Vec<TcpOption>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TcpOption {
+    pub kind: u8,
+    pub data: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -427,6 +434,14 @@ fn parse_tcp_header(payload: &[u8]) -> Result<TcpPacket, Box<dyn Error + Send + 
     let seq = u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
     let ack = u32::from_be_bytes([payload[8], payload[9], payload[10], payload[11]]);
     let flags = payload[13];
+    let header_len = ((payload[12] >> 4) as usize) * 4;
+    if header_len < 20 || header_len > payload.len() {
+        return Err(Box::new(BadPacketError::new(format!(
+            "parse_tcp: invalid header length {}",
+            header_len
+        ))));
+    }
+    let options = parse_tcp_options(&payload[20..header_len])?;
     Ok(TcpPacket {
         src_port,
         dst_port,
@@ -435,7 +450,50 @@ fn parse_tcp_header(payload: &[u8]) -> Result<TcpPacket, Box<dyn Error + Send + 
         syn: flags & 0x02 != 0,
         ack_flag: flags & 0x10 != 0,
         rst: flags & 0x04 != 0,
+        options,
     })
+}
+
+fn parse_tcp_options(payload: &[u8]) -> Result<Vec<TcpOption>, Box<dyn Error + Send + Sync>> {
+    let mut options = Vec::new();
+    let mut idx = 0;
+    while idx < payload.len() {
+        let kind = payload[idx];
+        match kind {
+            0 => {
+                options.push(TcpOption {
+                    kind,
+                    data: Vec::new(),
+                });
+                break;
+            }
+            1 => {
+                options.push(TcpOption {
+                    kind,
+                    data: Vec::new(),
+                });
+                idx += 1;
+            }
+            _ => {
+                if idx + 1 >= payload.len() {
+                    return Err(Box::new(BadPacketError::new(
+                        "parse_tcp: truncated option length",
+                    )));
+                }
+                let len = payload[idx + 1] as usize;
+                if len < 2 || idx + len > payload.len() {
+                    return Err(Box::new(BadPacketError::new(format!(
+                        "parse_tcp: invalid option length {}",
+                        len
+                    ))));
+                }
+                let data = payload[idx + 2..idx + len].to_vec();
+                options.push(TcpOption { kind, data });
+                idx += len;
+            }
+        }
+    }
+    Ok(options)
 }
 
 pub fn parse_tcp_first_bytes(buffer: &[u8]) -> Result<TcpInfo, Box<dyn Error + Send + Sync>> {
