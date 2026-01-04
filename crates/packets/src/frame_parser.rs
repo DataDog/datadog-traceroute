@@ -518,6 +518,58 @@ pub fn serialize_tcp_first_bytes(tcp: TcpInfo) -> [u8; 8] {
     buf
 }
 
+#[cfg(test)]
+mod tcp_tests {
+    use super::*;
+
+    fn build_tcp_header(
+        src_port: u16,
+        dst_port: u16,
+        seq: u32,
+        ack: u32,
+        flags: u8,
+        options: &[u8],
+    ) -> Vec<u8> {
+        let header_len = 20 + options.len();
+        let data_offset = (header_len / 4) as u8;
+        let mut tcp = vec![0u8; header_len];
+        tcp[..2].copy_from_slice(&src_port.to_be_bytes());
+        tcp[2..4].copy_from_slice(&dst_port.to_be_bytes());
+        tcp[4..8].copy_from_slice(&seq.to_be_bytes());
+        tcp[8..12].copy_from_slice(&ack.to_be_bytes());
+        tcp[12] = data_offset << 4;
+        tcp[13] = flags;
+        if !options.is_empty() {
+            tcp[20..20 + options.len()].copy_from_slice(options);
+        }
+        tcp
+    }
+
+    #[test]
+    fn parse_tcp_header_with_sack_option() {
+        let mut options = Vec::new();
+        options.push(5);
+        options.push(10);
+        options.extend_from_slice(&1u32.to_be_bytes());
+        options.extend_from_slice(&2u32.to_be_bytes());
+        options.push(1);
+        options.push(1);
+
+        let header = build_tcp_header(1234, 443, 10, 20, 0x12, &options);
+        let packet = parse_tcp_header(&header).expect("tcp header parsed");
+
+        assert_eq!(packet.src_port, 1234);
+        assert_eq!(packet.dst_port, 443);
+        assert!(packet.syn);
+        assert!(packet.ack_flag);
+        assert_eq!(packet.options.len(), 3);
+        assert_eq!(packet.options[0].kind, 5);
+        assert_eq!(packet.options[0].data.len(), 8);
+        assert_eq!(packet.options[1].kind, 1);
+        assert_eq!(packet.options[2].kind, 1);
+    }
+}
+
 pub fn parse_udp_first_bytes(buffer: &[u8]) -> Result<UdpInfo, Box<dyn Error + Send + Sync>> {
     if buffer.len() < 8 {
         return Err(Box::new(BadPacketError::new(format!(
