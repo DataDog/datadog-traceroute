@@ -1,6 +1,6 @@
 #![cfg(any(target_os = "linux", target_os = "macos"))]
 
-use datadog_traceroute_common::TracerouteDriver;
+use datadog_traceroute_common::{ProbeResponse, TracerouteDriver};
 use datadog_traceroute_icmp::{IcmpDriver, IcmpParams};
 use datadog_traceroute_packets::{
     FilterConfig, PacketFilterSpec, PacketFilterType, new_source_sink,
@@ -26,7 +26,7 @@ fn local_addr_for_target(target: IpAddr) -> std::io::Result<IpAddr> {
     Ok(socket.local_addr()?.ip())
 }
 
-fn run_icmp_probe(target: IpAddr) -> std::io::Result<()> {
+fn run_icmp_probe(target: IpAddr) -> std::io::Result<ProbeResponse> {
     let local_ip = local_addr_for_target(target)?;
     let mut handle = new_source_sink(target, false)?;
     let filter = PacketFilterSpec {
@@ -54,7 +54,7 @@ fn run_icmp_probe(target: IpAddr) -> std::io::Result<()> {
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {
         match driver.receive_probe(Duration::from_millis(200)) {
-            Ok(_) => return Ok(()),
+            Ok(resp) => return Ok(resp),
             Err(err) => {
                 if Instant::now() > deadline {
                     return Err(std::io::Error::new(
@@ -77,7 +77,8 @@ fn icmp_probe_ipv4() {
         .ok()
         .and_then(|val| val.parse().ok())
         .unwrap_or_else(|| IpAddr::from([8, 8, 8, 8]));
-    run_icmp_probe(target).expect("icmp probe v4");
+    let resp = run_icmp_probe(target).expect("icmp probe v4");
+    print_probe_json("icmp", target, resp);
 }
 
 #[test]
@@ -90,5 +91,14 @@ fn icmp_probe_ipv6() {
         return;
     };
     let target: IpAddr = value.parse().expect("valid IPv6 target");
-    run_icmp_probe(target).expect("icmp probe v6");
+    let resp = run_icmp_probe(target).expect("icmp probe v6");
+    print_probe_json("icmp", target, resp);
+}
+
+fn print_probe_json(protocol: &str, target: IpAddr, resp: ProbeResponse) {
+    let rtt_ms = resp.rtt.as_secs_f64() * 1000.0;
+    println!(
+        "{{\"protocol\":\"{}\",\"target\":\"{}\",\"ttl\":{},\"ip\":\"{}\",\"rtt_ms\":{:.3},\"is_dest\":{}}}",
+        protocol, target, resp.ttl, resp.ip, rtt_ms, resp.is_dest
+    );
 }
