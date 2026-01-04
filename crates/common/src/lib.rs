@@ -3,8 +3,8 @@ use std::error::Error;
 use std::fmt;
 use std::net::IpAddr;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
 };
 use std::thread;
 use std::time::{Duration, Instant};
@@ -39,7 +39,11 @@ impl ReceiveProbeNoPktError {
 
 impl fmt::Display for ReceiveProbeNoPktError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ReceiveProbe() didn't find any new packets: {}", self.message)
+        write!(
+            f,
+            "ReceiveProbe() didn't find any new packets: {}",
+            self.message
+        )
     }
 }
 
@@ -82,7 +86,10 @@ pub struct TracerouteDriverInfo {
 pub trait TracerouteDriver {
     fn get_driver_info(&self) -> TracerouteDriverInfo;
     fn send_probe(&mut self, ttl: u8) -> Result<(), Box<dyn Error + Send + Sync>>;
-    fn receive_probe(&mut self, timeout: Duration) -> Result<ProbeResponse, Box<dyn Error + Send + Sync>>;
+    fn receive_probe(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<ProbeResponse, Box<dyn Error + Send + Sync>>;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -279,7 +286,9 @@ pub fn traceroute_parallel(
         .map_err(|err| format!("invalid traceroute params: {}", err))?;
 
     if !driver.get_driver_info().supports_parallel {
-        return Err("tried to call TracerouteParallel on a driver that doesn't support parallel".into());
+        return Err(
+            "tried to call TracerouteParallel on a driver that doesn't support parallel".into(),
+        );
     }
 
     let results: Arc<Mutex<Vec<Option<ProbeResponse>>>> =
@@ -301,13 +310,15 @@ pub fn traceroute_parallel(
             if sender_stop.load(Ordering::SeqCst) {
                 break;
             }
-            if sender_cancel.as_ref().map(|c| c.is_cancelled()).unwrap_or(false) {
+            if sender_cancel
+                .as_ref()
+                .map(|c| c.is_cancelled())
+                .unwrap_or(false)
+            {
                 break;
             }
             {
-                let mut locked = sender_driver
-                    .lock()
-                    .map_err(|_| "driver mutex poisoned")?;
+                let mut locked = sender_driver.lock().map_err(|_| "driver mutex poisoned")?;
                 locked.send_probe(ttl)?;
             }
             sender_sent_once.store(true, Ordering::SeqCst);

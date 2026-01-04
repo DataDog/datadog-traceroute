@@ -2,6 +2,17 @@
 resolver = "2"
 members = [
   "crates/common",
+  "crates/packets",
   "crates/result",
+  "crates/icmp",
+  "crates/udp",
+  "crates/tcp",
+  "crates/sack",
+  "crates/publicip",
+  "crates/reversedns",
   "crates/traceroute",
+  "crates/server",
+  "crates/cli",
+  "crates/testutils",
+  "crates/winconn",
 ]

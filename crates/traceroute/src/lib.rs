@@ -100,16 +100,14 @@ impl TracerouteRunner {
             let results_clone = Arc::clone(&results);
             let errors_clone = Arc::clone(&errors);
             let run_once = Arc::clone(&self.run_once);
-            let handle = thread::spawn(move || {
-                match run_once(params_clone, destination_port) {
-                    Ok(run) => {
-                        let mut results = results_clone.lock().expect("results mutex poisoned");
-                        results.traceroute.runs.push(run);
-                    }
-                    Err(err) => {
-                        let mut errors = errors_clone.lock().expect("errors mutex poisoned");
-                        errors.push(err.to_string());
-                    }
+            let handle = thread::spawn(move || match run_once(params_clone, destination_port) {
+                Ok(run) => {
+                    let mut results = results_clone.lock().expect("results mutex poisoned");
+                    results.traceroute.runs.push(run);
+                }
+                Err(err) => {
+                    let mut errors = errors_clone.lock().expect("errors mutex poisoned");
+                    errors.push(err.to_string());
                 }
             });
             handles.push(handle);
@@ -117,8 +115,7 @@ impl TracerouteRunner {
 
         if params.e2e_queries > 0 {
             let max_delay = Duration::from_secs(1);
-            let mut delay =
-                params.timeout * params.max_ttl as u32 / params.e2e_queries as u32;
+            let mut delay = params.timeout * params.max_ttl as u32 / params.e2e_queries as u32;
             if delay > max_delay {
                 delay = max_delay;
             }
@@ -131,13 +128,11 @@ impl TracerouteRunner {
                 let handle = thread::spawn(move || {
                     match run_e2e_probe_once(&params_clone, destination_port, run_once) {
                         Ok(rtt) => {
-                            let mut results =
-                                results_clone.lock().expect("results mutex poisoned");
+                            let mut results = results_clone.lock().expect("results mutex poisoned");
                             results.e2e_probe.rtts.push(rtt);
                         }
                         Err(err) => {
-                            let mut results =
-                                results_clone.lock().expect("results mutex poisoned");
+                            let mut results = results_clone.lock().expect("results mutex poisoned");
                             results.e2e_probe.rtts.push(0.0);
                             let mut errors = errors_clone.lock().expect("errors mutex poisoned");
                             errors.push(err.to_string());
@@ -165,9 +160,9 @@ impl TracerouteRunner {
         }
 
         for handle in handles {
-            handle.join().map_err(|_| {
-                TracerouteError::new("thread panicked while running traceroute")
-            })?;
+            handle
+                .join()
+                .map_err(|_| TracerouteError::new("thread panicked while running traceroute"))?;
         }
 
         let errors = errors.lock().expect("errors mutex poisoned");
@@ -233,9 +228,7 @@ fn run_traceroute_once(
     _params: TracerouteParams,
     _destination_port: u16,
 ) -> Result<TracerouteRun, TracerouteError> {
-    Err(TracerouteError::new(
-        "protocol drivers not yet implemented",
-    ))
+    Err(TracerouteError::new("protocol drivers not yet implemented"))
 }
 
 fn run_e2e_probe_once(
@@ -267,8 +260,8 @@ mod tests {
     use datadog_traceroute_result::{SerdeIpAddr, TracerouteHop};
     use std::net::{IpAddr, Ipv4Addr};
     use std::sync::{
-        atomic::{AtomicUsize, Ordering},
         Mutex,
+        atomic::{AtomicUsize, Ordering},
     };
 
     struct TestPublicIpFetcher {
@@ -311,7 +304,10 @@ mod tests {
             let counter = Arc::clone(&counter);
             move |_params: TracerouteParams, _port| {
                 let idx = counter.fetch_add(1, Ordering::SeqCst) + 1;
-                Ok(make_run(IpAddr::V4(Ipv4Addr::new(10, 0, 0, idx as u8)), 10.0))
+                Ok(make_run(
+                    IpAddr::V4(Ipv4Addr::new(10, 0, 0, idx as u8)),
+                    10.0,
+                ))
             }
         });
 
@@ -334,10 +330,8 @@ mod tests {
             skip_private_hops: false,
         };
 
-        let runner = TracerouteRunner::with_run_once(
-            Arc::new(TestPublicIpFetcher { ip: None }),
-            run_once,
-        );
+        let runner =
+            TracerouteRunner::with_run_once(Arc::new(TestPublicIpFetcher { ip: None }), run_once);
 
         let results = runner.run_traceroute(params).expect("traceroute failed");
         assert_eq!(results.traceroute.runs.len(), 2);
@@ -345,8 +339,9 @@ mod tests {
 
     #[test]
     fn run_traceroute_multi_collects_e2e_rtts() {
-        let run_once: RunTracerouteOnceFn =
-            Arc::new(|_params: TracerouteParams, _port| Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 12.5)));
+        let run_once: RunTracerouteOnceFn = Arc::new(|_params: TracerouteParams, _port| {
+            Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 12.5))
+        });
 
         let params = TracerouteParams {
             hostname: "example.com".to_string(),
@@ -367,10 +362,8 @@ mod tests {
             skip_private_hops: false,
         };
 
-        let runner = TracerouteRunner::with_run_once(
-            Arc::new(TestPublicIpFetcher { ip: None }),
-            run_once,
-        );
+        let runner =
+            TracerouteRunner::with_run_once(Arc::new(TestPublicIpFetcher { ip: None }), run_once);
 
         let results = runner.run_traceroute(params).expect("traceroute failed");
         assert_eq!(results.e2e_probe.rtts.len(), 3);
@@ -385,7 +378,10 @@ mod tests {
         let run_once: RunTracerouteOnceFn = Arc::new({
             let seen_methods = Arc::clone(&seen_methods);
             move |params: TracerouteParams, _port| {
-                seen_methods.lock().expect("methods mutex").push(params.tcp_method);
+                seen_methods
+                    .lock()
+                    .expect("methods mutex")
+                    .push(params.tcp_method);
                 Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 5.0))
             }
         });
@@ -409,10 +405,8 @@ mod tests {
             skip_private_hops: false,
         };
 
-        let runner = TracerouteRunner::with_run_once(
-            Arc::new(TestPublicIpFetcher { ip: None }),
-            run_once,
-        );
+        let runner =
+            TracerouteRunner::with_run_once(Arc::new(TestPublicIpFetcher { ip: None }), run_once);
 
         runner.run_traceroute(params).expect("traceroute failed");
         let methods = seen_methods.lock().expect("methods mutex");
@@ -422,8 +416,9 @@ mod tests {
 
     #[test]
     fn public_ip_is_collected() {
-        let run_once: RunTracerouteOnceFn =
-            Arc::new(|_params: TracerouteParams, _port| Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 5.0)));
+        let run_once: RunTracerouteOnceFn = Arc::new(|_params: TracerouteParams, _port| {
+            Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 5.0))
+        });
 
         let params = TracerouteParams {
             hostname: "example.com".to_string(),
@@ -457,9 +452,8 @@ mod tests {
 
     #[test]
     fn errors_are_aggregated() {
-        let run_once: RunTracerouteOnceFn = Arc::new(|_params: TracerouteParams, _port| {
-            Err(TracerouteError::new("failed run"))
-        });
+        let run_once: RunTracerouteOnceFn =
+            Arc::new(|_params: TracerouteParams, _port| Err(TracerouteError::new("failed run")));
 
         let params = TracerouteParams {
             hostname: "example.com".to_string(),
@@ -480,10 +474,8 @@ mod tests {
             skip_private_hops: false,
         };
 
-        let runner = TracerouteRunner::with_run_once(
-            Arc::new(TestPublicIpFetcher { ip: None }),
-            run_once,
-        );
+        let runner =
+            TracerouteRunner::with_run_once(Arc::new(TestPublicIpFetcher { ip: None }), run_once);
 
         let err = runner.run_traceroute(params).expect_err("expected error");
         assert!(err.to_string().contains("failed run"));

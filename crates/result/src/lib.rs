@@ -123,9 +123,7 @@ impl<'de> Deserialize<'de> for SerdeIpAddr {
         if s.is_empty() {
             return Ok(Self(None));
         }
-        let ip = s
-            .parse::<IpAddr>()
-            .map_err(serde::de::Error::custom)?;
+        let ip = s.parse::<IpAddr>().map_err(serde::de::Error::custom)?;
         Ok(Self(Some(ip)))
     }
 }

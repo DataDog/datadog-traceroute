@@ -15,6 +15,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+name = "datadog-traceroute-cli"
+version = "0.1.0"
+
+[[package]]
 name = "datadog-traceroute-common"
 version = "0.1.0"
 dependencies = [
@@ -30,12 +34,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-traceroute-icmp"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-packets"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-publicip"
+version = "0.1.0"
+
+[[package]]
 name = "datadog-traceroute-result"
 version = "0.1.0"
 dependencies = [
  "serde",
  "uuid",
 ]
+
+[[package]]
+name = "datadog-traceroute-reversedns"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-sack"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-server"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-tcp"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-testutils"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-udp"
+version = "0.1.0"
+
+[[package]]
+name = "datadog-traceroute-winconn"
+version = "0.1.0"
 
 [[package]]
 name = "getrandom"
