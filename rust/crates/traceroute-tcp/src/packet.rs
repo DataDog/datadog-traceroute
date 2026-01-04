@@ -3,7 +3,6 @@
 use pnet_packet::ip::IpNextHeaderProtocols;
 use pnet_packet::ipv4::{Ipv4Flags, MutableIpv4Packet};
 use pnet_packet::tcp::{MutableTcpPacket, TcpFlags};
-use pnet_packet::Packet;
 use std::net::{IpAddr, Ipv4Addr};
 use traceroute_core::TracerouteError;
 

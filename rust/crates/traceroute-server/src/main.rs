@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use std::net::SocketAddr;
-use traceroute_server::{create_router, DEFAULT_PORT};
+use traceroute_server::create_router;
 
 /// Datadog Traceroute HTTP Server.
 #[derive(Parser, Debug)]

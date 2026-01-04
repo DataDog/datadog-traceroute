@@ -2,9 +2,9 @@
 
 use crate::{PacketFilterSpec, Sink, Source, SourceSinkHandle};
 use async_trait::async_trait;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::{IpAddr, SocketAddr};
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::os::fd::{FromRawFd, RawFd};
 use std::time::Instant;
 use traceroute_core::TracerouteError;
 
@@ -13,8 +13,6 @@ const AF_PACKET: i32 = 17;
 const SOCK_RAW: i32 = 3;
 const ETH_P_ALL: u16 = 0x0003;
 const SOL_SOCKET: i32 = 1;
-const SO_ATTACH_FILTER: i32 = 26;
-const SO_DETACH_FILTER: i32 = 27;
 
 const AF_INET: i32 = 2;
 const AF_INET6: i32 = 10;
@@ -168,6 +166,7 @@ impl Source for AfPacketSource {
 /// Raw socket-based packet sink for Linux.
 pub struct RawSink {
     fd: RawFd,
+    #[allow(dead_code)]
     is_ipv6: bool,
 }
 

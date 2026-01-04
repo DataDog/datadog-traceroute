@@ -20,17 +20,17 @@ fn get_local_addr(target: IpAddr) -> Result<IpAddr, TracerouteError> {
         IpAddr::V4(_) => std::net::UdpSocket::bind("0.0.0.0:0"),
         IpAddr::V6(_) => std::net::UdpSocket::bind("[::]:0"),
     }
-    .map_err(|e| TracerouteError::SocketCreation(e))?;
+    .map_err(TracerouteError::SocketCreation)?;
 
     let port = 33434;
     socket
         .connect(SocketAddr::new(target, port))
-        .map_err(|e| TracerouteError::SocketCreation(e))?;
+        .map_err(TracerouteError::SocketCreation)?;
 
     socket
         .local_addr()
         .map(|addr| addr.ip())
-        .map_err(|e| TracerouteError::SocketCreation(e))
+        .map_err(TracerouteError::SocketCreation)
 }
 
 /// Allocate a local port.
@@ -40,12 +40,12 @@ fn allocate_port(is_v6: bool) -> Result<u16, TracerouteError> {
     } else {
         std::net::UdpSocket::bind("0.0.0.0:0")
     }
-    .map_err(|e| TracerouteError::SocketCreation(e))?;
+    .map_err(TracerouteError::SocketCreation)?;
 
     socket
         .local_addr()
         .map(|addr| addr.port())
-        .map_err(|e| TracerouteError::SocketCreation(e))
+        .map_err(TracerouteError::SocketCreation)
 }
 
 /// Resolve a hostname to an IP address.

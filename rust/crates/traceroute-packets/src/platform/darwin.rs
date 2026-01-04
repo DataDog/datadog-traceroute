@@ -2,10 +2,8 @@
 
 use crate::{PacketFilterSpec, Sink, Source, SourceSinkHandle};
 use async_trait::async_trait;
-use std::fs::File;
-use std::io::{Read as IoRead, Write as IoWrite};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::os::fd::{AsRawFd, RawFd};
 use std::time::{Duration, Instant};
 use traceroute_core::TracerouteError;
 use tracing::{debug, trace};
@@ -296,32 +294,31 @@ impl Source for BpfDevice {
 
     async fn read(&mut self, buf: &mut [u8]) -> Result<usize, TracerouteError> {
         let is_loopback = self.is_loopback;
-        loop {
-            if !self.has_next_packet() {
-                self.read_packets()?;
-            }
 
-            let link_frame = self.next_packet()?;
-
-            // Strip link-layer header to get IP payload
-            let payload = if is_loopback {
-                // DLT_NULL: 4-byte address family header
-                if link_frame.len() < DLT_NULL_HEADER_SIZE {
-                    return Err(TracerouteError::MalformedPacket(format!(
-                        "Loopback packet too short: {} bytes",
-                        link_frame.len()
-                    )));
-                }
-                &link_frame[DLT_NULL_HEADER_SIZE..]
-            } else {
-                // DLT_EN10MB: Ethernet header
-                strip_ethernet_header(link_frame)?
-            };
-
-            let copy_len = std::cmp::min(payload.len(), buf.len());
-            buf[..copy_len].copy_from_slice(&payload[..copy_len]);
-            return Ok(copy_len);
+        if !self.has_next_packet() {
+            self.read_packets()?;
         }
+
+        let link_frame = self.next_packet()?;
+
+        // Strip link-layer header to get IP payload
+        let payload = if is_loopback {
+            // DLT_NULL: 4-byte address family header
+            if link_frame.len() < DLT_NULL_HEADER_SIZE {
+                return Err(TracerouteError::MalformedPacket(format!(
+                    "Loopback packet too short: {} bytes",
+                    link_frame.len()
+                )));
+            }
+            &link_frame[DLT_NULL_HEADER_SIZE..]
+        } else {
+            // DLT_EN10MB: Ethernet header
+            strip_ethernet_header(link_frame)?
+        };
+
+        let copy_len = std::cmp::min(payload.len(), buf.len());
+        buf[..copy_len].copy_from_slice(&payload[..copy_len]);
+        Ok(copy_len)
     }
 
     async fn close(&mut self) -> Result<(), TracerouteError> {

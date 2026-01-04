@@ -51,11 +51,13 @@ pub struct TcpDriver {
     /// Whether to loosen ICMP source checking.
     loosen_icmp_src: bool,
     /// Maximum TTL (for packet ID allocation).
+    #[allow(dead_code)]
     max_ttl: u8,
 }
 
 impl TcpDriver {
     /// Creates a new TCP driver.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         src_ip: IpAddr,
         src_port: u16,

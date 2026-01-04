@@ -1,12 +1,12 @@
 //! TCP SACK traceroute driver implementation.
 
-use crate::packet::{create_sack_packet, get_min_sack_from_options, SackTcpState};
+use crate::packet::{create_sack_packet, SackTcpState};
 use async_trait::async_trait;
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 use traceroute_core::{ProbeResponse, TracerouteDriver, TracerouteDriverInfo, TracerouteError};
 use traceroute_packets::{parse_tcp_first_bytes, FrameParser, Sink, Source};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 /// Error indicating SACK is not supported by the target.
 #[derive(Debug, thiserror::Error)]
@@ -128,9 +128,7 @@ impl SackDriver {
                 continue;
             }
 
-            if let Err(e) = self.handle_handshake() {
-                return Err(e);
-            }
+            self.handle_handshake()?;
         }
 
         Ok(())
@@ -273,7 +271,7 @@ impl SackDriver {
             return Err(TracerouteError::PacketMismatch);
         }
 
-        let state = self
+        let _state = self
             .state
             .as_ref()
             .ok_or_else(|| TracerouteError::Internal("Handshake not completed".to_string()))?;
