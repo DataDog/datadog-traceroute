@@ -308,6 +308,7 @@ fn run_traceroute_cli(config: &TestConfig) -> Result<Results, String> {
     let binary = get_cli_binary();
 
     let mut args = vec![
+        "--verbose".to_string(), // Enable debug logging
         "--traceroute-queries".to_string(),
         config.num_queries.to_string(),
         "--proto".to_string(),
@@ -335,13 +336,20 @@ fn run_traceroute_cli(config: &TestConfig) -> Result<Results, String> {
         ("sudo".to_string(), sudo_args)
     };
 
+    eprintln!("Running: {} {:?}", cmd, final_args);
+
     let output = Command::new(&cmd)
         .args(&final_args)
         .output()
         .map_err(|e| format!("Failed to run command: {}", e))?;
 
+    // Always print stderr for debugging
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+        eprintln!("CLI stderr:\n{}", stderr);
+    }
+
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!(
             "Command failed with status {}:\n{}",
             output.status, stderr
