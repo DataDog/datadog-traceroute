@@ -351,6 +351,7 @@ pub async fn run_traceroute(config: TracerouteConfig) -> Result<Results, Tracero
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::Ipv4Addr;
 
     #[test]
     fn test_is_private_ip() {
