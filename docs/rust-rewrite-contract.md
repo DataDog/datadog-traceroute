@@ -9,7 +9,7 @@ It is a checklist for parity across CLI, server API, output schema, and platform
 - Preserve HTTP server REST API endpoints, query parameters, defaults, and errors.
 - Preserve JSON output schema and field semantics for traceroute results.
 - Preserve platform-specific behavior and Windows driver integration.
-- Ensure unit + e2e tests pass locally and on GitHub CI (self-hosted runners for full protocol coverage).
+- Ensure unit + e2e tests pass locally and on GitHub CI (GitHub-hosted runners).
 
 ## CLI Contract (datadog-traceroute)
 
@@ -322,5 +322,5 @@ The Rust e2e suite must mirror the above expectations to avoid false failures on
 ## CI Gate
 
 - All unit tests and e2e tests must pass locally.
-- All CI checks must pass on GitHub Actions (self-hosted runner matrix).
+- All CI checks must pass on GitHub Actions (GitHub-hosted runner matrix).
 - GitHub MCP must be used to confirm green checks before declaring completion.
