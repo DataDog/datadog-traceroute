@@ -12,6 +12,10 @@ Rewrite the Go-based datadog-traceroute repository in Rust with full feature par
 ### Key Requirements
 1. **API Compatibility**: Preserve existing CLI flags and HTTP server API exactly as-is
 2. **E2E Testing**: Comprehensive E2E tests for all protocols on all platforms in GitHub CI
+3. **Completion Criteria**: Implementation is ONLY complete when:
+   - All unit tests pass locally
+   - All E2E tests pass locally
+   - All GitHub CI checks pass (verify using GitHub MCP `gh pr checks` or `gh run view`)
 
 ---
 
@@ -275,6 +279,37 @@ pub trait Sink: Send + Sync {
 - `e2etests/server_test.go` - Server E2E tests to port
 - `.github/workflows/test.yml` - Existing CI configuration
 
+### Phase 8: Verification (REQUIRED FOR COMPLETION)
+**Goal**: Verify all tests pass locally and on GitHub CI
+
+1. **Local verification**:
+   ```bash
+   cargo test --all-features           # All unit tests
+   cargo test --test e2e_cli           # CLI E2E tests
+   cargo test --test e2e_server        # Server E2E tests
+   ```
+
+2. **GitHub CI verification** (using GitHub MCP):
+   ```bash
+   # Push branch and create PR
+   git push -u origin <branch>
+   gh pr create --title "Rust rewrite" --body "..."
+
+   # Wait for CI and verify all checks pass
+   gh pr checks <pr-number> --watch
+
+   # Or view specific workflow run
+   gh run view <run-id>
+   ```
+
+3. **Completion checklist**:
+   - [ ] `cargo test` passes locally on Linux/macOS/Windows
+   - [ ] `cargo clippy -- -D warnings` has no warnings
+   - [ ] `cargo fmt --check` passes
+   - [ ] GitHub CI unit-tests job: ✅ PASSED (all 3 platforms)
+   - [ ] GitHub CI e2e-tests job: ✅ PASSED (all protocols, all platforms)
+   - [ ] GitHub CI e2e-fake-network job: ✅ PASSED (Linux)
+
 ---
 
 ## 5. Error Handling
@@ -488,3 +523,21 @@ To ensure the Rust implementation is a drop-in replacement:
 - Use `cargo-nextest` for faster test execution
 - Consider `criterion` for performance benchmarks comparing to Go
 - Run Go and Rust E2E tests in parallel during transition to catch regressions
+
+## 11. Definition of Done
+
+**The Rust rewrite is NOT complete until ALL of the following are verified:**
+
+1. ✅ All unit tests pass locally (`cargo test --all-features`)
+2. ✅ All E2E tests pass locally (all protocols)
+3. ✅ Code passes linting (`cargo clippy -- -D warnings`)
+4. ✅ Code is formatted (`cargo fmt --check`)
+5. ✅ GitHub CI checks ALL PASS - verified via:
+   ```bash
+   gh pr checks <pr-number>
+   # Must show ALL checks as ✅ passing
+   ```
+6. ✅ CI passes on ALL platforms: Linux, macOS, Windows
+7. ✅ CI passes for ALL protocols: UDP, TCP, ICMP, SACK
+
+**Do not consider the implementation complete until `gh pr checks` shows all green checkmarks.**
