@@ -15,8 +15,8 @@ use windows_sys::Win32::Networking::WinSock::{
     AF_INET, AF_INET6, IPPROTO_ICMP, IPPROTO_ICMPV6, IPPROTO_TCP,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_FLAG_OVERLAPPED, FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ,
-    GENERIC_WRITE, OPEN_EXISTING, ReadFile, WriteFile,
+    CreateFileW, FILE_FLAG_OVERLAPPED, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, ReadFile,
+    WriteFile,
 };
 use windows_sys::Win32::System::IO::{
     CancelIoEx, CreateIoCompletionPort, DeviceIoControl, GetQueuedCompletionStatus, OVERLAPPED,
@@ -135,6 +135,8 @@ struct DriverHandle {
 impl DriverHandle {
     fn new(flags: u32) -> io::Result<Self> {
         let mut wide_path = to_wide_null(DRIVER_DEVICE_PATH);
+        const GENERIC_READ: u32 = 0x8000_0000;
+        const GENERIC_WRITE: u32 = 0x4000_0000;
         let handle = unsafe {
             CreateFileW(
                 wide_path.as_mut_ptr(),
@@ -167,7 +169,7 @@ impl DriverHandle {
                 io_control,
                 in_buffer as *mut _,
                 in_size,
-                out_buffer,
+                out_buffer as *mut _,
                 out_size,
                 &mut bytes_returned,
                 std::ptr::null_mut(),
