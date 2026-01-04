@@ -79,17 +79,9 @@ traceroute-icmp = { path = "crates/traceroute-icmp" }
 traceroute-sack = { path = "crates/traceroute-sack" }
 traceroute-server = { path = "crates/traceroute-server" }
 
-# Platform-specific (Linux)
-[target.'cfg(target_os = "linux")'.workspace.dependencies]
+# Platform-specific dependencies (used by individual crates)
 libc = "0.2"
-
-# Platform-specific (macOS)
-[target.'cfg(target_os = "macos")'.workspace.dependencies]
-libc = "0.2"
-
-# Platform-specific (Windows)
-[target.'cfg(target_os = "windows")'.workspace.dependencies]
-windows = { version = "0.58", features = [
+windows-sys = { version = "0.59", features = [
     "Win32_Networking_WinSock",
     "Win32_Foundation",
     "Win32_System_IO",
