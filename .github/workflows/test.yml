@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - name: ICMP integration tests
-        run: sudo -E env "PATH=$PATH" cargo test -p datadog-traceroute-icmp --test integration -- --ignored --nocapture
+        run: sudo -E env "PATH=$PATH" cargo test -p datadog-traceroute-icmp --test integration -- --ignored
 
   unit_tests:
     runs-on: ${{ matrix.os }}
