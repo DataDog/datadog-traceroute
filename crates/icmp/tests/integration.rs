@@ -1,7 +1,7 @@
 #![cfg(any(target_os = "linux", target_os = "macos"))]
 
-use datadog_traceroute_icmp::{IcmpDriver, IcmpParams};
 use datadog_traceroute_common::TracerouteDriver;
+use datadog_traceroute_icmp::{IcmpDriver, IcmpParams};
 use datadog_traceroute_packets::{
     FilterConfig, PacketFilterSpec, PacketFilterType, new_source_sink,
 };

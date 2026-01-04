@@ -149,12 +149,20 @@ impl PacketSource for AfPacketSource {
             if rc == 0 {
                 return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "read 0 bytes"));
             }
-            let payload = match strip_ethernet_header(&buf[..rc as usize])? {
-                Some(payload) => payload,
-                None => continue,
-            };
-            buf[..payload.len()].copy_from_slice(payload);
-            return Ok(payload.len());
+            let frame_len = rc as usize;
+            if frame_len < 14 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "ethernet frame too short",
+                ));
+            }
+            let eth_type = u16::from_be_bytes([buf[12], buf[13]]);
+            if eth_type != 0x0800 && eth_type != 0x86dd {
+                continue;
+            }
+            let payload_len = frame_len - 14;
+            buf.copy_within(14..frame_len, 0);
+            return Ok(payload_len);
         }
     }
 
