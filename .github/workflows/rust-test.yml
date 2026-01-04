@@ -52,6 +52,7 @@ jobs:
   rust_e2e_localhost_tests:
     name: "Rust E2E Localhost Tests"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -83,6 +84,7 @@ jobs:
   rust_e2e_public_target_tests:
     name: "Rust E2E Public Target Tests"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
