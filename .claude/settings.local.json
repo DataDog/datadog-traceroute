@@ -30,7 +30,10 @@
       "Bash(cargo build:*)",
       "Bash(~/.cargo/bin/cargo build:*)",
       "Bash(~/.cargo/bin/cargo test)",
-      "Bash(~/.cargo/bin/cargo fmt:*)"
+      "Bash(~/.cargo/bin/cargo fmt:*)",
+      "Bash(sudo ~/.cargo/bin/cargo test:*)",
+      "Bash(gh api:*)",
+      "Bash(~/.cargo/bin/cargo check:*)"
     ]
   }
 }

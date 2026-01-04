@@ -79,6 +79,7 @@ jobs:
         run: cargo build --release
 
       - name: Run Localhost E2E Tests
+        timeout-minutes: 5
         run: cargo test --release -- --ignored test_localhost --test-threads=1
 
   rust_e2e_public_target_tests:
@@ -111,4 +112,5 @@ jobs:
         run: cargo build --release
 
       - name: Run Public Target E2E Tests
+        timeout-minutes: 5
         run: cargo test --release -- --ignored test_public --test-threads=1
