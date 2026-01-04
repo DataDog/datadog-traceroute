@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 datadog-traceroute-common = { path = "../common" }
+if-addrs = "0.13"
+libc = "0.2"
 windows-sys = { version = "0.52", features = [
   "Win32_Foundation",
   "Win32_Networking_WinSock",
