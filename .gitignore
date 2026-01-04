@@ -5,6 +5,7 @@
 .vscode
 .cursor
 vendor
+target
 
 portable_*.exe
 portable_syn

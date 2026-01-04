@@ -282,7 +282,8 @@ pub fn traceroute_parallel(
         return Err("tried to call TracerouteParallel on a driver that doesn't support parallel".into());
     }
 
-    let results = Arc::new(Mutex::new(vec![None; params.params.max_ttl as usize + 1]));
+    let results: Arc<Mutex<Vec<Option<ProbeResponse>>>> =
+        Arc::new(Mutex::new(vec![None; params.params.max_ttl as usize + 1]));
     let driver = Arc::new(Mutex::new(driver));
     let sent_once = Arc::new(AtomicBool::new(false));
     let stop_send = Arc::new(AtomicBool::new(false));

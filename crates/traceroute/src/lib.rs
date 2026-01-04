@@ -27,22 +27,37 @@ pub struct TracerouteParams {
     pub skip_private_hops: bool,
 }
 
-#[derive(Debug, Default)]
 pub struct TracerouteRunner {
     public_ip_fetcher: Arc<dyn PublicIpFetcher + Send + Sync>,
+    run_once: RunTracerouteOnceFn,
 }
 
 impl TracerouteRunner {
     pub fn new() -> Self {
         Self {
             public_ip_fetcher: Arc::new(NoopPublicIpFetcher),
+            run_once: Arc::new(run_traceroute_once),
         }
     }
 
     pub fn with_public_ip_fetcher(
         public_ip_fetcher: Arc<dyn PublicIpFetcher + Send + Sync>,
     ) -> Self {
-        Self { public_ip_fetcher }
+        Self {
+            public_ip_fetcher,
+            run_once: Arc::new(run_traceroute_once),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_run_once(
+        public_ip_fetcher: Arc<dyn PublicIpFetcher + Send + Sync>,
+        run_once: RunTracerouteOnceFn,
+    ) -> Self {
+        Self {
+            public_ip_fetcher,
+            run_once,
+        }
     }
 
     pub fn run_traceroute(&self, params: TracerouteParams) -> Result<Results, TracerouteError> {
@@ -84,8 +99,9 @@ impl TracerouteRunner {
             let params_clone = params.clone();
             let results_clone = Arc::clone(&results);
             let errors_clone = Arc::clone(&errors);
+            let run_once = Arc::clone(&self.run_once);
             let handle = thread::spawn(move || {
-                match run_traceroute_once(&params_clone, destination_port) {
+                match run_once(params_clone, destination_port) {
                     Ok(run) => {
                         let mut results = results_clone.lock().expect("results mutex poisoned");
                         results.traceroute.runs.push(run);
@@ -111,8 +127,9 @@ impl TracerouteRunner {
                 let params_clone = params.clone();
                 let results_clone = Arc::clone(&results);
                 let errors_clone = Arc::clone(&errors);
+                let run_once = Arc::clone(&self.run_once);
                 let handle = thread::spawn(move || {
-                    match run_e2e_probe_once(&params_clone, destination_port) {
+                    match run_e2e_probe_once(&params_clone, destination_port, run_once) {
                         Ok(rtt) => {
                             let mut results =
                                 results_clone.lock().expect("results mutex poisoned");
@@ -167,6 +184,12 @@ impl TracerouteRunner {
     }
 }
 
+impl Default for TracerouteRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub trait PublicIpFetcher {
     fn get_ip(&self) -> Result<Option<IpAddr>, Box<dyn Error + Send + Sync>>;
 }
@@ -207,7 +230,7 @@ impl fmt::Display for TracerouteError {
 impl Error for TracerouteError {}
 
 fn run_traceroute_once(
-    _params: &TracerouteParams,
+    _params: TracerouteParams,
     _destination_port: u16,
 ) -> Result<TracerouteRun, TracerouteError> {
     Err(TracerouteError::new(
@@ -218,6 +241,7 @@ fn run_traceroute_once(
 fn run_e2e_probe_once(
     params: &TracerouteParams,
     destination_port: u16,
+    run_once: RunTracerouteOnceFn,
 ) -> Result<f64, TracerouteError> {
     let mut probe_params = params.clone();
     probe_params.min_ttl = probe_params.max_ttl;
@@ -227,9 +251,241 @@ fn run_e2e_probe_once(
         probe_params.tcp_method = "syn".to_string();
     }
 
-    let run = run_traceroute_once(&probe_params, destination_port)?;
+    let run = run_once(probe_params, destination_port)?;
     match run.hops.iter().find(|hop| hop.is_dest) {
         Some(hop) => Ok(hop.rtt),
         None => Ok(0.0),
+    }
+}
+
+type RunTracerouteOnceFn =
+    Arc<dyn Fn(TracerouteParams, u16) -> Result<TracerouteRun, TracerouteError> + Send + Sync>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use datadog_traceroute_result::{SerdeIpAddr, TracerouteHop};
+    use std::net::{IpAddr, Ipv4Addr};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    };
+
+    struct TestPublicIpFetcher {
+        ip: Option<IpAddr>,
+    }
+
+    impl PublicIpFetcher for TestPublicIpFetcher {
+        fn get_ip(&self) -> Result<Option<IpAddr>, Box<dyn Error + Send + Sync>> {
+            Ok(self.ip)
+        }
+    }
+
+    fn make_run(dest_ip: IpAddr, rtt: f64) -> TracerouteRun {
+        TracerouteRun {
+            hops: vec![
+                TracerouteHop {
+                    ttl: 1,
+                    ip_address: SerdeIpAddr(Some(dest_ip)),
+                    rtt,
+                    reachable: false,
+                    reverse_dns: Vec::new(),
+                    is_dest: true,
+                    port: 0,
+                    icmp_type: 0,
+                    icmp_code: 0,
+                },
+                TracerouteHop {
+                    ttl: 2,
+                    ..TracerouteHop::default()
+                },
+            ],
+            ..TracerouteRun::default()
+        }
+    }
+
+    #[test]
+    fn run_traceroute_multi_collects_runs() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let run_once: RunTracerouteOnceFn = Arc::new({
+            let counter = Arc::clone(&counter);
+            move |_params: TracerouteParams, _port| {
+                let idx = counter.fetch_add(1, Ordering::SeqCst) + 1;
+                Ok(make_run(IpAddr::V4(Ipv4Addr::new(10, 0, 0, idx as u8)), 10.0))
+            }
+        });
+
+        let params = TracerouteParams {
+            hostname: "example.com".to_string(),
+            port: 0,
+            protocol: "udp".to_string(),
+            min_ttl: 1,
+            max_ttl: 3,
+            delay_ms: 0,
+            timeout: Duration::from_millis(100),
+            tcp_method: "syn".to_string(),
+            want_v6: false,
+            tcp_syn_paris_traceroute_mode: false,
+            reverse_dns: false,
+            collect_source_public_ip: false,
+            traceroute_queries: 2,
+            e2e_queries: 0,
+            use_windows_driver: false,
+            skip_private_hops: false,
+        };
+
+        let runner = TracerouteRunner::with_run_once(
+            Arc::new(TestPublicIpFetcher { ip: None }),
+            run_once,
+        );
+
+        let results = runner.run_traceroute(params).expect("traceroute failed");
+        assert_eq!(results.traceroute.runs.len(), 2);
+    }
+
+    #[test]
+    fn run_traceroute_multi_collects_e2e_rtts() {
+        let run_once: RunTracerouteOnceFn =
+            Arc::new(|_params: TracerouteParams, _port| Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 12.5)));
+
+        let params = TracerouteParams {
+            hostname: "example.com".to_string(),
+            port: 0,
+            protocol: "udp".to_string(),
+            min_ttl: 1,
+            max_ttl: 3,
+            delay_ms: 0,
+            timeout: Duration::from_millis(100),
+            tcp_method: "syn".to_string(),
+            want_v6: false,
+            tcp_syn_paris_traceroute_mode: false,
+            reverse_dns: false,
+            collect_source_public_ip: false,
+            traceroute_queries: 0,
+            e2e_queries: 3,
+            use_windows_driver: false,
+            skip_private_hops: false,
+        };
+
+        let runner = TracerouteRunner::with_run_once(
+            Arc::new(TestPublicIpFetcher { ip: None }),
+            run_once,
+        );
+
+        let results = runner.run_traceroute(params).expect("traceroute failed");
+        assert_eq!(results.e2e_probe.rtts.len(), 3);
+        for rtt in results.e2e_probe.rtts {
+            assert_eq!(rtt, 12.5);
+        }
+    }
+
+    #[test]
+    fn e2e_forces_tcp_syn_when_sack() {
+        let seen_methods = Arc::new(Mutex::new(Vec::new()));
+        let run_once: RunTracerouteOnceFn = Arc::new({
+            let seen_methods = Arc::clone(&seen_methods);
+            move |params: TracerouteParams, _port| {
+                seen_methods.lock().expect("methods mutex").push(params.tcp_method);
+                Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 5.0))
+            }
+        });
+
+        let params = TracerouteParams {
+            hostname: "example.com".to_string(),
+            port: 0,
+            protocol: "tcp".to_string(),
+            min_ttl: 1,
+            max_ttl: 3,
+            delay_ms: 0,
+            timeout: Duration::from_millis(100),
+            tcp_method: "sack".to_string(),
+            want_v6: false,
+            tcp_syn_paris_traceroute_mode: false,
+            reverse_dns: false,
+            collect_source_public_ip: false,
+            traceroute_queries: 0,
+            e2e_queries: 1,
+            use_windows_driver: false,
+            skip_private_hops: false,
+        };
+
+        let runner = TracerouteRunner::with_run_once(
+            Arc::new(TestPublicIpFetcher { ip: None }),
+            run_once,
+        );
+
+        runner.run_traceroute(params).expect("traceroute failed");
+        let methods = seen_methods.lock().expect("methods mutex");
+        assert_eq!(methods.len(), 1);
+        assert_eq!(methods[0], "syn");
+    }
+
+    #[test]
+    fn public_ip_is_collected() {
+        let run_once: RunTracerouteOnceFn =
+            Arc::new(|_params: TracerouteParams, _port| Ok(make_run(IpAddr::V4(Ipv4Addr::LOCALHOST), 5.0)));
+
+        let params = TracerouteParams {
+            hostname: "example.com".to_string(),
+            port: 0,
+            protocol: "udp".to_string(),
+            min_ttl: 1,
+            max_ttl: 3,
+            delay_ms: 0,
+            timeout: Duration::from_millis(100),
+            tcp_method: "syn".to_string(),
+            want_v6: false,
+            tcp_syn_paris_traceroute_mode: false,
+            reverse_dns: false,
+            collect_source_public_ip: true,
+            traceroute_queries: 0,
+            e2e_queries: 0,
+            use_windows_driver: false,
+            skip_private_hops: false,
+        };
+
+        let runner = TracerouteRunner::with_run_once(
+            Arc::new(TestPublicIpFetcher {
+                ip: Some(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8))),
+            }),
+            run_once,
+        );
+
+        let results = runner.run_traceroute(params).expect("traceroute failed");
+        assert_eq!(results.source.public_ip, "8.8.8.8");
+    }
+
+    #[test]
+    fn errors_are_aggregated() {
+        let run_once: RunTracerouteOnceFn = Arc::new(|_params: TracerouteParams, _port| {
+            Err(TracerouteError::new("failed run"))
+        });
+
+        let params = TracerouteParams {
+            hostname: "example.com".to_string(),
+            port: 0,
+            protocol: "udp".to_string(),
+            min_ttl: 1,
+            max_ttl: 3,
+            delay_ms: 0,
+            timeout: Duration::from_millis(100),
+            tcp_method: "syn".to_string(),
+            want_v6: false,
+            tcp_syn_paris_traceroute_mode: false,
+            reverse_dns: false,
+            collect_source_public_ip: false,
+            traceroute_queries: 2,
+            e2e_queries: 0,
+            use_windows_driver: false,
+            skip_private_hops: false,
+        };
+
+        let runner = TracerouteRunner::with_run_once(
+            Arc::new(TestPublicIpFetcher { ip: None }),
+            run_once,
+        );
+
+        let err = runner.run_traceroute(params).expect_err("expected error");
+        assert!(err.to_string().contains("failed run"));
     }
 }
