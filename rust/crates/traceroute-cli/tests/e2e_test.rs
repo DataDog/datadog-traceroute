@@ -20,7 +20,7 @@ const PUBLIC_PORT: u16 = 443;
 // Test parameters
 const NUM_TRACEROUTE_QUERIES: usize = 3;
 const DEFAULT_UDP_PORT: u16 = 33434;
-const DEFAULT_TCP_PORT: u16 = 443;
+const DEFAULT_TCP_PORT: u16 = 33434; // CLI default, not SSH (22) or HTTPS (443)
 
 // Server test configuration
 const SERVER_PORT: u16 = 13765; // Use non-standard port to avoid conflicts
