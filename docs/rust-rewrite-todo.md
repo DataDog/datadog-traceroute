@@ -31,7 +31,7 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 - [x] TCP SYN driver (Linux/Windows/macOS).
 - [x] TCP SACK driver (Linux/Windows/macOS).
 - [x] TCP prefer_sack handling and fallback logic.
-- [ ] Packet parsing/filters parity (BPF/cBPF equivalents).
+- [x] Packet parsing/filters parity (BPF/cBPF equivalents).
   - [x] Port core frame parser helpers (IPv4/IPv6, ICMP info, TCP/UDP header helpers).
 - [x] Protocol-specific unit tests (parser + integration tests).
 
