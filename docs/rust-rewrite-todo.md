@@ -12,10 +12,10 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 ## Phase 1: Architecture + Windows Driver Integration
 
-- [ ] Define Rust workspace layout and crate boundaries.
-- [ ] Define platform abstraction layer for raw sockets/packet capture.
-- [ ] Map Windows driver API usage and IOCTL/device interactions.
-- [ ] Implement Rust wrapper for Windows driver and smoke tests.
+- [x] Define Rust workspace layout and crate boundaries.
+- [x] Define platform abstraction layer for raw sockets/packet capture.
+- [x] Map Windows driver API usage and IOCTL/device interactions.
+- [x] Implement Rust wrapper for Windows driver and smoke tests (manual Windows-only test).
 
 ## Phase 2: Core Traceroute Engine
 
