@@ -9,6 +9,7 @@ use datadog_traceroute_common::{
 use datadog_traceroute_core::{TracerouteParams, TracerouteRunner};
 use std::process;
 use std::time::Duration;
+use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
 #[command(name = "datadog-traceroute")]
@@ -61,7 +62,11 @@ fn main() {
     let args = Args::parse();
 
     if args.verbose {
-        // TODO: wire verbose output once logging is implemented for Rust.
+        let filter = EnvFilter::new("trace");
+        tracing_subscriber::fmt().with_env_filter(filter).init();
+    } else {
+        let filter = EnvFilter::new("info");
+        tracing_subscriber::fmt().with_env_filter(filter).init();
     }
 
     if args.windows_driver {

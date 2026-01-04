@@ -19,6 +19,7 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
 #[command(name = "datadog-traceroute-server")]
@@ -28,7 +29,7 @@ struct Args {
     addr: String,
 
     #[arg(short = 'l', long = "log-level", default_value = "info")]
-    _log_level: String,
+    log_level: String,
 }
 
 #[derive(Clone)]
@@ -39,6 +40,14 @@ struct AppState {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
+    let filter = match args.log_level.as_str() {
+        "error" => EnvFilter::new("error"),
+        "warn" => EnvFilter::new("warn"),
+        "debug" => EnvFilter::new("debug"),
+        "trace" => EnvFilter::new("trace"),
+        _ => EnvFilter::new("info"),
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     let state = AppState {
         runner: Arc::new(TracerouteRunner::new()),
@@ -59,6 +68,7 @@ async fn main() {
             eprintln!("Failed to bind {}: {}", addr, err);
             process::exit(1);
         });
+    tracing::info!("Starting HTTP server on {}", addr);
     if let Err(err) = axum::serve(listener, app).await {
         eprintln!("HTTP server failed: {}", err);
         process::exit(1);
