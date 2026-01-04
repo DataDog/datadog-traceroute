@@ -1,0 +1,26 @@
+[package]
+name = "traceroute-tcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "TCP SYN traceroute implementation"
+
+[features]
+default = []
+paris-mode = []  # Enable Paris traceroute mode
+
+[dependencies]
+traceroute-core = { workspace = true }
+traceroute-packets = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+pnet = { workspace = true }
+pnet_packet = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }

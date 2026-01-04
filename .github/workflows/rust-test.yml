@@ -1,0 +1,112 @@
+name: rust-test
+
+on:
+  push:
+    branches:
+      - "main"
+      - "mq-working-branch-*"
+      - "alex/rewrite-in-rust"
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "rust/**"
+  workflow_dispatch:
+
+jobs:
+  rust_unit_tests:
+    name: "Rust Unit Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "rust -> target"
+
+      - name: Build
+        run: cargo build --all-features
+
+      - name: Run Unit Tests
+        run: cargo test --all-features -- --skip test_localhost --skip test_public
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-features -- -D warnings
+
+  rust_e2e_localhost_tests:
+    name: "Rust E2E Localhost Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    env:
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && 'target/release/datadog-traceroute.exe' || 'target/release/datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "rust -> target"
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Run Localhost E2E Tests
+        run: cargo test --release -- --ignored test_localhost --test-threads=1
+
+  rust_e2e_public_target_tests:
+    name: "Rust E2E Public Target Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    env:
+      EXECUTABLE: ${{ matrix.os == 'windows-latest' && 'target/release/datadog-traceroute.exe' || 'target/release/datadog-traceroute' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "rust -> target"
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Run Public Target E2E Tests
+        run: cargo test --release -- --ignored test_public --test-threads=1

@@ -1,0 +1,34 @@
+[package]
+name = "traceroute-packets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Packet I/O abstraction for datadog-traceroute"
+
+[features]
+default = []
+driver = []  # Windows driver support (FFI bindings)
+
+[dependencies]
+traceroute-core = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+etherparse = { workspace = true }
+socket2 = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+bytes = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }

@@ -1,0 +1,102 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/traceroute-core",
+    "crates/traceroute-packets",
+    "crates/traceroute-tcp",
+    "crates/traceroute-udp",
+    "crates/traceroute-icmp",
+    "crates/traceroute-sack",
+    "crates/traceroute-server",
+    "crates/traceroute-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/DataDog/datadog-traceroute"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+
+# Networking
+pnet = "0.35"
+pnet_packet = "0.35"
+etherparse = "0.16"
+socket2 = { version = "0.5", features = ["all"] }
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# HTTP server
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Caching
+moka = { version = "0.12", features = ["future"] }
+
+# DNS
+hickory-resolver = "0.24"
+
+# Utilities
+uuid = { version = "1.11", features = ["v4"] }
+rand = "0.8"
+bytes = "1.9"
+parking_lot = "0.12"
+futures = "0.3"
+pin-project-lite = "0.2"
+
+# HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# Testing
+mockall = "0.13"
+proptest = "1.5"
+
+# Internal crates
+traceroute-core = { path = "crates/traceroute-core" }
+traceroute-packets = { path = "crates/traceroute-packets" }
+traceroute-tcp = { path = "crates/traceroute-tcp" }
+traceroute-udp = { path = "crates/traceroute-udp" }
+traceroute-icmp = { path = "crates/traceroute-icmp" }
+traceroute-sack = { path = "crates/traceroute-sack" }
+traceroute-server = { path = "crates/traceroute-server" }
+
+# Platform-specific (Linux)
+[target.'cfg(target_os = "linux")'.workspace.dependencies]
+libc = "0.2"
+
+# Platform-specific (macOS)
+[target.'cfg(target_os = "macos")'.workspace.dependencies]
+libc = "0.2"
+
+# Platform-specific (Windows)
+[target.'cfg(target_os = "windows")'.workspace.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Networking_WinSock",
+    "Win32_Foundation",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+]}
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
