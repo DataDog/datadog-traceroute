@@ -4,7 +4,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 const IPV4_HEADER_MIN_LEN: usize = 20;
 const IPV6_HEADER_LEN: usize = 40;
-const ICMP_HEADER_LEN: usize = 8;
+const ICMP_HEADER_LEN_V4: usize = 8;
+const ICMP_HEADER_LEN_V6: usize = 4;
 
 const IPPROTO_TCP: u8 = 6;
 const IPPROTO_UDP: u8 = 17;
@@ -41,6 +42,7 @@ impl IPPair {
 pub struct IcmpPacket {
     pub icmp_type: u8,
     pub icmp_code: u8,
+    pub header_rest: [u8; 4],
     pub payload: Vec<u8>,
 }
 
@@ -198,6 +200,14 @@ impl FrameParser {
         }
     }
 
+    pub fn icmp4_packet(&self) -> Option<&IcmpPacket> {
+        self.icmp4.as_ref()
+    }
+
+    pub fn icmp6_packet(&self) -> Option<&IcmpPacket> {
+        self.icmp6.as_ref()
+    }
+
     fn parse_ipv4(&mut self, buffer: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
         let header = parse_ipv4_header(buffer)?;
         self.ip_layer = LayerType::Ipv4;
@@ -218,7 +228,7 @@ impl FrameParser {
                 Ok(())
             }
             IPPROTO_ICMP => {
-                let icmp = parse_icmp_packet(header.payload)?;
+                let icmp = parse_icmp_packet(header.payload, ICMP_HEADER_LEN_V4)?;
                 self.transport_layer = LayerType::Icmpv4;
                 self.icmp4 = Some(icmp);
                 Ok(())
@@ -250,7 +260,7 @@ impl FrameParser {
                 Ok(())
             }
             IPPROTO_ICMPV6 => {
-                let icmp = parse_icmp_packet(header.payload)?;
+                let icmp = parse_icmp_packet(header.payload, ICMP_HEADER_LEN_V6)?;
                 self.transport_layer = LayerType::Icmpv6;
                 self.icmp6 = Some(icmp);
                 Ok(())
@@ -348,23 +358,34 @@ fn parse_ipv6_header(buffer: &[u8]) -> Result<ParsedIpv6<'_>, Box<dyn Error + Se
     })
 }
 
-fn parse_icmp_packet(payload: &[u8]) -> Result<IcmpPacket, Box<dyn Error + Send + Sync>> {
-    if payload.len() < ICMP_HEADER_LEN {
+fn parse_icmp_packet(
+    payload: &[u8],
+    header_len: usize,
+) -> Result<IcmpPacket, Box<dyn Error + Send + Sync>> {
+    if payload.len() < header_len {
         return Err(Box::new(BadPacketError::new(format!(
             "parse_icmp: buffer too short ({} bytes)",
             payload.len()
         ))));
     }
+    let mut header_rest = [0u8; 4];
+    if header_len >= 8 {
+        header_rest.copy_from_slice(&payload[4..8]);
+    }
     Ok(IcmpPacket {
         icmp_type: payload[0],
         icmp_code: payload[1],
-        payload: payload[ICMP_HEADER_LEN..].to_vec(),
+        header_rest,
+        payload: payload[header_len..].to_vec(),
     })
 }
 
 fn extract_embedded_ipv6(payload: &[u8]) -> Result<&[u8], Box<dyn Error + Send + Sync>> {
     if payload.len() >= 5 && payload[4] >> 4 == 6 {
         return Ok(&payload[4..]);
+    }
+    if payload.first().map(|byte| byte >> 4 == 6).unwrap_or(false) {
+        return Ok(payload);
     }
     Err(Box::new(BadPacketError::new(
         "cannot locate IPv6 header in payload",

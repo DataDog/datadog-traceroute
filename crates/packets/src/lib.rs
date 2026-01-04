@@ -3,7 +3,7 @@
 mod frame_parser;
 
 pub use frame_parser::{
-    FrameParser, IPPair, IcmpInfo, LayerType, TcpInfo, UdpInfo, parse_tcp_first_bytes,
+    FrameParser, IPPair, IcmpInfo, IcmpPacket, LayerType, TcpInfo, UdpInfo, parse_tcp_first_bytes,
     parse_udp_first_bytes, serialize_tcp_first_bytes, write_udp_first_bytes,
 };
 

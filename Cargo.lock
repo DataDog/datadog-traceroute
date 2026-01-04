@@ -36,6 +36,10 @@ dependencies = [
 [[package]]
 name = "datadog-traceroute-icmp"
 version = "0.1.0"
+dependencies = [
+ "datadog-traceroute-common",
+ "datadog-traceroute-packets",
+]
 
 [[package]]
 name = "datadog-traceroute-packets"

@@ -26,7 +26,7 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 ## Phase 3: Protocol Drivers
 
-- [ ] ICMP driver (Linux/Windows/macOS).
+- [x] ICMP driver (Linux/Windows/macOS).
 - [ ] UDP driver (Linux/Windows/macOS).
 - [ ] TCP SYN driver (Linux/Windows/macOS).
 - [ ] TCP SACK driver (Linux/Windows/macOS).
