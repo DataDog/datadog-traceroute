@@ -38,7 +38,7 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 ## Phase 4: CLI + HTTP Server Parity
 
 - [x] CLI implementation with identical flags and JSON output.
-- [ ] HTTP server implementation with identical endpoints and query parsing.
+- [x] HTTP server implementation with identical endpoints and query parsing.
 - [ ] Log levels and verbose behavior parity.
 - [ ] Windows driver startup on CLI flag.
 
