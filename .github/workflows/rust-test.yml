@@ -41,7 +41,7 @@ jobs:
         run: cargo build --all-features
 
       - name: Run Unit Tests
-        run: cargo test --all-features -- --skip test_localhost --skip test_public
+        run: cargo test --all-features -- --skip test_localhost --skip test_public --nocapture
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -81,7 +81,7 @@ jobs:
 
       - name: Run Localhost E2E Tests
         timeout-minutes: 10
-        run: cargo test --release -- --ignored test_localhost --test-threads=1
+        run: cargo test --release -- --ignored test_localhost --test-threads=1 --nocapture
 
   rust_e2e_public_target_tests:
     name: "Rust E2E Public Target Tests"
@@ -115,4 +115,4 @@ jobs:
 
       - name: Run Public Target E2E Tests
         timeout-minutes: 10
-        run: cargo test --release -- --ignored test_public --test-threads=1
+        run: cargo test --release -- --ignored test_public --test-threads=1 --nocapture
