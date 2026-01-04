@@ -87,6 +87,10 @@ version = "0.1.0"
 [[package]]
 name = "datadog-traceroute-udp"
 version = "0.1.0"
+dependencies = [
+ "datadog-traceroute-common",
+ "datadog-traceroute-packets",
+]
 
 [[package]]
 name = "datadog-traceroute-winconn"
