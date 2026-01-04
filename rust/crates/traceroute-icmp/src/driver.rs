@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use traceroute_core::{ProbeResponse, TracerouteDriver, TracerouteDriverInfo, TracerouteError};
 use traceroute_packets::{FrameParser, Sink, Source};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 /// Global echo ID counter for unique IDs across driver instances.
 static ECHO_ID_COUNTER: AtomicU16 = AtomicU16::new(1);
