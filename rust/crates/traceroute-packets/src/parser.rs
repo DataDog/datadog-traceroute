@@ -1,7 +1,7 @@
 //! Frame parsing using etherparse.
 
 use etherparse::{
-    Icmpv4Header, Icmpv4Type, Icmpv6Header, Icmpv6Type, IpHeaders, PacketHeaders,
+    Icmpv4Header, Icmpv4Type, Icmpv6Header, Icmpv6Type, NetHeaders, PacketHeaders,
     TransportHeader,
 };
 use std::net::IpAddr;
@@ -167,8 +167,8 @@ impl FrameParser {
         })?;
 
         // Extract IP addresses
-        let ip_pair = match &headers.ip {
-            Some(IpHeaders::Ipv4(ipv4, _)) => {
+        let ip_pair = match &headers.net {
+            Some(NetHeaders::Ipv4(ipv4, _)) => {
                 self.src_ip = Some(IpAddr::V4(ipv4.source.into()));
                 self.dst_ip = Some(IpAddr::V4(ipv4.destination.into()));
                 IpPair {
@@ -176,7 +176,7 @@ impl FrameParser {
                     dst_addr: self.dst_ip,
                 }
             }
-            Some(IpHeaders::Ipv6(ipv6, _)) => {
+            Some(NetHeaders::Ipv6(ipv6, _)) => {
                 self.src_ip = Some(IpAddr::V6(ipv6.source.into()));
                 self.dst_ip = Some(IpAddr::V6(ipv6.destination.into()));
                 IpPair {
@@ -193,14 +193,15 @@ impl FrameParser {
         };
 
         // Parse transport layer
+        let payload_slice = headers.payload.slice();
         match headers.transport {
             Some(TransportHeader::Icmpv4(icmp)) => {
                 self.transport_type = TransportType::Icmpv4;
-                self.parse_icmpv4(&icmp, &headers.payload, ip_pair)?;
+                self.parse_icmpv4(&icmp, payload_slice, ip_pair)?;
             }
             Some(TransportHeader::Icmpv6(icmp)) => {
                 self.transport_type = TransportType::Icmpv6;
-                self.parse_icmpv6(&icmp, &headers.payload, ip_pair)?;
+                self.parse_icmpv6(&icmp, payload_slice, ip_pair)?;
             }
             Some(TransportHeader::Tcp(tcp)) => {
                 self.transport_type = TransportType::Tcp;
@@ -245,9 +246,9 @@ impl FrameParser {
                 self.is_echo_reply = true;
                 (0, 0)
             }
-            _ => {
-                let bytes = icmp.icmp_type.to_bytes();
-                (bytes[0], bytes[1])
+            other => {
+                // Get type_u8 and code_u8 for unknown ICMP types
+                (other.type_u8(), other.code_u8())
             }
         };
 
@@ -287,9 +288,9 @@ impl FrameParser {
                 self.is_echo_reply = true;
                 (129, 0)
             }
-            _ => {
-                let bytes = icmp.icmp_type.to_bytes();
-                (bytes[0], bytes[1])
+            other => {
+                // Get type_u8 and code_u8 for unknown ICMP types
+                (other.type_u8(), other.code_u8())
             }
         };
 
@@ -326,15 +327,15 @@ impl FrameParser {
             }
         })?;
 
-        let (wrapped_packet_id, icmp_pair) = match &inner_headers.ip {
-            Some(IpHeaders::Ipv4(ipv4, _)) => {
+        let (wrapped_packet_id, icmp_pair) = match &inner_headers.net {
+            Some(NetHeaders::Ipv4(ipv4, _)) => {
                 let pair = IpPair {
                     src_addr: Some(IpAddr::V4(ipv4.source.into())),
                     dst_addr: Some(IpAddr::V4(ipv4.destination.into())),
                 };
                 (ipv4.identification, pair)
             }
-            Some(IpHeaders::Ipv6(ipv6, _)) => {
+            Some(NetHeaders::Ipv6(ipv6, _)) => {
                 let pair = IpPair {
                     src_addr: Some(IpAddr::V6(ipv6.source.into())),
                     dst_addr: Some(IpAddr::V6(ipv6.destination.into())),
@@ -351,7 +352,7 @@ impl FrameParser {
             ip_pair,
             wrapped_packet_id,
             icmp_pair,
-            payload: inner_headers.payload.to_vec(),
+            payload: inner_headers.payload.slice().to_vec(),
         })
     }
 
