@@ -10,7 +10,7 @@ use tracing::{debug, trace};
 ///
 /// This sends one probe at a time and waits for a response (or timeout)
 /// before sending the next probe. This is simpler but slower than parallel mode.
-pub async fn traceroute_serial<D: TracerouteDriver>(
+pub async fn traceroute_serial<D: TracerouteDriver + ?Sized>(
     driver: &mut D,
     params: &TracerouteParams,
 ) -> Result<Vec<Option<ProbeResponse>>, TracerouteError> {

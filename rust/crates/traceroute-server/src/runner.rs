@@ -1,12 +1,11 @@
 //! Traceroute runner for HTTP server.
 
-use hickory_resolver::TokioResolver;
+use hickory_resolver::TokioAsyncResolver;
 use std::net::{IpAddr, SocketAddr};
-use std::time::Duration;
 use traceroute_core::{
     execution::traceroute_serial, DestinationInfo, ProbeResponse, Protocol, ResultDestination,
     Results, SourceInfo, Stats, TracerouteConfig, TracerouteDriver, TracerouteError,
-    TracerouteHop, TracerouteParams, TracerouteResults, TracerouteRun,
+    TracerouteHop, TracerouteResults, TracerouteRun,
 };
 use traceroute_icmp::IcmpDriver;
 use traceroute_packets::new_source_sink;
@@ -55,7 +54,7 @@ pub async fn resolve_hostname(hostname: &str, want_v6: bool) -> Result<IpAddr, T
         return Ok(ip);
     }
 
-    let resolver = TokioResolver::from_system_conf().map_err(|e| {
+    let resolver = TokioAsyncResolver::tokio_from_system_conf().map_err(|e| {
         TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e))
     })?;
 

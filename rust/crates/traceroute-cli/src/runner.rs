@@ -1,12 +1,11 @@
 //! Traceroute runner that orchestrates the entire traceroute process.
 
-use hickory_resolver::TokioResolver;
+use hickory_resolver::TokioAsyncResolver;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::time::Duration;
 use traceroute_core::{
     execution::traceroute_serial, DestinationInfo, ProbeResponse, Protocol, PublicIpInfo,
     ResultDestination, Results, SourceInfo, Stats, TcpMethod, TracerouteConfig, TracerouteDriver,
-    TracerouteError, TracerouteHop, TracerouteParams, TracerouteResults, TracerouteRun,
+    TracerouteError, TracerouteHop, TracerouteResults, TracerouteRun,
 };
 use traceroute_icmp::IcmpDriver;
 use traceroute_packets::new_source_sink;
@@ -58,7 +57,7 @@ pub async fn resolve_hostname(hostname: &str, want_v6: bool) -> Result<IpAddr, T
         return Ok(ip);
     }
 
-    let resolver = TokioResolver::from_system_conf().map_err(|e| {
+    let resolver = TokioAsyncResolver::tokio_from_system_conf().map_err(|e| {
         TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e))
     })?;
 
@@ -182,7 +181,7 @@ fn responses_to_hops(
 
 /// Performs reverse DNS lookups for all hops.
 async fn enrich_with_reverse_dns(hops: &mut [TracerouteHop]) {
-    let resolver = match TokioResolver::from_system_conf() {
+    let resolver = match TokioAsyncResolver::tokio_from_system_conf() {
         Ok(r) => r,
         Err(e) => {
             warn!("Failed to create DNS resolver for reverse lookup: {}", e);

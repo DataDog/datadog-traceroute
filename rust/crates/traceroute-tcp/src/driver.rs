@@ -66,7 +66,7 @@ impl TcpDriver {
         paris_mode: bool,
         max_ttl: u8,
     ) -> Self {
-        let mut rng = rand::rng();
+        let mut rng = rand::thread_rng();
 
         // In non-Paris mode: fixed seq number, packet ID varies with TTL
         // In Paris mode: fixed packet ID (41821), random seq per packet
@@ -75,7 +75,7 @@ impl TcpDriver {
         } else {
             // Allocate packet IDs from a base that won't overflow
             let base_id = BASE_PACKET_ID;
-            let seq = rng.random::<u32>();
+            let seq = rng.gen::<u32>();
             (base_id, seq)
         };
 
@@ -126,7 +126,7 @@ impl TcpDriver {
     fn get_next_packet_id_and_seq(&self, ttl: u8) -> (u16, u32) {
         if self.paris_mode {
             // Paris mode: fixed packet ID, random seq per packet
-            let seq = rand::rng().random::<u32>();
+            let seq = rand::thread_rng().gen::<u32>();
             (PARIS_PACKET_ID, seq)
         } else {
             // Regular mode: packet ID varies with TTL, fixed seq
@@ -402,7 +402,7 @@ mod tests {
         // Simulate multiple calls
         for _ in 0..10 {
             let (packet_id, _seq) = if paris_mode {
-                let seq = rand::rng().random::<u32>();
+                let seq = rand::thread_rng().gen::<u32>();
                 (PARIS_PACKET_ID, seq)
             } else {
                 unreachable!()
