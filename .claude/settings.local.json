@@ -20,7 +20,17 @@
       "Bash(export PATH=\"$HOME/.cargo/bin:/usr/bin:/bin:$PATH\")",
       "Bash(cargo test:*)",
       "Bash(cargo doc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(~/.cargo/bin/cargo fmt)",
+      "Bash(~/.cargo/bin/cargo clippy --all-features -- -D warnings)",
+      "Bash(cargo clippy:*)",
+      "Bash(find:*)",
+      "Bash(gh run list:*)",
+      "Bash(cargo build:*)",
+      "Bash(~/.cargo/bin/cargo build:*)",
+      "Bash(~/.cargo/bin/cargo test)",
+      "Bash(~/.cargo/bin/cargo fmt:*)"
     ]
   }
 }
