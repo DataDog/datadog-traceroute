@@ -5,4 +5,9 @@ edition = "2024"
 
 [dependencies]
 datadog-traceroute-common = { path = "../common" }
+datadog-traceroute-icmp = { path = "../icmp" }
+datadog-traceroute-packets = { path = "../packets" }
 datadog-traceroute-result = { path = "../result" }
+datadog-traceroute-sack = { path = "../sack" }
+datadog-traceroute-tcp = { path = "../tcp" }
+datadog-traceroute-udp = { path = "../udp" }

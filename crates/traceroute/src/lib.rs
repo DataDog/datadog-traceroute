@@ -1,8 +1,22 @@
-use datadog_traceroute_common::DEFAULT_PORT;
-use datadog_traceroute_result::{Destination, Results, TracerouteRun};
+use datadog_traceroute_common::{
+    DEFAULT_PORT, TracerouteParallelParams, TracerouteParams as CommonParams,
+    TracerouteSerialParams, to_hops, traceroute_parallel, traceroute_serial,
+};
+use datadog_traceroute_icmp::{IcmpDriver, IcmpParams};
+use datadog_traceroute_packets::{
+    FilterConfig, PacketFilterSpec, PacketFilterType, new_source_sink,
+};
+use datadog_traceroute_result::{
+    Destination, Results, SerdeIpAddr, TracerouteDestination, TracerouteRun, TracerouteSource,
+};
+use datadog_traceroute_sack::{NotSupportedError, SackDriver, SackParams};
+use datadog_traceroute_tcp::{TcpDriver, TcpParams};
+use datadog_traceroute_udp::{UdpDriver, UdpParams};
 use std::error::Error;
 use std::fmt;
-use std::net::IpAddr;
+use std::net::{
+    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket,
+};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -224,11 +238,356 @@ impl fmt::Display for TracerouteError {
 
 impl Error for TracerouteError {}
 
-fn run_traceroute_once(
-    _params: TracerouteParams,
-    _destination_port: u16,
+fn has_port(host: &str) -> bool {
+    if host.starts_with('[') {
+        host.contains("]:")
+    } else {
+        host.matches(':').count() == 1
+    }
+}
+
+fn parse_target(
+    raw: &str,
+    default_port: u16,
+    want_v6: bool,
+) -> Result<SocketAddr, TracerouteError> {
+    let mut raw = raw.to_string();
+    if !has_port(&raw) {
+        let host = raw.trim_matches(['[', ']'].as_ref());
+        if host.contains(':') {
+            raw = format!("[{}]:{}", host, default_port);
+        } else {
+            raw = format!("{}:{}", host, default_port);
+        }
+    }
+
+    let addrs: Vec<SocketAddr> = raw
+        .to_socket_addrs()
+        .map_err(|err| TracerouteError::new(format!("failed to resolve host {}: {}", raw, err)))?
+        .collect();
+    if addrs.is_empty() {
+        return Err(TracerouteError::new(format!(
+            "failed to resolve host {}: no addresses",
+            raw
+        )));
+    }
+
+    if want_v6 {
+        if let Some(addr) = addrs.iter().copied().find(SocketAddr::is_ipv6) {
+            return Ok(addr);
+        }
+    } else if let Some(addr) = addrs.iter().copied().find(SocketAddr::is_ipv4) {
+        return Ok(addr);
+    }
+
+    Ok(addrs[0])
+}
+
+fn local_addr_for_target(target: SocketAddr) -> std::io::Result<(SocketAddr, UdpSocket)> {
+    let bind_addr = match target {
+        SocketAddr::V4(_) => SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),
+        SocketAddr::V6(_) => SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0),
+    };
+    let socket = UdpSocket::bind(bind_addr)?;
+    socket.connect(target)?;
+    let local = socket.local_addr()?;
+    Ok((local, socket))
+}
+
+fn reserve_local_port(local_ip: IpAddr) -> std::io::Result<(u16, TcpListener)> {
+    let listener = TcpListener::bind(SocketAddr::new(local_ip, 0))?;
+    let port = listener.local_addr()?.port();
+    Ok((port, listener))
+}
+
+fn common_params(params: &TracerouteParams, delay: Duration) -> CommonParams {
+    CommonParams {
+        min_ttl: params.min_ttl,
+        max_ttl: params.max_ttl,
+        traceroute_timeout: params.timeout,
+        poll_frequency: Duration::from_millis(100),
+        send_delay: delay,
+    }
+}
+
+fn build_run(
+    hops: Vec<datadog_traceroute_result::TracerouteHop>,
+    source: SocketAddr,
+    destination: SocketAddr,
+) -> TracerouteRun {
+    TracerouteRun {
+        source: TracerouteSource {
+            ip_address: SerdeIpAddr(Some(source.ip())),
+            port: source.port(),
+        },
+        destination: TracerouteDestination {
+            ip_address: SerdeIpAddr(Some(destination.ip())),
+            port: destination.port(),
+            reverse_dns: Vec::new(),
+        },
+        hops,
+        ..TracerouteRun::default()
+    }
+}
+
+fn run_udp_traceroute(
+    params: &TracerouteParams,
+    destination_port: u16,
+) -> Result<TracerouteRun, Box<dyn Error + Send + Sync>> {
+    let target = parse_target(&params.hostname, destination_port, params.want_v6)?;
+    let (local_addr, udp_socket) = local_addr_for_target(target)?;
+
+    let mut handle = new_source_sink(target.ip(), params.use_windows_driver)?;
+    if handle.must_close_port {
+        drop(udp_socket);
+    }
+
+    let filter = PacketFilterSpec {
+        filter_type: PacketFilterType::Icmp,
+        filter_config: FilterConfig {
+            src: local_addr,
+            dst: target,
+        },
+    };
+    handle.source.set_packet_filter(filter)?;
+
+    let driver = UdpDriver::new(
+        UdpParams {
+            target: target.ip(),
+            target_port: target.port(),
+            local_ip: local_addr.ip(),
+            local_port: local_addr.port(),
+            min_ttl: params.min_ttl,
+            max_ttl: params.max_ttl,
+            loosen_icmp_src: false,
+        },
+        handle.sink,
+        handle.source,
+    );
+
+    let params_common = common_params(params, Duration::from_millis(params.delay_ms));
+    let parallel = TracerouteParallelParams {
+        params: params_common,
+    };
+    let responses = traceroute_parallel(Box::new(driver), parallel, None)?;
+    let hops = to_hops(parallel.params, &responses)?;
+    Ok(build_run(hops, local_addr, target))
+}
+
+fn run_icmp_traceroute(
+    params: &TracerouteParams,
+) -> Result<TracerouteRun, Box<dyn Error + Send + Sync>> {
+    let target = parse_target(&params.hostname, 80, params.want_v6)?;
+    let (local_addr, _udp_socket) = local_addr_for_target(target)?;
+
+    let mut handle = new_source_sink(target.ip(), params.use_windows_driver)?;
+    let filter = PacketFilterSpec {
+        filter_type: PacketFilterType::Icmp,
+        filter_config: FilterConfig {
+            src: local_addr,
+            dst: SocketAddr::new(target.ip(), 0),
+        },
+    };
+    handle.source.set_packet_filter(filter)?;
+
+    let driver = IcmpDriver::new(
+        IcmpParams {
+            target: target.ip(),
+            min_ttl: params.min_ttl,
+            max_ttl: params.max_ttl,
+        },
+        local_addr.ip(),
+        handle.sink,
+        handle.source,
+    );
+
+    let params_common = common_params(params, Duration::from_millis(params.delay_ms));
+    let parallel = TracerouteParallelParams {
+        params: params_common,
+    };
+    let responses = traceroute_parallel(Box::new(driver), parallel, None)?;
+    let hops = to_hops(parallel.params, &responses)?;
+    Ok(build_run(hops, local_addr, SocketAddr::new(target.ip(), 0)))
+}
+
+fn run_tcp_syn_traceroute(
+    params: &TracerouteParams,
+    target: SocketAddr,
+) -> Result<TracerouteRun, Box<dyn Error + Send + Sync>> {
+    let (local_addr, _udp_socket) = local_addr_for_target(target)?;
+    let (local_port, tcp_listener) = reserve_local_port(local_addr.ip())?;
+
+    let mut handle = new_source_sink(target.ip(), params.use_windows_driver)?;
+    if handle.must_close_port {
+        drop(tcp_listener);
+    }
+
+    let filter = PacketFilterSpec {
+        filter_type: PacketFilterType::Tcp,
+        filter_config: FilterConfig {
+            src: target,
+            dst: SocketAddr::new(local_addr.ip(), local_port),
+        },
+    };
+    handle.source.set_packet_filter(filter)?;
+
+    let driver = TcpDriver::new(
+        TcpParams {
+            target: target.ip(),
+            dest_port: target.port(),
+            local_ip: local_addr.ip(),
+            local_port,
+            min_ttl: params.min_ttl,
+            max_ttl: params.max_ttl,
+            paris_traceroute_mode: params.tcp_syn_paris_traceroute_mode,
+            loosen_icmp_src: false,
+        },
+        handle.sink,
+        handle.source,
+    );
+
+    let params_common = common_params(params, Duration::from_millis(params.delay_ms));
+    let serial = TracerouteSerialParams {
+        params: params_common,
+    };
+    let mut driver = driver;
+    let responses = traceroute_serial(&mut driver, serial, None)?;
+    let hops = to_hops(serial.params, &responses)?;
+    Ok(build_run(
+        hops,
+        SocketAddr::new(local_addr.ip(), local_port),
+        target,
+    ))
+}
+
+fn run_tcp_sack_traceroute(
+    params: &TracerouteParams,
+    target: SocketAddr,
+) -> Result<TracerouteRun, Box<dyn Error + Send + Sync>> {
+    let (local_addr, _udp_socket) = local_addr_for_target(target)?;
+    let mut handle = new_source_sink(target.ip(), params.use_windows_driver)?;
+
+    if handle.must_close_port {
+        return Err(Box::new(NotSupportedError::new(
+            "SACK traceroute is not supported on this platform",
+        )));
+    }
+
+    let synack_filter = PacketFilterSpec {
+        filter_type: PacketFilterType::SynAck,
+        filter_config: FilterConfig {
+            src: target,
+            dst: SocketAddr::new(local_addr.ip(), 0),
+        },
+    };
+    handle.source.set_packet_filter(synack_filter)?;
+
+    let mut driver = SackDriver::new(
+        SackParams {
+            target,
+            min_ttl: params.min_ttl,
+            max_ttl: params.max_ttl,
+            handshake_timeout: params.timeout,
+            loosen_icmp_src: true,
+        },
+        local_addr.ip(),
+        handle.sink,
+        handle.source,
+    )?;
+
+    let stream = TcpStream::connect_timeout(&target, params.timeout).map_err(|err| {
+        Box::new(NotSupportedError::new(format!(
+            "sack traceroute failed to dial: {}",
+            err
+        ))) as Box<dyn Error + Send + Sync>
+    })?;
+
+    let local_tcp = stream.local_addr()?;
+    if local_tcp.ip() != local_addr.ip() {
+        return Err(format!(
+            "tcp conn negotiated a different local addr than expected: {} != {}",
+            local_tcp.ip(),
+            local_addr.ip()
+        )
+        .into());
+    }
+
+    driver.read_handshake(local_tcp.port())?;
+
+    let tcp_filter = PacketFilterSpec {
+        filter_type: PacketFilterType::Tcp,
+        filter_config: FilterConfig {
+            src: target,
+            dst: local_tcp,
+        },
+    };
+    driver.set_packet_filter(tcp_filter)?;
+
+    let params_common = common_params(params, Duration::from_millis(10));
+    let parallel = TracerouteParallelParams {
+        params: params_common,
+    };
+    let responses = traceroute_parallel(Box::new(driver), parallel, None)?;
+    let hops = to_hops(parallel.params, &responses)?;
+    Ok(build_run(hops, local_tcp, target))
+}
+
+fn run_tcp_traceroute(
+    params: &TracerouteParams,
+    destination_port: u16,
 ) -> Result<TracerouteRun, TracerouteError> {
-    Err(TracerouteError::new("protocol drivers not yet implemented"))
+    let target = parse_target(&params.hostname, destination_port, params.want_v6)?;
+    let method = if params.tcp_method.is_empty() {
+        "syn"
+    } else {
+        params.tcp_method.as_str()
+    };
+
+    match method {
+        "syn" => run_tcp_syn_traceroute(params, target)
+            .map_err(|err| TracerouteError::new(format!("tcp syn traceroute failed: {}", err))),
+        "sack" => run_tcp_sack_traceroute(params, target)
+            .map_err(|err| TracerouteError::new(format!("sack traceroute failed: {}", err))),
+        "prefer_sack" => match run_tcp_sack_traceroute(params, target) {
+            Ok(run) => Ok(run),
+            Err(err) => {
+                if err.is::<NotSupportedError>() {
+                    run_tcp_syn_traceroute(params, target).map_err(|err| {
+                        TracerouteError::new(format!(
+                            "sack not supported, tcp syn traceroute failed: {}",
+                            err
+                        ))
+                    })
+                } else {
+                    Err(TracerouteError::new(format!(
+                        "sack traceroute failed fatally, not falling back: {}",
+                        err
+                    )))
+                }
+            }
+        },
+        _ => Err(TracerouteError::new(format!(
+            "unexpected tcp method: {}",
+            params.tcp_method
+        ))),
+    }
+}
+
+fn run_traceroute_once(
+    params: TracerouteParams,
+    destination_port: u16,
+) -> Result<TracerouteRun, TracerouteError> {
+    match params.protocol.as_str() {
+        "udp" => run_udp_traceroute(&params, destination_port)
+            .map_err(|err| TracerouteError::new(format!("udp traceroute failed: {}", err))),
+        "icmp" => run_icmp_traceroute(&params)
+            .map_err(|err| TracerouteError::new(format!("icmp traceroute failed: {}", err))),
+        "tcp" => run_tcp_traceroute(&params, destination_port),
+        _ => Err(TracerouteError::new(format!(
+            "unknown protocol: {}",
+            params.protocol
+        ))),
+    }
 }
 
 fn run_e2e_probe_once(

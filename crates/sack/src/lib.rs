@@ -4,7 +4,8 @@ use datadog_traceroute_common::{
     BadPacketError, ProbeResponse, ReceiveProbeNoPktError, TracerouteDriver, TracerouteDriverInfo,
 };
 use datadog_traceroute_packets::{
-    FrameParser, IPPair, PacketSink, PacketSource, TcpOption, parse_tcp_first_bytes, read_and_parse,
+    FrameParser, IPPair, PacketFilterSpec, PacketSink, PacketSource, TcpOption,
+    parse_tcp_first_bytes, read_and_parse,
 };
 use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -24,7 +25,7 @@ pub struct NotSupportedError {
 }
 
 impl NotSupportedError {
-    fn new(message: impl Into<String>) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
@@ -99,6 +100,15 @@ impl SackDriver {
     pub fn close(&mut self) {
         let _ = self.source.close();
         let _ = self.sink.close();
+    }
+
+    pub fn set_packet_filter(
+        &mut self,
+        spec: PacketFilterSpec,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.source
+            .set_packet_filter(spec)
+            .map_err(|err| err.into())
     }
 
     pub fn is_handshake_finished(&self) -> bool {
@@ -372,6 +382,12 @@ impl SackDriver {
             rtt,
             is_dest: ip_pair.src_addr == self.params.target.ip(),
         })
+    }
+}
+
+impl Drop for SackDriver {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 

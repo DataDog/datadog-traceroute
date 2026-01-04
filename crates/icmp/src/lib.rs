@@ -235,6 +235,12 @@ impl IcmpDriver {
     }
 }
 
+impl Drop for IcmpDriver {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 impl TracerouteDriver for IcmpDriver {
     fn get_driver_info(&self) -> TracerouteDriverInfo {
         TracerouteDriverInfo {

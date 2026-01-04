@@ -30,7 +30,12 @@ name = "datadog-traceroute-core"
 version = "0.1.0"
 dependencies = [
  "datadog-traceroute-common",
+ "datadog-traceroute-icmp",
+ "datadog-traceroute-packets",
  "datadog-traceroute-result",
+ "datadog-traceroute-sack",
+ "datadog-traceroute-tcp",
+ "datadog-traceroute-udp",
 ]
 
 [[package]]

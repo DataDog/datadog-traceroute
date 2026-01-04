@@ -209,6 +209,12 @@ impl TcpDriver {
     }
 }
 
+impl Drop for TcpDriver {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 impl TracerouteDriver for TcpDriver {
     fn get_driver_info(&self) -> TracerouteDriverInfo {
         TracerouteDriverInfo {

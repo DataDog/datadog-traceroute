@@ -135,6 +135,12 @@ impl UdpDriver {
     }
 }
 
+impl Drop for UdpDriver {
+    fn drop(&mut self) {
+        self.close();
+    }
+}
+
 impl TracerouteDriver for UdpDriver {
     fn get_driver_info(&self) -> TracerouteDriverInfo {
         TracerouteDriverInfo {
