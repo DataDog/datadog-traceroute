@@ -26,6 +26,26 @@ jobs:
       - name: Cargo test
         run: cargo test --workspace --all-targets
 
+  rust_icmp_e2e_tests:
+    name: "Rust ICMP E2E Tests"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      DD_TRACEROUTE_TARGET: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: ICMP integration tests
+        run: sudo -E cargo test -p datadog-traceroute-icmp --test integration -- --ignored
+
   unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
