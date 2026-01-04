@@ -417,6 +417,7 @@ fn run_traceroute_cli(config: &TestConfig) -> Result<Results, String> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    eprintln!("CLI stdout:\n{}", stdout);
     serde_json::from_str(&stdout)
         .map_err(|e| format!("Failed to parse JSON output: {}\nOutput: {}", e, stdout))
 }
