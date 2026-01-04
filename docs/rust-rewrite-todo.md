@@ -51,7 +51,7 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 ## Phase 6: Completion Gate
 
-- [ ] Run `cargo fmt` and unit tests locally.
+- [x] Run `cargo fmt` and unit tests locally.
 - [ ] Run e2e locally on supported targets.
 - [ ] Verify GitHub CI checks via GitHub MCP.
 - [ ] Declare completion only after local + CI pass.
