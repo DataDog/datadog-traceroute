@@ -38,13 +38,10 @@ pub struct AfPacketSource {
 impl AfPacketSource {
     /// Creates a new AF_PACKET source.
     pub fn new() -> Result<Self, TracerouteError> {
-        let fd = unsafe {
-            libc::socket(
-                AF_PACKET,
-                SOCK_RAW | libc::SOCK_NONBLOCK,
-                htons(ETH_P_ALL) as i32,
-            )
-        };
+        // Note: We don't use SOCK_NONBLOCK here because we want SO_RCVTIMEO
+        // to work properly. With non-blocking sockets, read() returns
+        // immediately with EAGAIN/EWOULDBLOCK, ignoring SO_RCVTIMEO.
+        let fd = unsafe { libc::socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL) as i32) };
 
         if fd < 0 {
             return Err(TracerouteError::SocketCreation(
@@ -119,18 +116,16 @@ impl Source for AfPacketSource {
         let mut raw_buf = vec![0u8; buf.len() + ETH_HLEN];
 
         loop {
+            // The socket is blocking and has SO_RCVTIMEO set, so this will
+            // either return data, timeout (EAGAIN), or error.
             let n = match (&self.file).read(&mut raw_buf) {
                 Ok(n) => n,
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // Check deadline
-                    if let Some(deadline) = self.read_deadline {
-                        if Instant::now() >= deadline {
-                            return Err(TracerouteError::ReadTimeout);
-                        }
-                    }
-                    // Yield and retry
-                    tokio::task::yield_now().await;
-                    continue;
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    // Timeout occurred
+                    return Err(TracerouteError::ReadTimeout);
                 }
                 Err(e) => return Err(TracerouteError::from(e)),
             };
@@ -143,7 +138,15 @@ impl Source for AfPacketSource {
                     return Ok(len);
                 }
                 Err(TracerouteError::PacketMismatch) => {
-                    // Not an IP packet, continue reading
+                    // Not an IP packet, update deadline and continue reading
+                    // Re-apply the timeout for remaining time
+                    if let Some(deadline) = self.read_deadline {
+                        if Instant::now() >= deadline {
+                            return Err(TracerouteError::ReadTimeout);
+                        }
+                        // Update socket timeout for remaining time
+                        let _ = self.set_read_deadline(deadline);
+                    }
                     continue;
                 }
                 Err(e) => return Err(e),
@@ -178,7 +181,8 @@ impl RawSink {
             IpAddr::V6(_) => (AF_INET6, libc::IPPROTO_IPV6, IPV6_HDRINCL),
         };
 
-        let fd = unsafe { libc::socket(domain, SOCK_RAW | libc::SOCK_NONBLOCK, IPPROTO_RAW) };
+        // Use blocking socket - sendto() for datagrams typically completes immediately
+        let fd = unsafe { libc::socket(domain, SOCK_RAW, IPPROTO_RAW) };
 
         if fd < 0 {
             return Err(TracerouteError::SocketCreation(
@@ -269,13 +273,7 @@ impl Sink for RawSink {
         };
 
         if result < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.kind() == std::io::ErrorKind::WouldBlock {
-                // Retry with async
-                tokio::task::yield_now().await;
-                return self.write_to(buf, addr).await;
-            }
-            return Err(TracerouteError::WriteFailed(err));
+            return Err(TracerouteError::WriteFailed(std::io::Error::last_os_error()));
         }
 
         Ok(())
