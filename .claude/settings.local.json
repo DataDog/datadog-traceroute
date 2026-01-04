@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run view:*)",
+      "Bash(gofmt:*)",
+      "Bash(go test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix CI failures from test breakages\n\n- Remove division by zero in traceroute_serial.go:58\n- Add missing g.Wait\\(\\) call in traceroute_parallel.go\n- Fix swapped DstIP and DstPort in tcp/parser.go\n\nThese were intentional breakages \\(break 1, 2, 3 commits\\) for testing.\nAll unit tests now passing locally.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(make build:*)",
+      "Bash(make test:*)",
+      "Bash(./datadog-traceroute:*)",
+      "Bash(xargs gofmt:*)",
+      "Bash(git commit:*)",
+      "Bash(go build:*)"
+    ]
+  }
+}
