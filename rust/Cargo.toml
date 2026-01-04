@@ -69,6 +69,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 # Testing
 mockall = "0.13"
 proptest = "1.5"
+regex = "1.10"
 
 # Internal crates
 traceroute-core = { path = "crates/traceroute-core" }
