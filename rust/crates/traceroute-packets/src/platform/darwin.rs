@@ -234,7 +234,7 @@ impl BpfDevice {
             if err.raw_os_error() == Some(libc::EINTR) {
                 return Err(TracerouteError::ReadTimeout);
             }
-            return Err(TracerouteError::Io(err));
+            return Err(TracerouteError::from(err));
         }
 
         if n == 0 {
@@ -505,7 +505,7 @@ impl Sink for RawSink {
         };
 
         if result < 0 {
-            return Err(TracerouteError::Io(std::io::Error::last_os_error()));
+            return Err(TracerouteError::from(std::io::Error::last_os_error()));
         }
 
         Ok(())

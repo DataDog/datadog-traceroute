@@ -233,7 +233,7 @@ impl FrameParser {
         payload: &[u8],
         ip_pair: IpPair,
     ) -> Result<(), TracerouteError> {
-        let (icmp_type, icmp_code) = match icmp.icmp_type {
+        let (icmp_type, icmp_code) = match &icmp.icmp_type {
             Icmpv4Type::TimeExceeded(code) => {
                 self.is_ttl_exceeded = true;
                 (11, code.code_u8())
@@ -247,7 +247,7 @@ impl FrameParser {
                 (0, 0)
             }
             Icmpv4Type::EchoRequest(_) => (8, 0),
-            Icmpv4Type::Unknown { type_u8, code_u8, .. } => (type_u8, code_u8),
+            Icmpv4Type::Unknown { type_u8, code_u8, .. } => (*type_u8, *code_u8),
             _ => (0, 0), // Default for other known types we don't handle
         };
 
@@ -274,7 +274,7 @@ impl FrameParser {
         payload: &[u8],
         ip_pair: IpPair,
     ) -> Result<(), TracerouteError> {
-        let (icmp_type, icmp_code) = match icmp.icmp_type {
+        let (icmp_type, icmp_code) = match &icmp.icmp_type {
             Icmpv6Type::TimeExceeded(code) => {
                 self.is_ttl_exceeded = true;
                 (3, code.code_u8())
@@ -288,7 +288,7 @@ impl FrameParser {
                 (129, 0)
             }
             Icmpv6Type::EchoRequest(_) => (128, 0),
-            Icmpv6Type::Unknown { type_u8, code_u8, .. } => (type_u8, code_u8),
+            Icmpv6Type::Unknown { type_u8, code_u8, .. } => (*type_u8, *code_u8),
             _ => (0, 0), // Default for other known types we don't handle
         };
 
