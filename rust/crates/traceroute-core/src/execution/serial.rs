@@ -80,10 +80,7 @@ pub async fn traceroute_serial<D: TracerouteDriver + ?Sized>(
 
 /// Clips the results vector to remove leading None entries before min_ttl.
 fn clip_results(min_ttl: u8, results: Vec<Option<ProbeResponse>>) -> Vec<Option<ProbeResponse>> {
-    results
-        .into_iter()
-        .skip(min_ttl as usize)
-        .collect()
+    results.into_iter().skip(min_ttl as usize).collect()
 }
 
 #[cfg(test)]
@@ -92,12 +89,17 @@ mod tests {
 
     #[test]
     fn test_clip_results() {
-        let results = vec![None, Some(ProbeResponse {
-            ttl: 1,
-            ip: "10.0.0.1".parse().unwrap(),
-            rtt: std::time::Duration::from_millis(10),
-            is_dest: false,
-        }), None, None];
+        let results = vec![
+            None,
+            Some(ProbeResponse {
+                ttl: 1,
+                ip: "10.0.0.1".parse().unwrap(),
+                rtt: std::time::Duration::from_millis(10),
+                is_dest: false,
+            }),
+            None,
+            None,
+        ];
 
         let clipped = clip_results(1, results);
         assert_eq!(clipped.len(), 3);

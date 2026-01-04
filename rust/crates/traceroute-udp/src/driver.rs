@@ -6,9 +6,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use traceroute_core::{
-    ProbeResponse, TracerouteDriver, TracerouteDriverInfo, TracerouteError,
-};
+use traceroute_core::{ProbeResponse, TracerouteDriver, TracerouteDriverInfo, TracerouteError};
 use traceroute_packets::{parse_udp_first_bytes, FrameParser, Sink, Source};
 use tracing::{debug, trace, warn};
 
@@ -113,9 +111,10 @@ impl UdpDriver {
             return Err(TracerouteError::PacketMismatch);
         }
 
-        let icmp_info = self.parser.get_icmp_info().ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing ICMP info".to_string())
-        })?;
+        let icmp_info = self
+            .parser
+            .get_icmp_info()
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP info".to_string()))?;
 
         // Parse UDP info from ICMP payload
         let udp_info = parse_udp_first_bytes(&icmp_info.payload).map_err(|e| {
@@ -124,11 +123,17 @@ impl UdpDriver {
 
         // Check source/destination match
         let icmp_src = SocketAddr::new(
-            icmp_info.icmp_pair.src_addr.unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)),
+            icmp_info
+                .icmp_pair
+                .src_addr
+                .unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)),
             udp_info.src_port,
         );
         let icmp_dst = SocketAddr::new(
-            icmp_info.icmp_pair.dst_addr.unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)),
+            icmp_info
+                .icmp_pair
+                .dst_addr
+                .unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)),
             udp_info.dst_port,
         );
         let local = self.get_local_addr();
@@ -143,7 +148,8 @@ impl UdpDriver {
             return Err(TracerouteError::PacketMismatch);
         }
 
-        if !self.loosen_icmp_src && (icmp_src.ip() != local.ip() || icmp_src.port() != local.port()) {
+        if !self.loosen_icmp_src && (icmp_src.ip() != local.ip() || icmp_src.port() != local.port())
+        {
             trace!(
                 expected = %local,
                 actual = %icmp_src,
@@ -157,13 +163,18 @@ impl UdpDriver {
         let probe = match self.find_matching_probe(packet_id) {
             Some(p) => p,
             None => {
-                warn!(packet_id = packet_id, "Couldn't find probe matching packet ID");
+                warn!(
+                    packet_id = packet_id,
+                    "Couldn't find probe matching packet ID"
+                );
                 return Err(TracerouteError::PacketMismatch);
             }
         };
 
         let rtt = probe.send_time.elapsed();
-        let src_addr = ip_pair.src_addr.unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED));
+        let src_addr = ip_pair
+            .src_addr
+            .unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED));
         let is_dest = src_addr == self.target_ip;
 
         Ok(Some(ProbeResponse {

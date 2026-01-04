@@ -97,8 +97,7 @@ mod tests {
         let src_ip: Ipv4Addr = "192.168.1.1".parse().unwrap();
         let dst_ip: Ipv4Addr = "8.8.8.8".parse().unwrap();
 
-        let result =
-            create_icmp_echo_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 5, 12345);
+        let result = create_icmp_echo_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 5, 12345);
 
         assert!(result.is_ok());
         let packet = result.unwrap();
@@ -134,13 +133,11 @@ mod tests {
 
         // Echo ID is at ICMP offset + 4 (bytes 24-25)
         let icmp_start = 20;
-        let parsed_id =
-            u16::from_be_bytes([packet[icmp_start + 4], packet[icmp_start + 5]]);
+        let parsed_id = u16::from_be_bytes([packet[icmp_start + 4], packet[icmp_start + 5]]);
         assert_eq!(parsed_id, echo_id);
 
         // Sequence number is at ICMP offset + 6 (bytes 26-27)
-        let parsed_seq =
-            u16::from_be_bytes([packet[icmp_start + 6], packet[icmp_start + 7]]);
+        let parsed_seq = u16::from_be_bytes([packet[icmp_start + 6], packet[icmp_start + 7]]);
         assert_eq!(parsed_seq, ttl as u16);
     }
 }

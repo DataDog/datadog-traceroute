@@ -57,9 +57,8 @@ pub async fn resolve_hostname(hostname: &str, want_v6: bool) -> Result<IpAddr, T
         return Ok(ip);
     }
 
-    let resolver = TokioAsyncResolver::tokio_from_system_conf().map_err(|e| {
-        TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e))
-    })?;
+    let resolver = TokioAsyncResolver::tokio_from_system_conf()
+        .map_err(|e| TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e)))?;
 
     let lookup = resolver.lookup_ip(hostname).await.map_err(|e| {
         TracerouteError::Internal(format!("Failed to resolve hostname '{}': {}", hostname, e))
@@ -117,9 +116,7 @@ async fn run_traceroute_once(
                 TcpMethod::Sack | TcpMethod::PreferSack => {
                     // For SACK mode, we need to first do a TCP handshake
                     // For now, fall back to SYN mode
-                    warn!(
-                        "SACK mode not fully implemented, falling back to SYN mode"
-                    );
+                    warn!("SACK mode not fully implemented, falling back to SYN mode");
                     Box::new(TcpDriver::new(
                         src_ip,
                         src_port,
@@ -150,10 +147,7 @@ async fn run_traceroute_once(
 }
 
 /// Convert probe responses to TracerouteHop.
-fn responses_to_hops(
-    responses: Vec<Option<ProbeResponse>>,
-    min_ttl: u8,
-) -> Vec<TracerouteHop> {
+fn responses_to_hops(responses: Vec<Option<ProbeResponse>>, min_ttl: u8) -> Vec<TracerouteHop> {
     responses
         .into_iter()
         .enumerate()
@@ -271,7 +265,11 @@ pub async fn run_traceroute(config: TracerouteConfig) -> Result<Results, Tracero
     let mut errors = Vec::new();
 
     for i in 0..config.traceroute_queries {
-        debug!("Running traceroute query {}/{}", i + 1, config.traceroute_queries);
+        debug!(
+            "Running traceroute query {}/{}",
+            i + 1,
+            config.traceroute_queries
+        );
 
         // Allocate a new port for each run
         let src_port = allocate_port(target_ip.is_ipv6())?;
@@ -345,10 +343,7 @@ pub async fn run_traceroute(config: TracerouteConfig) -> Result<Results, Tracero
             hostname: config.hostname,
             port: config.port,
         },
-        traceroute: TracerouteResults {
-            runs,
-            hop_count,
-        },
+        traceroute: TracerouteResults { runs, hop_count },
         e2e_probe: None, // TODO: Implement E2E probes
     })
 }

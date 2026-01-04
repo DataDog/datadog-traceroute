@@ -1,12 +1,7 @@
 //! HTTP request handlers.
 
 use crate::runner;
-use axum::{
-    extract::Query,
-    http::StatusCode,
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use traceroute_core::{Protocol, Results, TracerouteConfig, TracerouteParams};

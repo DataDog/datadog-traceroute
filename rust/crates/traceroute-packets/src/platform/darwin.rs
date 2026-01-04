@@ -74,22 +74,21 @@ fn device_for_target(target_ip: IpAddr) -> Result<(String, bool), TracerouteErro
     }
 
     // Use a UDP socket to determine the outgoing interface
-    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| {
-        TracerouteError::Internal(format!("Failed to bind UDP socket: {}", e))
-    })?;
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .map_err(|e| TracerouteError::Internal(format!("Failed to bind UDP socket: {}", e)))?;
 
     let target_addr = match target_ip {
         IpAddr::V4(ip) => SocketAddr::new(IpAddr::V4(ip), 53),
         IpAddr::V6(ip) => SocketAddr::new(IpAddr::V6(ip), 53),
     };
 
-    socket.connect(target_addr).map_err(|e| {
-        TracerouteError::Internal(format!("Failed to connect UDP socket: {}", e))
-    })?;
+    socket
+        .connect(target_addr)
+        .map_err(|e| TracerouteError::Internal(format!("Failed to connect UDP socket: {}", e)))?;
 
-    let local_addr = socket.local_addr().map_err(|e| {
-        TracerouteError::Internal(format!("Failed to get local address: {}", e))
-    })?;
+    let local_addr = socket
+        .local_addr()
+        .map_err(|e| TracerouteError::Internal(format!("Failed to get local address: {}", e)))?;
 
     // Find interface with matching IP
     // For simplicity, we'll use "en0" as the default interface on macOS
@@ -142,13 +141,8 @@ impl BpfDevice {
 
         // Set BIOCIMMEDIATE for immediate delivery
         let immediate: libc::c_int = 1;
-        let result = unsafe {
-            libc::ioctl(
-                fd,
-                libc::BIOCIMMEDIATE,
-                &immediate as *const libc::c_int,
-            )
-        };
+        let result =
+            unsafe { libc::ioctl(fd, libc::BIOCIMMEDIATE, &immediate as *const libc::c_int) };
         if result < 0 {
             unsafe { libc::close(fd) };
             return Err(TracerouteError::Internal(format!(
@@ -165,9 +159,7 @@ impl BpfDevice {
             ifreq.ifr_name[i] = b as i8;
         }
 
-        let result = unsafe {
-            libc::ioctl(fd, libc::BIOCSETIF, &ifreq as *const libc::ifreq)
-        };
+        let result = unsafe { libc::ioctl(fd, libc::BIOCSETIF, &ifreq as *const libc::ifreq) };
         if result < 0 {
             unsafe { libc::close(fd) };
             return Err(TracerouteError::Internal(format!(
@@ -210,9 +202,8 @@ impl BpfDevice {
             tv_sec: timeout.as_secs() as libc::time_t,
             tv_usec: timeout.subsec_micros() as libc::suseconds_t,
         };
-        let result = unsafe {
-            libc::ioctl(self.fd, libc::BIOCSRTIMEOUT, &tv as *const libc::timeval)
-        };
+        let result =
+            unsafe { libc::ioctl(self.fd, libc::BIOCSRTIMEOUT, &tv as *const libc::timeval) };
         if result < 0 {
             return Err(TracerouteError::Internal(format!(
                 "Failed to set BPF timeout: {}",
@@ -266,10 +257,9 @@ impl BpfDevice {
         let hdr_start = self.pkt_offset;
 
         // Read hdrlen (at offset 16, 2 bytes)
-        let hdrlen = u16::from_ne_bytes([
-            self.pkt_buf[hdr_start + 16],
-            self.pkt_buf[hdr_start + 17],
-        ]) as usize;
+        let hdrlen =
+            u16::from_ne_bytes([self.pkt_buf[hdr_start + 16], self.pkt_buf[hdr_start + 17]])
+                as usize;
 
         // Read caplen (at offset 8, 4 bytes)
         let caplen = u32::from_ne_bytes([
@@ -368,7 +358,9 @@ impl RawSink {
 
         let fd = unsafe { libc::socket(domain, libc::SOCK_RAW, protocol) };
         if fd < 0 {
-            return Err(TracerouteError::SocketCreation(std::io::Error::last_os_error()));
+            return Err(TracerouteError::SocketCreation(
+                std::io::Error::last_os_error(),
+            ));
         }
 
         // Set IP_HDRINCL for IPv4 (macOS only supports this for IPv4)

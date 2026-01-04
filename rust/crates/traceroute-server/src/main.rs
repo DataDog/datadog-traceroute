@@ -33,9 +33,7 @@ async fn main() {
         _ => "info",
     };
 
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     let addr: SocketAddr = args.addr.parse().unwrap_or_else(|_| {
         eprintln!("Invalid address: {}", args.addr);
@@ -46,10 +44,12 @@ async fn main() {
 
     let router = create_router();
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
-        eprintln!("Failed to bind to {}: {}", addr, e);
-        std::process::exit(1);
-    });
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to bind to {}: {}", addr, e);
+            std::process::exit(1);
+        });
 
     tracing::info!("HTTP server listening on {}", addr);
 

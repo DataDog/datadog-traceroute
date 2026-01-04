@@ -24,10 +24,14 @@ pub fn create_udp_packet(
     ttl: u8,
 ) -> Result<(u16, Vec<u8>, u16), TracerouteError> {
     match (src_ip, dst_ip) {
-        (IpAddr::V4(src), IpAddr::V4(dst)) => create_udp_packet_v4(src, dst, src_port, dst_port, ttl),
+        (IpAddr::V4(src), IpAddr::V4(dst)) => {
+            create_udp_packet_v4(src, dst, src_port, dst_port, ttl)
+        }
         (IpAddr::V6(_src), IpAddr::V6(_dst)) => {
             // TODO: Implement IPv6
-            Err(TracerouteError::Internal("IPv6 not yet implemented".to_string()))
+            Err(TracerouteError::Internal(
+                "IPv6 not yet implemented".to_string(),
+            ))
         }
         _ => Err(TracerouteError::Internal(
             "IP version mismatch between source and destination".to_string(),
@@ -90,11 +94,8 @@ fn create_udp_packet_v4(
         udp_packet.set_payload(&udp_payload);
 
         // Calculate UDP checksum
-        let udp_checksum = pnet_packet::udp::ipv4_checksum(
-            &udp_packet.to_immutable(),
-            &src_ip,
-            &dst_ip,
-        );
+        let udp_checksum =
+            pnet_packet::udp::ipv4_checksum(&udp_packet.to_immutable(), &src_ip, &dst_ip);
         udp_packet.set_checksum(udp_checksum);
     }
 
@@ -113,13 +114,7 @@ mod tests {
         let src_ip: Ipv4Addr = "192.168.1.1".parse().unwrap();
         let dst_ip: Ipv4Addr = "8.8.8.8".parse().unwrap();
 
-        let result = create_udp_packet(
-            IpAddr::V4(src_ip),
-            IpAddr::V4(dst_ip),
-            12345,
-            33434,
-            5,
-        );
+        let result = create_udp_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 12345, 33434, 5);
 
         assert!(result.is_ok());
         let (packet_id, packet, _checksum) = result.unwrap();
@@ -145,21 +140,11 @@ mod tests {
         let src_ip: Ipv4Addr = "192.168.1.1".parse().unwrap();
         let dst_ip: Ipv4Addr = "8.8.8.8".parse().unwrap();
 
-        let (id1, _, _) = create_udp_packet(
-            IpAddr::V4(src_ip),
-            IpAddr::V4(dst_ip),
-            12345,
-            33434,
-            1,
-        ).unwrap();
+        let (id1, _, _) =
+            create_udp_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 12345, 33434, 1).unwrap();
 
-        let (id2, _, _) = create_udp_packet(
-            IpAddr::V4(src_ip),
-            IpAddr::V4(dst_ip),
-            12345,
-            33434,
-            2,
-        ).unwrap();
+        let (id2, _, _) =
+            create_udp_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 12345, 33434, 2).unwrap();
 
         assert_eq!(id2 - id1, 1);
     }

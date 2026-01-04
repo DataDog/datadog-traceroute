@@ -259,9 +259,10 @@ impl SackDriver {
         }
 
         // Check ports
-        let tcp_info = self.parser.tcp_info.ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing TCP info".to_string())
-        })?;
+        let tcp_info = self
+            .parser
+            .tcp_info
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing TCP info".to_string()))?;
 
         if tcp_info.src_port != self.target_port || tcp_info.dst_port != self.src_port {
             return Err(TracerouteError::PacketMismatch);
@@ -272,9 +273,10 @@ impl SackDriver {
             return Err(TracerouteError::PacketMismatch);
         }
 
-        let state = self.state.as_ref().ok_or_else(|| {
-            TracerouteError::Internal("Handshake not completed".to_string())
-        })?;
+        let state = self
+            .state
+            .as_ref()
+            .ok_or_else(|| TracerouteError::Internal("Handshake not completed".to_string()))?;
 
         // TODO: Parse SACK options from the TCP packet
         // For now, we'd need to extend the parser to provide raw TCP options
@@ -293,9 +295,10 @@ impl SackDriver {
         &self,
         ip_pair: &traceroute_packets::IpPair,
     ) -> Result<Option<ProbeResponse>, TracerouteError> {
-        let icmp_info = self.parser.get_icmp_info().ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing ICMP info".to_string())
-        })?;
+        let icmp_info = self
+            .parser
+            .get_icmp_info()
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP info".to_string()))?;
 
         // Parse TCP info from ICMP payload
         let tcp_info = parse_tcp_first_bytes(&icmp_info.payload).map_err(|e| {
@@ -340,9 +343,10 @@ impl SackDriver {
             }
         }
 
-        let state = self.state.as_ref().ok_or_else(|| {
-            TracerouteError::Internal("Handshake not completed".to_string())
-        })?;
+        let state = self
+            .state
+            .as_ref()
+            .ok_or_else(|| TracerouteError::Internal("Handshake not completed".to_string()))?;
 
         // Calculate relative sequence number
         let rel_seq = tcp_info.seq.wrapping_sub(state.local_init_seq);

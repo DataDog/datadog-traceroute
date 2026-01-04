@@ -129,9 +129,10 @@ impl IcmpDriver {
         &self,
         ip_pair: &traceroute_packets::IpPair,
     ) -> Result<Option<ProbeResponse>, TracerouteError> {
-        let icmp_info = self.parser.get_icmp_info().ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing ICMP info".to_string())
-        })?;
+        let icmp_info = self
+            .parser
+            .get_icmp_info()
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP info".to_string()))?;
 
         // For Echo Reply, we need to extract ID and Seq from the ICMP header
         // The parser stores this in icmp_info for echo replies
@@ -145,9 +146,9 @@ impl IcmpDriver {
         // Let's check the payload which should contain our echo response data
 
         // Simplified: Just check that this reply is from our target
-        let src_addr = ip_pair
-            .src_addr
-            .ok_or_else(|| TracerouteError::MalformedPacket("Missing source address".to_string()))?;
+        let src_addr = ip_pair.src_addr.ok_or_else(|| {
+            TracerouteError::MalformedPacket("Missing source address".to_string())
+        })?;
 
         // The sequence number is the TTL we sent
         // For echo replies, wrapped_packet_id contains the echo identifier
@@ -188,15 +189,15 @@ impl IcmpDriver {
         &self,
         ip_pair: &traceroute_packets::IpPair,
     ) -> Result<Option<ProbeResponse>, TracerouteError> {
-        let icmp_info = self.parser.get_icmp_info().ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing ICMP info".to_string())
-        })?;
+        let icmp_info = self
+            .parser
+            .get_icmp_info()
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP info".to_string()))?;
 
         // Check that the embedded packet was destined for our target
-        let icmp_dst = icmp_info
-            .icmp_pair
-            .dst_addr
-            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP destination".to_string()))?;
+        let icmp_dst = icmp_info.icmp_pair.dst_addr.ok_or_else(|| {
+            TracerouteError::MalformedPacket("Missing ICMP destination".to_string())
+        })?;
 
         if icmp_dst != self.target_ip {
             trace!(

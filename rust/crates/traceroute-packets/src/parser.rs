@@ -1,8 +1,7 @@
 //! Frame parsing using etherparse.
 
 use etherparse::{
-    Icmpv4Header, Icmpv4Type, Icmpv6Header, Icmpv6Type, NetHeaders, PacketHeaders,
-    TransportHeader,
+    Icmpv4Header, Icmpv4Type, Icmpv6Header, Icmpv6Type, NetHeaders, PacketHeaders, TransportHeader,
 };
 use std::net::IpAddr;
 use traceroute_core::TracerouteError;
@@ -159,12 +158,11 @@ impl FrameParser {
     pub fn parse(&mut self, data: &[u8]) -> Result<(), TracerouteError> {
         self.reset();
 
-        let headers = PacketHeaders::from_ip_slice(data).map_err(|e| {
-            TracerouteError::PacketParseFailed {
+        let headers =
+            PacketHeaders::from_ip_slice(data).map_err(|e| TracerouteError::PacketParseFailed {
                 layer: "IP",
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Extract IP addresses
         let ip_pair = match &headers.net {
@@ -247,7 +245,9 @@ impl FrameParser {
                 (0, 0)
             }
             Icmpv4Type::EchoRequest(_) => (8, 0),
-            Icmpv4Type::Unknown { type_u8, code_u8, .. } => (*type_u8, *code_u8),
+            Icmpv4Type::Unknown {
+                type_u8, code_u8, ..
+            } => (*type_u8, *code_u8),
             _ => (0, 0), // Default for other known types we don't handle
         };
 
@@ -288,14 +288,21 @@ impl FrameParser {
                 (129, 0)
             }
             Icmpv6Type::EchoRequest(_) => (128, 0),
-            Icmpv6Type::Unknown { type_u8, code_u8, .. } => (*type_u8, *code_u8),
+            Icmpv6Type::Unknown {
+                type_u8, code_u8, ..
+            } => (*type_u8, *code_u8),
             _ => (0, 0), // Default for other known types we don't handle
         };
 
         if self.is_ttl_exceeded || self.is_dest_unreachable {
             // ICMPv6 has a 4-byte unused field before the embedded packet
-            let inner_payload = if payload.len() > 4 { &payload[4..] } else { payload };
-            self.icmp_info = Some(self.parse_icmp_payload(inner_payload, ip_pair, icmp_type, icmp_code)?);
+            let inner_payload = if payload.len() > 4 {
+                &payload[4..]
+            } else {
+                payload
+            };
+            self.icmp_info =
+                Some(self.parse_icmp_payload(inner_payload, ip_pair, icmp_type, icmp_code)?);
         } else {
             self.icmp_info = Some(IcmpInfo {
                 icmp_type,
@@ -379,7 +386,10 @@ impl FrameParser {
 
     /// Returns true if the transport layer is ICMP.
     pub fn is_icmp(&self) -> bool {
-        matches!(self.transport_type, TransportType::Icmpv4 | TransportType::Icmpv6)
+        matches!(
+            self.transport_type,
+            TransportType::Icmpv4 | TransportType::Icmpv6
+        )
     }
 
     /// Returns true if the transport layer is TCP.

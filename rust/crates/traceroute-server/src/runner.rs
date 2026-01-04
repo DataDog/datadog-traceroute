@@ -4,8 +4,8 @@ use hickory_resolver::TokioAsyncResolver;
 use std::net::{IpAddr, SocketAddr};
 use traceroute_core::{
     execution::traceroute_serial, DestinationInfo, ProbeResponse, Protocol, ResultDestination,
-    Results, SourceInfo, Stats, TracerouteConfig, TracerouteDriver, TracerouteError,
-    TracerouteHop, TracerouteResults, TracerouteRun,
+    Results, SourceInfo, Stats, TracerouteConfig, TracerouteDriver, TracerouteError, TracerouteHop,
+    TracerouteResults, TracerouteRun,
 };
 use traceroute_icmp::IcmpDriver;
 use traceroute_packets::new_source_sink;
@@ -54,9 +54,8 @@ pub async fn resolve_hostname(hostname: &str, want_v6: bool) -> Result<IpAddr, T
         return Ok(ip);
     }
 
-    let resolver = TokioAsyncResolver::tokio_from_system_conf().map_err(|e| {
-        TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e))
-    })?;
+    let resolver = TokioAsyncResolver::tokio_from_system_conf()
+        .map_err(|e| TracerouteError::Internal(format!("Failed to create DNS resolver: {}", e)))?;
 
     let lookup = resolver.lookup_ip(hostname).await.map_err(|e| {
         TracerouteError::Internal(format!("Failed to resolve hostname '{}': {}", hostname, e))
@@ -94,18 +93,16 @@ async fn run_traceroute_once(
             handle.source,
             handle.sink,
         )),
-        Protocol::Tcp => {
-            Box::new(TcpDriver::new(
-                src_ip,
-                src_port,
-                target_ip,
-                config.port,
-                handle.source,
-                handle.sink,
-                true,
-                config.params.max_ttl,
-            ))
-        }
+        Protocol::Tcp => Box::new(TcpDriver::new(
+            src_ip,
+            src_port,
+            target_ip,
+            config.port,
+            handle.source,
+            handle.sink,
+            true,
+            config.params.max_ttl,
+        )),
         Protocol::Icmp => Box::new(IcmpDriver::new(
             src_ip,
             target_ip,

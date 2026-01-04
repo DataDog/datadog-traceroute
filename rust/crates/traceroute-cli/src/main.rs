@@ -112,13 +112,9 @@ async fn main() -> ExitCode {
 
     // Initialize logging
     if args.verbose {
-        tracing_subscriber::fmt()
-            .with_env_filter("debug")
-            .init();
+        tracing_subscriber::fmt().with_env_filter("debug").init();
     } else {
-        tracing_subscriber::fmt()
-            .with_env_filter("info")
-            .init();
+        tracing_subscriber::fmt().with_env_filter("info").init();
     }
 
     let config = match args.to_config() {
@@ -137,18 +133,16 @@ async fn main() -> ExitCode {
     );
 
     match runner::run_traceroute(config).await {
-        Ok(results) => {
-            match results.to_json() {
-                Ok(json) => {
-                    println!("{}", json);
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    eprintln!("Failed to serialize results: {}", e);
-                    ExitCode::FAILURE
-                }
+        Ok(results) => match results.to_json() {
+            Ok(json) => {
+                println!("{}", json);
+                ExitCode::SUCCESS
             }
-        }
+            Err(e) => {
+                eprintln!("Failed to serialize results: {}", e);
+                ExitCode::FAILURE
+            }
+        },
         Err(e) => {
             eprintln!("Traceroute failed: {}", e);
             ExitCode::FAILURE

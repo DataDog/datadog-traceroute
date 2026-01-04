@@ -124,7 +124,7 @@ fn create_sack_packet_v4(
             // Timestamp option
             options_data[2] = 8; // kind
             options_data[3] = 10; // length
-            // TS Value (4 bytes)
+                                  // TS Value (4 bytes)
             let ts_val = state.ts_value + ttl as u32;
             options_data[4..8].copy_from_slice(&ts_val.to_be_bytes());
             // TS Echo Reply (4 bytes)
@@ -231,14 +231,8 @@ mod tests {
             ts_ecr: 0,
         };
 
-        let result = create_sack_packet(
-            IpAddr::V4(src_ip),
-            IpAddr::V4(dst_ip),
-            12345,
-            80,
-            5,
-            &state,
-        );
+        let result =
+            create_sack_packet(IpAddr::V4(src_ip), IpAddr::V4(dst_ip), 12345, 80, 5, &state);
 
         assert!(result.is_ok());
         let packet = result.unwrap();
@@ -300,8 +294,8 @@ mod tests {
 
         // Construct SACK option: kind=5, len=10, one block (left=1005, right=1006)
         let options = vec![
-            5,    // kind
-            10,   // length
+            5,  // kind
+            10, // length
             0, 0, 0x03, 0xED, // left edge = 1005
             0, 0, 0x03, 0xEE, // right edge = 1006
         ];
@@ -316,8 +310,8 @@ mod tests {
 
         // Two SACK blocks: (1010, 1011) and (1005, 1006)
         let options = vec![
-            5,    // kind
-            18,   // length (2 + 8 + 8)
+            5,  // kind
+            18, // length (2 + 8 + 8)
             0, 0, 0x03, 0xF2, // left edge = 1010
             0, 0, 0x03, 0xF3, // right edge = 1011
             0, 0, 0x03, 0xED, // left edge = 1005

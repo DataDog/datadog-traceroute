@@ -55,13 +55,15 @@ impl RawConn {
         #[cfg(target_os = "windows")]
         {
             use windows_sys::Win32::Networking::WinSock::{
-                socket, setsockopt, AF_INET, IPPROTO_IP as WS_IPPROTO_IP, IP_HDRINCL as WS_IP_HDRINCL,
-                SOCK_RAW, INVALID_SOCKET, SOCKET_ERROR,
+                setsockopt, socket, AF_INET, INVALID_SOCKET, IPPROTO_IP as WS_IPPROTO_IP,
+                IP_HDRINCL as WS_IP_HDRINCL, SOCKET_ERROR, SOCK_RAW,
             };
 
             let s = unsafe { socket(AF_INET as i32, SOCK_RAW as i32, WS_IPPROTO_IP as i32) };
             if s == INVALID_SOCKET {
-                return Err(TracerouteError::SocketCreation(std::io::Error::last_os_error()));
+                return Err(TracerouteError::SocketCreation(
+                    std::io::Error::last_os_error(),
+                ));
             }
 
             // Set IP_HDRINCL to include IP header in packets
@@ -130,9 +132,9 @@ impl Source for RawConn {
         #[cfg(target_os = "windows")]
         {
             use windows_sys::Win32::Networking::WinSock::{
-                recvfrom, setsockopt, SOL_SOCKET, SO_RCVTIMEO as WS_SO_RCVTIMEO,
-                SOCKET_ERROR, WSAETIMEDOUT as WS_WSAETIMEDOUT, WSAEMSGSIZE as WS_WSAEMSGSIZE,
-                WSAGetLastError,
+                recvfrom, setsockopt, WSAGetLastError, SOCKET_ERROR, SOL_SOCKET,
+                SO_RCVTIMEO as WS_SO_RCVTIMEO, WSAEMSGSIZE as WS_WSAEMSGSIZE,
+                WSAETIMEDOUT as WS_WSAETIMEDOUT,
             };
 
             let timeout = self.get_timeout();
@@ -176,7 +178,9 @@ impl Source for RawConn {
                 if err == WS_WSAETIMEDOUT || err == WS_WSAEMSGSIZE {
                     return Err(TracerouteError::ReadTimeout);
                 }
-                return Err(TracerouteError::from(std::io::Error::from_raw_os_error(err)));
+                return Err(TracerouteError::from(std::io::Error::from_raw_os_error(
+                    err,
+                )));
             }
 
             // Windows returns -1 on errors, unlike Unix

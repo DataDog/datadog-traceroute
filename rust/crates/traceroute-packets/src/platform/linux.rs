@@ -49,7 +49,9 @@ impl AfPacketSource {
         };
 
         if fd < 0 {
-            return Err(TracerouteError::SocketCreation(std::io::Error::last_os_error()));
+            return Err(TracerouteError::SocketCreation(
+                std::io::Error::last_os_error(),
+            ));
         }
 
         let file = unsafe { std::fs::File::from_raw_fd(fd) };
@@ -180,7 +182,9 @@ impl RawSink {
         let fd = unsafe { libc::socket(domain, SOCK_RAW | libc::SOCK_NONBLOCK, IPPROTO_RAW) };
 
         if fd < 0 {
-            return Err(TracerouteError::SocketCreation(std::io::Error::last_os_error()));
+            return Err(TracerouteError::SocketCreation(
+                std::io::Error::last_os_error(),
+            ));
         }
 
         // Set IP_HDRINCL to include IP header in packets
@@ -228,7 +232,10 @@ impl Sink for RawSink {
                         std::mem::size_of::<libc::sockaddr_in>(),
                     );
                 }
-                (storage, std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t)
+                (
+                    storage,
+                    std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
+                )
             }
             SocketAddr::V6(v6) => {
                 let mut sa: libc::sockaddr_in6 = unsafe { std::mem::zeroed() };
@@ -244,7 +251,10 @@ impl Sink for RawSink {
                         std::mem::size_of::<libc::sockaddr_in6>(),
                     );
                 }
-                (storage, std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t)
+                (
+                    storage,
+                    std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t,
+                )
             }
         };
 

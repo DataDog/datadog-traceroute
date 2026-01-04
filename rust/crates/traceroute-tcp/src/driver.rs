@@ -186,9 +186,10 @@ impl TcpDriver {
         }
 
         // Check ports
-        let tcp_info = self.parser.tcp_info.ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing TCP info".to_string())
-        })?;
+        let tcp_info = self
+            .parser
+            .tcp_info
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing TCP info".to_string()))?;
 
         if tcp_info.src_port != self.target_port {
             trace!(
@@ -209,9 +210,9 @@ impl TcpDriver {
         }
 
         // Get last sent probe to match sequence number
-        let last_probe = self.get_last_sent_probe().ok_or_else(|| {
-            TracerouteError::Internal("No probes sent yet".to_string())
-        })?;
+        let last_probe = self
+            .get_last_sent_probe()
+            .ok_or_else(|| TracerouteError::Internal("No probes sent yet".to_string()))?;
 
         // For SYN/ACK, the ACK number should be our SEQ + 1
         // So our sent SEQ should be ACK - 1
@@ -219,7 +220,9 @@ impl TcpDriver {
         // For now, we'll match based on timing (last probe sent)
 
         let rtt = last_probe.send_time.elapsed();
-        let src_addr = ip_pair.src_addr.unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED));
+        let src_addr = ip_pair
+            .src_addr
+            .unwrap_or(IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED));
 
         Ok(Some(ProbeResponse {
             ttl: last_probe.ttl,
@@ -233,9 +236,10 @@ impl TcpDriver {
         &mut self,
         ip_pair: &traceroute_packets::IpPair,
     ) -> Result<Option<ProbeResponse>, TracerouteError> {
-        let icmp_info = self.parser.get_icmp_info().ok_or_else(|| {
-            TracerouteError::MalformedPacket("Missing ICMP info".to_string())
-        })?;
+        let icmp_info = self
+            .parser
+            .get_icmp_info()
+            .ok_or_else(|| TracerouteError::MalformedPacket("Missing ICMP info".to_string()))?;
 
         // Parse TCP info from ICMP payload
         let tcp_info = parse_tcp_first_bytes(&icmp_info.payload).map_err(|e| {

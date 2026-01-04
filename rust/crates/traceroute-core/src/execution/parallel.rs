@@ -22,10 +22,7 @@ pub async fn traceroute_parallel<D: TracerouteDriver>(
         return Err(TracerouteError::ParallelNotSupported);
     }
 
-    let results = Arc::new(Mutex::new(vec![
-        None;
-        params.max_ttl as usize + 1
-    ]));
+    let results = Arc::new(Mutex::new(vec![None; params.max_ttl as usize + 1]));
     let found_dest = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     let max_timeout = params.max_timeout();
@@ -68,7 +65,13 @@ pub async fn traceroute_parallel<D: TracerouteDriver>(
 
                 // Only update if we don't have a response yet, or if we're upgrading
                 // from an ICMP response to a destination response
-                if existing.is_none() || (is_dest && !existing.as_ref().map(|p: &ProbeResponse| p.is_dest).unwrap_or(false)) {
+                if existing.is_none()
+                    || (is_dest
+                        && !existing
+                            .as_ref()
+                            .map(|p: &ProbeResponse| p.is_dest)
+                            .unwrap_or(false))
+                {
                     if is_dest {
                         found_dest.store(true, std::sync::atomic::Ordering::Relaxed);
                     }
