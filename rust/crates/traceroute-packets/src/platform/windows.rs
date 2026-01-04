@@ -71,7 +71,7 @@ impl RawConn {
                     s,
                     WS_IPPROTO_IP as i32,
                     WS_IP_HDRINCL as i32,
-                    &hdrincl as *const i32 as *const i8,
+                    &hdrincl as *const i32 as *const u8,
                     std::mem::size_of::<i32>() as i32,
                 )
             };
@@ -144,7 +144,7 @@ impl Source for RawConn {
                     self.socket as usize,
                     SOL_SOCKET as i32,
                     WS_SO_RCVTIMEO as i32,
-                    &timeout_ms as *const i32 as *const i8,
+                    &timeout_ms as *const i32 as *const u8,
                     std::mem::size_of::<i32>() as i32,
                 )
             };
@@ -176,7 +176,7 @@ impl Source for RawConn {
                 if err == WS_WSAETIMEDOUT || err == WS_WSAEMSGSIZE {
                     return Err(TracerouteError::ReadTimeout);
                 }
-                return Err(TracerouteError::Io(std::io::Error::from_raw_os_error(err)));
+                return Err(TracerouteError::from(std::io::Error::from_raw_os_error(err)));
             }
 
             // Windows returns -1 on errors, unlike Unix
@@ -256,7 +256,7 @@ impl Sink for RawConn {
             };
 
             if result == SOCKET_ERROR {
-                return Err(TracerouteError::Io(std::io::Error::last_os_error()));
+                return Err(TracerouteError::from(std::io::Error::last_os_error()));
             }
 
             Ok(())

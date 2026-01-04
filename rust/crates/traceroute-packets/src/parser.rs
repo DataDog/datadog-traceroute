@@ -246,10 +246,9 @@ impl FrameParser {
                 self.is_echo_reply = true;
                 (0, 0)
             }
-            other => {
-                // Get type_u8 and code_u8 for unknown ICMP types
-                (other.type_u8(), other.code_u8())
-            }
+            Icmpv4Type::EchoRequest(_) => (8, 0),
+            Icmpv4Type::Unknown { type_u8, code_u8, .. } => (type_u8, code_u8),
+            _ => (0, 0), // Default for other known types we don't handle
         };
 
         // For TTL exceeded and dest unreachable, parse the inner IP packet
@@ -288,10 +287,9 @@ impl FrameParser {
                 self.is_echo_reply = true;
                 (129, 0)
             }
-            other => {
-                // Get type_u8 and code_u8 for unknown ICMP types
-                (other.type_u8(), other.code_u8())
-            }
+            Icmpv6Type::EchoRequest(_) => (128, 0),
+            Icmpv6Type::Unknown { type_u8, code_u8, .. } => (type_u8, code_u8),
+            _ => (0, 0), // Default for other known types we don't handle
         };
 
         if self.is_ttl_exceeded || self.is_dest_unreachable {
