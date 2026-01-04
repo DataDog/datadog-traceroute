@@ -28,14 +28,14 @@ impl RawConn {
     /// Creates a new raw connection.
     pub fn new(addr: IpAddr) -> Result<Self, TracerouteError> {
         // Windows only supports IPv4 raw sockets with IP_HDRINCL
-        let local_addr = match addr {
-            IpAddr::V4(_) => addr,
+        match addr {
+            IpAddr::V4(_) => {}
             IpAddr::V6(_) => {
                 return Err(TracerouteError::Internal(
                     "IPv6 raw sockets not supported on Windows".to_string(),
                 ));
             }
-        };
+        }
 
         #[cfg(target_os = "windows")]
         {
@@ -70,17 +70,14 @@ impl RawConn {
                 )));
             }
 
-            // Bind to the local address - required for recvfrom to work on Windows
-            let local_ip = match local_addr {
-                IpAddr::V4(ip) => ip,
-                _ => unreachable!(),
-            };
+            // Bind to INADDR_ANY (0.0.0.0) - required for recvfrom to work on Windows
+            // We bind to 0.0.0.0 to receive packets from any local interface
             let sa = SOCKADDR_IN {
                 sin_family: AF_INET,
                 sin_port: 0,
                 sin_addr: windows_sys::Win32::Networking::WinSock::IN_ADDR {
                     S_un: windows_sys::Win32::Networking::WinSock::IN_ADDR_0 {
-                        S_addr: u32::from_ne_bytes(local_ip.octets()),
+                        S_addr: 0, // INADDR_ANY
                     },
                 },
                 sin_zero: [0; 8],
@@ -113,7 +110,6 @@ impl RawConn {
 
         #[cfg(not(target_os = "windows"))]
         {
-            let _ = local_addr;
             // Stub for non-Windows platforms (won't be used)
             Err(TracerouteError::Internal(
                 "Windows raw sockets only available on Windows".to_string(),
