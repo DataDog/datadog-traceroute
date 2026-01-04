@@ -338,10 +338,57 @@ fn run_traceroute_cli(config: &TestConfig) -> Result<Results, String> {
 
     eprintln!("Running: {} {:?}", cmd, final_args);
 
-    let output = Command::new(&cmd)
+    // Use spawn + wait_with_output to avoid blocking forever
+    // Add a timeout to prevent hanging indefinitely
+    let mut child = Command::new(&cmd)
         .args(&final_args)
-        .output()
-        .map_err(|e| format!("Failed to run command: {}", e))?;
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+    eprintln!("Process spawned with PID: {:?}", child.id());
+
+    // Wait for the process with a timeout
+    use std::time::Duration;
+    let timeout = Duration::from_secs(120); // 2 minute timeout per CLI invocation
+    let start = std::time::Instant::now();
+
+    let output = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                // Process has exited
+                let mut stdout = Vec::new();
+                let mut stderr = Vec::new();
+                if let Some(mut out) = child.stdout.take() {
+                    use std::io::Read;
+                    let _ = out.read_to_end(&mut stdout);
+                }
+                if let Some(mut err) = child.stderr.take() {
+                    use std::io::Read;
+                    let _ = err.read_to_end(&mut stderr);
+                }
+                break std::process::Output {
+                    status,
+                    stdout,
+                    stderr,
+                };
+            }
+            Ok(None) => {
+                // Process still running
+                if start.elapsed() > timeout {
+                    eprintln!("Process timed out after {:?}, killing...", timeout);
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(format!("Process timed out after {:?}", timeout));
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => {
+                return Err(format!("Error waiting for process: {}", e));
+            }
+        }
+    };
 
     // Always print stderr for debugging
     let stderr = String::from_utf8_lossy(&output.stderr);
