@@ -6,25 +6,10 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Once;
 use std::time::{Duration, Instant};
 use traceroute_core::TracerouteError;
-use tracing::{debug, trace};
+use tracing::debug;
 
 #[cfg(target_os = "windows")]
-use std::os::windows::io::{AsRawSocket, RawSocket};
-
-/// IPPROTO_IP constant for Windows.
-const IPPROTO_IP: i32 = 0;
-
-/// IP_HDRINCL constant for Windows.
-const IP_HDRINCL: i32 = 2;
-
-/// SO_RCVTIMEO constant for Windows.
-const SO_RCVTIMEO: i32 = 0x1006;
-
-/// WSAETIMEDOUT error code.
-const WSAETIMEDOUT: i32 = 10060;
-
-/// WSAEMSGSIZE error code.
-const WSAEMSGSIZE: i32 = 10040;
+use std::os::windows::io::RawSocket;
 
 /// Raw connection-based packet source and sink for Windows.
 ///
@@ -59,7 +44,7 @@ impl RawConn {
                 IP_HDRINCL as WS_IP_HDRINCL, SOCKET_ERROR, SOCK_RAW,
             };
 
-            let s = unsafe { socket(AF_INET as i32, SOCK_RAW as i32, WS_IPPROTO_IP as i32) };
+            let s = unsafe { socket(AF_INET as i32, SOCK_RAW, WS_IPPROTO_IP) };
             if s == INVALID_SOCKET {
                 return Err(TracerouteError::SocketCreation(
                     std::io::Error::last_os_error(),
@@ -71,8 +56,8 @@ impl RawConn {
             let result = unsafe {
                 setsockopt(
                     s,
-                    WS_IPPROTO_IP as i32,
-                    WS_IP_HDRINCL as i32,
+                    WS_IPPROTO_IP,
+                    WS_IP_HDRINCL,
                     &hdrincl as *const i32 as *const u8,
                     std::mem::size_of::<i32>() as i32,
                 )
@@ -144,8 +129,8 @@ impl Source for RawConn {
             let result = unsafe {
                 setsockopt(
                     self.socket as usize,
-                    SOL_SOCKET as i32,
-                    WS_SO_RCVTIMEO as i32,
+                    SOL_SOCKET,
+                    WS_SO_RCVTIMEO,
                     &timeout_ms as *const i32 as *const u8,
                     std::mem::size_of::<i32>() as i32,
                 )
@@ -348,7 +333,7 @@ static DRIVER_INIT: Once = Once::new();
 pub fn start_driver() -> Result<(), TracerouteError> {
     #[cfg(feature = "driver")]
     {
-        let mut result = Ok(());
+        let result = Ok(());
         DRIVER_INIT.call_once(|| {
             // TODO: Initialize driver
             // result = driver::init();
