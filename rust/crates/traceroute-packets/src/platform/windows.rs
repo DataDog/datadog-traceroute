@@ -99,7 +99,7 @@ impl RawConn {
                 )));
             }
 
-            debug!(local_addr = %local_addr, "Created and bound Windows raw socket");
+            debug!("Created and bound Windows raw socket to INADDR_ANY");
 
             Ok(Self {
                 socket: s as RawSocket,
