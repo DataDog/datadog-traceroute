@@ -97,6 +97,7 @@ fn create_sack_packet_v4(
 
     // Create TCP packet in the payload section
     let tcp_start = 20;
+    let buffer_len = buffer.len();
     {
         let mut tcp_packet = MutableTcpPacket::new(&mut buffer[tcp_start..])
             .ok_or_else(|| TracerouteError::Internal("Failed to create TCP packet".to_string()))?;
@@ -138,7 +139,7 @@ fn create_sack_packet_v4(
 
         // Set payload (single byte with TTL)
         let payload_start = tcp_header_len;
-        if payload_start < buffer.len() - tcp_start {
+        if payload_start < buffer_len - tcp_start {
             tcp_packet.set_payload(&[ttl]);
         }
 

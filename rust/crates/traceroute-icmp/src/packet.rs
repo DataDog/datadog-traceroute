@@ -1,7 +1,7 @@
 //! ICMP packet construction using pnet.
 
 use pnet_packet::icmp::echo_request::MutableEchoRequestPacket;
-use pnet_packet::icmp::{IcmpCode, IcmpTypes};
+use pnet_packet::icmp::{IcmpCode, IcmpPacket, IcmpTypes};
 use pnet_packet::ip::IpNextHeaderProtocols;
 use pnet_packet::ipv4::{Ipv4Flags, MutableIpv4Packet};
 use pnet_packet::Packet;
@@ -74,10 +74,15 @@ fn create_icmp_echo_packet_v4(
         icmp_packet.set_sequence_number(ttl as u16);
         // Payload is just the TTL byte
         icmp_packet.set_payload(&[ttl]);
+    }
 
-        // Calculate ICMP checksum
-        let icmp_checksum = pnet_packet::icmp::checksum(&icmp_packet.to_immutable());
-        icmp_packet.set_checksum(icmp_checksum);
+    // Calculate ICMP checksum using IcmpPacket view
+    {
+        let icmp_view = IcmpPacket::new(&buffer[icmp_start..])
+            .ok_or_else(|| TracerouteError::Internal("Failed to create ICMP view".to_string()))?;
+        let icmp_checksum = pnet_packet::icmp::checksum(&icmp_view);
+        buffer[icmp_start + 2] = (icmp_checksum >> 8) as u8;
+        buffer[icmp_start + 3] = (icmp_checksum & 0xff) as u8;
     }
 
     Ok(buffer)

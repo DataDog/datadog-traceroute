@@ -305,6 +305,7 @@ impl Source for BpfDevice {
     }
 
     async fn read(&mut self, buf: &mut [u8]) -> Result<usize, TracerouteError> {
+        let is_loopback = self.is_loopback;
         loop {
             if !self.has_next_packet() {
                 self.read_packets()?;
@@ -313,7 +314,7 @@ impl Source for BpfDevice {
             let link_frame = self.next_packet()?;
 
             // Strip link-layer header to get IP payload
-            let payload = if self.is_loopback {
+            let payload = if is_loopback {
                 // DLT_NULL: 4-byte address family header
                 if link_frame.len() < DLT_NULL_HEADER_SIZE {
                     return Err(TracerouteError::MalformedPacket(format!(
