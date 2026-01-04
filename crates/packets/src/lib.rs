@@ -1,5 +1,13 @@
 //! Packet IO abstractions and filter definitions.
 
+mod frame_parser;
+
+pub use frame_parser::{
+    FrameParser, IPPair, IcmpInfo, LayerType, TcpInfo, UdpInfo, parse_tcp_first_bytes,
+    parse_udp_first_bytes, serialize_tcp_first_bytes, write_udp_first_bytes,
+};
+
+use datadog_traceroute_common::{BadPacketError, ReceiveProbeNoPktError};
 use std::io;
 use std::net::SocketAddr;
 use std::time::Instant;
@@ -45,4 +53,32 @@ pub struct SourceSinkHandle {
     pub source: Box<dyn PacketSource + Send>,
     pub sink: Box<dyn PacketSink + Send>,
     pub must_close_port: bool,
+}
+
+pub fn read_and_parse(
+    source: &mut dyn PacketSource,
+    buffer: &mut [u8],
+    parser: &mut FrameParser,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let n = match source.read(buffer) {
+        Ok(n) => n,
+        Err(err) => {
+            if matches!(
+                err.kind(),
+                io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+            ) {
+                return Err(Box::new(ReceiveProbeNoPktError::new(err.to_string())));
+            }
+            return Err(Box::new(io::Error::new(
+                err.kind(),
+                format!("packet source read failed: {}", err),
+            )));
+        }
+    };
+    if n == 0 {
+        return Err(Box::new(BadPacketError::new(
+            "packet source read returned 0 bytes",
+        )));
+    }
+    parser.parse(&buffer[..n])
 }
