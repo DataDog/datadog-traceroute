@@ -44,10 +44,10 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 ## Phase 5: E2E + CI
 
-- [ ] Port e2e tests to Rust or keep Go harness calling Rust binaries.
+- [x] Port e2e tests to Rust or keep Go harness calling Rust binaries.
 - [ ] Encode hosted-runner expectations for OS/protocol/target combos.
 - [ ] Ensure fake network tests run on Linux (router setup/teardown).
-- [ ] Update CI workflows for Rust build/test/e2e on hosted runners.
+- [x] Update CI workflows for Rust build/test/e2e on hosted runners.
 
 ## Phase 6: Completion Gate
 

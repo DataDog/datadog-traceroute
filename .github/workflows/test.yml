@@ -79,13 +79,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
 
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
+      - name: Build Rust CLI
+        run: |
+          cargo build -p datadog-traceroute-cli --bin datadog-traceroute
+          cp "target/debug/$BUILD_TARGET" "$BUILD_TARGET"
 
       - name: TestLocalhostCLI
         run: go test -tags=e2etest -v ./e2etests/... -run TestLocalhostCLI
@@ -107,13 +110,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
 
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
+      - name: Build Rust CLI
+        run: |
+          cargo build -p datadog-traceroute-cli --bin datadog-traceroute
+          cp "target/debug/$BUILD_TARGET" "$BUILD_TARGET"
 
       - name: TestPublicTargetCLI
         run: go test -tags=e2etest -v ./e2etests/... -run TestPublicTargetCLI
@@ -135,13 +141,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
 
-      - name: Build CLI
-        run: go build -o $BUILD_TARGET .
+      - name: Build Rust CLI
+        run: |
+          cargo build -p datadog-traceroute-cli --bin datadog-traceroute
+          cp "target/debug/$BUILD_TARGET" "$BUILD_TARGET"
 
       - name: Setup fake network environment
         run: sudo bash testutils/router_setup.sh
@@ -167,13 +176,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
 
-      - name: Build HTTP Server
-        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+      - name: Build Rust HTTP Server
+        run: |
+          cargo build -p datadog-traceroute-server --bin datadog-traceroute-server
+          cp "target/debug/$SERVER_BUILD_TARGET" "$SERVER_BUILD_TARGET"
 
       - name: Run HTTP Server
         run: |
@@ -213,13 +225,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
 
-      - name: Build HTTP Server
-        run: go build -o $SERVER_BUILD_TARGET ./cmd/traceroute-server
+      - name: Build Rust HTTP Server
+        run: |
+          cargo build -p datadog-traceroute-server --bin datadog-traceroute-server
+          cp "target/debug/$SERVER_BUILD_TARGET" "$SERVER_BUILD_TARGET"
 
       - name: Run HTTP Server
         run: |

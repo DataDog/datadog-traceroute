@@ -3,6 +3,10 @@ name = "datadog-traceroute-server"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "datadog-traceroute-server"
+path = "src/main.rs"
+
 [dependencies]
 axum = "0.7.9"
 clap = { version = "4.5.23", features = ["derive"] }
