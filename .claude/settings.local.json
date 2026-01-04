@@ -14,7 +14,10 @@
       "Bash(./datadog-traceroute:*)",
       "Bash(xargs gofmt:*)",
       "Bash(git commit:*)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(cargo check:*)",
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(export PATH=\"$HOME/.cargo/bin:/usr/bin:/bin:$PATH\")"
     ]
   }
 }

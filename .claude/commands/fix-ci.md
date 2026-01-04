@@ -1,12 +1,12 @@
 ---
-description: Check GitHub CI status, wait if running, fix failures and push
+description: Check local tests are passing and GitHub CI status, wait if running, fix failures and push
 argument-hint: [branch-name]
 allowed-tools: mcp__github__*, Bash(git:*), Bash(gh:*), Read, Edit, Write, Grep, Glob
 ---
 
 ## Task
 
-Monitor and fix GitHub CI checks for the PR branch.
+Monitor and fix local + GitHub CI checks for the PR branch.
 
 ## Context
 
