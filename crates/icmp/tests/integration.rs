@@ -5,8 +5,17 @@ use datadog_traceroute_icmp::{IcmpDriver, IcmpParams};
 use datadog_traceroute_packets::{
     FilterConfig, PacketFilterSpec, PacketFilterType, new_source_sink,
 };
+use libc::geteuid;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::time::{Duration, Instant};
+
+fn require_root() -> bool {
+    if unsafe { geteuid() } != 0 {
+        eprintln!("skipping: requires root for raw sockets");
+        return false;
+    }
+    true
+}
 
 fn local_addr_for_target(target: IpAddr) -> std::io::Result<IpAddr> {
     let socket = match target {
@@ -61,6 +70,9 @@ fn run_icmp_probe(target: IpAddr) -> std::io::Result<()> {
 #[test]
 #[ignore]
 fn icmp_probe_ipv4() {
+    if !require_root() {
+        return;
+    }
     let target = std::env::var("DD_TRACEROUTE_TARGET")
         .ok()
         .and_then(|val| val.parse().ok())
@@ -71,6 +83,9 @@ fn icmp_probe_ipv4() {
 #[test]
 #[ignore]
 fn icmp_probe_ipv6() {
+    if !require_root() {
+        return;
+    }
     let Some(value) = std::env::var("DD_TRACEROUTE_TARGET_V6").ok() else {
         return;
     };

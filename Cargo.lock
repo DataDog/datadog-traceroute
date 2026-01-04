@@ -39,6 +39,7 @@ version = "0.1.0"
 dependencies = [
  "datadog-traceroute-common",
  "datadog-traceroute-packets",
+ "libc",
 ]
 
 [[package]]

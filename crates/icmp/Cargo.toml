@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 datadog-traceroute-common = { path = "../common" }
 datadog-traceroute-packets = { path = "../packets" }
+
+[dev-dependencies]
+libc = "0.2"
