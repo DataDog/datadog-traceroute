@@ -17,7 +17,10 @@
       "Bash(go build:*)",
       "Bash(cargo check:*)",
       "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
-      "Bash(export PATH=\"$HOME/.cargo/bin:/usr/bin:/bin:$PATH\")"
+      "Bash(export PATH=\"$HOME/.cargo/bin:/usr/bin:/bin:$PATH\")",
+      "Bash(cargo test:*)",
+      "Bash(cargo doc:*)",
+      "Bash(grep:*)"
     ]
   }
 }
