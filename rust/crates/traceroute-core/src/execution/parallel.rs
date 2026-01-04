@@ -66,7 +66,7 @@ pub async fn traceroute_parallel<D: TracerouteDriver>(
 
                 // Only update if we don't have a response yet, or if we're upgrading
                 // from an ICMP response to a destination response
-                if existing.is_none() || (probe.is_dest && !existing.as_ref().map(|p| p.is_dest).unwrap_or(false)) {
+                if existing.is_none() || (probe.is_dest && !existing.as_ref().map(|p: &ProbeResponse| p.is_dest).unwrap_or(false)) {
                     if probe.is_dest {
                         found_dest.store(true, std::sync::atomic::Ordering::Relaxed);
                     }

@@ -42,15 +42,16 @@ pub async fn traceroute_serial<D: TracerouteDriver>(
 
         match probe_result {
             Ok(Ok(probe)) => {
+                let is_dest = probe.is_dest;
+                let ttl_idx = probe.ttl as usize;
                 debug!(
                     ttl = probe.ttl,
                     ip = %probe.ip,
                     rtt_ms = probe.rtt.as_secs_f64() * 1000.0,
-                    is_dest = probe.is_dest,
+                    is_dest = is_dest,
                     "Received probe response"
                 );
-                let is_dest = probe.is_dest;
-                results[probe.ttl as usize] = Some(probe);
+                results[ttl_idx] = Some(probe);
                 if is_dest {
                     debug!("Reached destination, stopping");
                     break;
