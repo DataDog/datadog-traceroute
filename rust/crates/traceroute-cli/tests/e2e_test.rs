@@ -154,51 +154,111 @@ impl Default for TestConfig {
 
 /// Get the CLI binary path.
 fn get_cli_binary() -> String {
+    // Check EXECUTABLE environment variable first (set by CI)
+    if let Ok(executable) = std::env::var("EXECUTABLE") {
+        if std::path::Path::new(&executable).exists() {
+            return executable;
+        }
+    }
+
     let binary_name = if cfg!(target_os = "windows") {
         "datadog-traceroute.exe"
     } else {
         "datadog-traceroute"
     };
 
+    // Get workspace root from CARGO_MANIFEST_DIR (which points to the crate dir)
+    // We need to go up to the workspace root
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent() // crates/
+        .and_then(|p| p.parent()) // rust/
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
     // Try release build first
+    let release_path = workspace_root.join("target/release").join(binary_name);
+    if release_path.exists() {
+        return release_path.to_string_lossy().to_string();
+    }
+
+    // Try debug build
+    let debug_path = workspace_root.join("target/debug").join(binary_name);
+    if debug_path.exists() {
+        return debug_path.to_string_lossy().to_string();
+    }
+
+    // Also try relative paths (for when running from workspace root)
     let release_path = format!("target/release/{}", binary_name);
     if std::path::Path::new(&release_path).exists() {
         return release_path;
     }
 
-    // Try debug build
     let debug_path = format!("target/debug/{}", binary_name);
     if std::path::Path::new(&debug_path).exists() {
         return debug_path;
     }
 
     panic!(
-        "CLI binary not found. Please build with 'cargo build' or 'cargo build --release' first"
+        "CLI binary not found. Please build with 'cargo build' or 'cargo build --release' first. \
+         Searched in workspace root: {:?}, EXECUTABLE env: {:?}",
+        workspace_root,
+        std::env::var("EXECUTABLE").ok()
     );
 }
 
 /// Get the server binary path.
 fn get_server_binary() -> String {
+    // Check SERVER_EXECUTABLE environment variable first (set by CI)
+    if let Ok(executable) = std::env::var("SERVER_EXECUTABLE") {
+        if std::path::Path::new(&executable).exists() {
+            return executable;
+        }
+    }
+
     let binary_name = if cfg!(target_os = "windows") {
         "datadog-traceroute-server.exe"
     } else {
         "datadog-traceroute-server"
     };
 
+    // Get workspace root from CARGO_MANIFEST_DIR (which points to the crate dir)
+    // We need to go up to the workspace root
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .parent() // crates/
+        .and_then(|p| p.parent()) // rust/
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
     // Try release build first
+    let release_path = workspace_root.join("target/release").join(binary_name);
+    if release_path.exists() {
+        return release_path.to_string_lossy().to_string();
+    }
+
+    // Try debug build
+    let debug_path = workspace_root.join("target/debug").join(binary_name);
+    if debug_path.exists() {
+        return debug_path.to_string_lossy().to_string();
+    }
+
+    // Also try relative paths (for when running from workspace root)
     let release_path = format!("target/release/{}", binary_name);
     if std::path::Path::new(&release_path).exists() {
         return release_path;
     }
 
-    // Try debug build
     let debug_path = format!("target/debug/{}", binary_name);
     if std::path::Path::new(&debug_path).exists() {
         return debug_path;
     }
 
     panic!(
-        "Server binary not found. Please build with 'cargo build' or 'cargo build --release' first"
+        "Server binary not found. Please build with 'cargo build' or 'cargo build --release' first. \
+         Searched in workspace root: {:?}, SERVER_EXECUTABLE env: {:?}",
+        workspace_root,
+        std::env::var("SERVER_EXECUTABLE").ok()
     );
 }
 
