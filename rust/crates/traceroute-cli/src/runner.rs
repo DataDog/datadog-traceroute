@@ -147,9 +147,18 @@ async fn run_traceroute_once(
 }
 
 /// Convert probe responses to TracerouteHop.
+///
+/// Only includes hops up to the last response received (or all if none reached destination).
 fn responses_to_hops(responses: Vec<Option<ProbeResponse>>, min_ttl: u8) -> Vec<TracerouteHop> {
+    // Find the last hop that got a response (either intermediate or destination)
+    let last_response_idx = responses
+        .iter()
+        .rposition(|r| r.is_some())
+        .unwrap_or(responses.len().saturating_sub(1));
+
     responses
         .into_iter()
+        .take(last_response_idx + 1)
         .enumerate()
         .map(|(i, response)| {
             let ttl = min_ttl + i as u8;
