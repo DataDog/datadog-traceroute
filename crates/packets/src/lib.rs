@@ -3,14 +3,15 @@
 mod frame_parser;
 
 pub use frame_parser::{
-    FrameParser, IPPair, IcmpInfo, IcmpPacket, LayerType, TcpInfo, UdpInfo, parse_tcp_first_bytes,
-    parse_udp_first_bytes, serialize_tcp_first_bytes, write_udp_first_bytes,
+    FrameParser, IPPair, IcmpInfo, IcmpPacket, LayerType, TcpInfo, TcpPacket, UdpInfo,
+    parse_tcp_first_bytes, parse_udp_first_bytes, serialize_tcp_first_bytes, write_udp_first_bytes,
 };
 
 use datadog_traceroute_common::{BadPacketError, ReceiveProbeNoPktError};
 use std::io;
 use std::net::IpAddr;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
 #[cfg(target_os = "linux")]
@@ -58,6 +59,19 @@ pub struct SourceSinkHandle {
     pub source: Box<dyn PacketSource + Send>,
     pub sink: Box<dyn PacketSink + Send>,
     pub must_close_port: bool,
+}
+
+static PACKET_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+pub fn alloc_packet_id(max_ttl: u8) -> u16 {
+    let max_ttl = max_ttl as u32;
+    let next = PACKET_ID_COUNTER.fetch_add(max_ttl, Ordering::SeqCst);
+    (next & 0xffff) as u16
+}
+
+#[cfg(test)]
+pub fn randomize_packet_id_base(seed: u32) {
+    PACKET_ID_COUNTER.store(seed, Ordering::SeqCst);
 }
 
 #[cfg(windows)]

@@ -69,6 +69,17 @@ pub struct IcmpInfo {
     pub payload: Vec<u8>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct TcpPacket {
+    pub src_port: u16,
+    pub dst_port: u16,
+    pub seq: u32,
+    pub ack: u32,
+    pub syn: bool,
+    pub ack_flag: bool,
+    pub rst: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct FrameParser {
     ip_layer: LayerType,
@@ -76,6 +87,7 @@ pub struct FrameParser {
     ip_pair: Option<IPPair>,
     icmp4: Option<IcmpPacket>,
     icmp6: Option<IcmpPacket>,
+    tcp: Option<TcpPacket>,
 }
 
 impl FrameParser {
@@ -86,6 +98,7 @@ impl FrameParser {
             ip_pair: None,
             icmp4: None,
             icmp6: None,
+            tcp: None,
         }
     }
 
@@ -208,6 +221,10 @@ impl FrameParser {
         self.icmp6.as_ref()
     }
 
+    pub fn tcp_packet(&self) -> Option<&TcpPacket> {
+        self.tcp.as_ref()
+    }
+
     fn parse_ipv4(&mut self, buffer: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
         let header = parse_ipv4_header(buffer)?;
         self.ip_layer = LayerType::Ipv4;
@@ -217,10 +234,13 @@ impl FrameParser {
         });
         self.icmp4 = None;
         self.icmp6 = None;
+        self.tcp = None;
 
         match header.protocol {
             IPPROTO_TCP => {
+                let tcp = parse_tcp_header(header.payload)?;
                 self.transport_layer = LayerType::Tcp;
+                self.tcp = Some(tcp);
                 Ok(())
             }
             IPPROTO_UDP => {
@@ -249,10 +269,13 @@ impl FrameParser {
         });
         self.icmp4 = None;
         self.icmp6 = None;
+        self.tcp = None;
 
         match header.next_header {
             IPPROTO_TCP => {
+                let tcp = parse_tcp_header(header.payload)?;
                 self.transport_layer = LayerType::Tcp;
+                self.tcp = Some(tcp);
                 Ok(())
             }
             IPPROTO_UDP => {
@@ -390,6 +413,29 @@ fn extract_embedded_ipv6(payload: &[u8]) -> Result<&[u8], Box<dyn Error + Send +
     Err(Box::new(BadPacketError::new(
         "cannot locate IPv6 header in payload",
     )))
+}
+
+fn parse_tcp_header(payload: &[u8]) -> Result<TcpPacket, Box<dyn Error + Send + Sync>> {
+    if payload.len() < 20 {
+        return Err(Box::new(BadPacketError::new(format!(
+            "parse_tcp: buffer too short ({} bytes)",
+            payload.len()
+        ))));
+    }
+    let src_port = u16::from_be_bytes([payload[0], payload[1]]);
+    let dst_port = u16::from_be_bytes([payload[2], payload[3]]);
+    let seq = u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]);
+    let ack = u32::from_be_bytes([payload[8], payload[9], payload[10], payload[11]]);
+    let flags = payload[13];
+    Ok(TcpPacket {
+        src_port,
+        dst_port,
+        seq,
+        ack,
+        syn: flags & 0x02 != 0,
+        ack_flag: flags & 0x10 != 0,
+        rst: flags & 0x04 != 0,
+    })
 }
 
 pub fn parse_tcp_first_bytes(buffer: &[u8]) -> Result<TcpInfo, Box<dyn Error + Send + Sync>> {

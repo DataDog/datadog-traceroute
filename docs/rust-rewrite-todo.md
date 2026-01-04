@@ -28,7 +28,7 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 - [x] ICMP driver (Linux/Windows/macOS).
 - [x] UDP driver (Linux/Windows/macOS).
-- [ ] TCP SYN driver (Linux/Windows/macOS).
+- [x] TCP SYN driver (Linux/Windows/macOS).
 - [ ] TCP SACK driver (Linux/Windows/macOS).
 - [ ] TCP prefer_sack handling and fallback logic.
 - [ ] Packet parsing/filters parity (BPF/cBPF equivalents).
