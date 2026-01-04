@@ -11,6 +11,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  rust_tests:
+    name: "Rust Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo test
+        run: cargo test --workspace --all-targets
+
   unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
