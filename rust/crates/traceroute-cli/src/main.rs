@@ -110,11 +110,17 @@ impl Args {
 async fn main() -> ExitCode {
     let args = Args::parse();
 
-    // Initialize logging
+    // Initialize logging to stderr to avoid corrupting JSON output
     if args.verbose {
-        tracing_subscriber::fmt().with_env_filter("debug").init();
+        tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .with_env_filter("debug")
+            .init();
     } else {
-        tracing_subscriber::fmt().with_env_filter("info").init();
+        tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .with_env_filter("info")
+            .init();
     }
 
     let config = match args.to_config() {
