@@ -28,20 +28,20 @@ impl RawConn {
     /// Creates a new raw connection.
     pub fn new(addr: IpAddr) -> Result<Self, TracerouteError> {
         // Windows only supports IPv4 raw sockets with IP_HDRINCL
-        match addr {
-            IpAddr::V4(_) => {}
+        let local_addr = match addr {
+            IpAddr::V4(_) => addr,
             IpAddr::V6(_) => {
                 return Err(TracerouteError::Internal(
                     "IPv6 raw sockets not supported on Windows".to_string(),
                 ));
             }
-        }
+        };
 
         #[cfg(target_os = "windows")]
         {
             use windows_sys::Win32::Networking::WinSock::{
-                setsockopt, socket, AF_INET, INVALID_SOCKET, IPPROTO_IP as WS_IPPROTO_IP,
-                IP_HDRINCL as WS_IP_HDRINCL, SOCKET_ERROR, SOCK_RAW,
+                bind, setsockopt, socket, AF_INET, INVALID_SOCKET, IPPROTO_IP as WS_IPPROTO_IP,
+                IP_HDRINCL as WS_IP_HDRINCL, SOCKADDR_IN, SOCKET_ERROR, SOCK_RAW,
             };
 
             let s = unsafe { socket(AF_INET as i32, SOCK_RAW, WS_IPPROTO_IP) };
@@ -70,7 +70,39 @@ impl RawConn {
                 )));
             }
 
-            debug!("Created Windows raw socket");
+            // Bind to the local address - required for recvfrom to work on Windows
+            let local_ip = match local_addr {
+                IpAddr::V4(ip) => ip,
+                _ => unreachable!(),
+            };
+            let sa = SOCKADDR_IN {
+                sin_family: AF_INET,
+                sin_port: 0,
+                sin_addr: windows_sys::Win32::Networking::WinSock::IN_ADDR {
+                    S_un: windows_sys::Win32::Networking::WinSock::IN_ADDR_0 {
+                        S_addr: u32::from_ne_bytes(local_ip.octets()),
+                    },
+                },
+                sin_zero: [0; 8],
+            };
+
+            let bind_result = unsafe {
+                bind(
+                    s,
+                    &sa as *const _ as *const _,
+                    std::mem::size_of::<SOCKADDR_IN>() as i32,
+                )
+            };
+            if bind_result == SOCKET_ERROR {
+                let err = std::io::Error::last_os_error();
+                unsafe { windows_sys::Win32::Networking::WinSock::closesocket(s) };
+                return Err(TracerouteError::Internal(format!(
+                    "Failed to bind raw socket: {}",
+                    err
+                )));
+            }
+
+            debug!(local_addr = %local_addr, "Created and bound Windows raw socket");
 
             Ok(Self {
                 socket: s as RawSocket,
@@ -81,6 +113,7 @@ impl RawConn {
 
         #[cfg(not(target_os = "windows"))]
         {
+            let _ = local_addr;
             // Stub for non-Windows platforms (won't be used)
             Err(TracerouteError::Internal(
                 "Windows raw sockets only available on Windows".to_string(),
@@ -98,6 +131,166 @@ impl RawConn {
             }
         } else {
             Duration::from_secs(1)
+        }
+    }
+
+    /// Synchronous version of set_read_deadline for use with shared wrapper
+    pub fn set_read_deadline(&mut self, deadline: Instant) -> Result<(), TracerouteError> {
+        self.deadline = Some(deadline);
+        Ok(())
+    }
+
+    /// Synchronous version of read for use with shared wrapper
+    pub fn read_sync(&mut self, buf: &mut [u8]) -> Result<usize, TracerouteError> {
+        if self.closed {
+            return Err(TracerouteError::Internal("Socket closed".to_string()));
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use windows_sys::Win32::Networking::WinSock::{
+                recvfrom, setsockopt, WSAGetLastError, SOCKET_ERROR, SOL_SOCKET,
+                SO_RCVTIMEO as WS_SO_RCVTIMEO, WSAEMSGSIZE as WS_WSAEMSGSIZE,
+                WSAETIMEDOUT as WS_WSAETIMEDOUT,
+            };
+
+            let timeout = self.get_timeout();
+            let timeout_ms = timeout.as_millis() as i32;
+
+            // Set receive timeout
+            let result = unsafe {
+                setsockopt(
+                    self.socket as usize,
+                    SOL_SOCKET,
+                    WS_SO_RCVTIMEO,
+                    &timeout_ms as *const i32 as *const u8,
+                    std::mem::size_of::<i32>() as i32,
+                )
+            };
+            if result == SOCKET_ERROR {
+                return Err(TracerouteError::Internal(format!(
+                    "Failed to set SO_RCVTIMEO: {}",
+                    std::io::Error::last_os_error()
+                )));
+            }
+
+            let mut from_addr: windows_sys::Win32::Networking::WinSock::SOCKADDR_IN =
+                unsafe { std::mem::zeroed() };
+            let mut from_len =
+                std::mem::size_of::<windows_sys::Win32::Networking::WinSock::SOCKADDR_IN>() as i32;
+
+            let n = unsafe {
+                recvfrom(
+                    self.socket as usize,
+                    buf.as_mut_ptr(),
+                    buf.len() as i32,
+                    0,
+                    &mut from_addr as *mut _ as *mut _,
+                    &mut from_len,
+                )
+            };
+
+            if n == SOCKET_ERROR {
+                let err = unsafe { WSAGetLastError() };
+                if err == WS_WSAETIMEDOUT || err == WS_WSAEMSGSIZE {
+                    return Err(TracerouteError::ReadTimeout);
+                }
+                return Err(TracerouteError::from(std::io::Error::from_raw_os_error(
+                    err,
+                )));
+            }
+
+            // Windows returns -1 on errors, unlike Unix
+            if n < 0 {
+                return Ok(0);
+            }
+
+            Ok(n as usize)
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = buf;
+            Err(TracerouteError::Internal("Not on Windows".to_string()))
+        }
+    }
+
+    /// Synchronous version of close for use with shared wrapper
+    pub fn close_sync(&mut self) -> Result<(), TracerouteError> {
+        if !self.closed {
+            #[cfg(target_os = "windows")]
+            {
+                use windows_sys::Win32::Networking::WinSock::closesocket;
+                unsafe { closesocket(self.socket as usize) };
+            }
+            self.closed = true;
+        }
+        Ok(())
+    }
+
+    /// Synchronous version of set_packet_filter for use with shared wrapper
+    pub fn set_packet_filter_sync(
+        &mut self,
+        _spec: PacketFilterSpec,
+    ) -> Result<(), TracerouteError> {
+        // Packet filtering not supported on Windows raw sockets - no-op
+        Ok(())
+    }
+
+    /// Synchronous version of write_to for use with shared wrapper
+    pub fn write_to_sync(&self, buf: &[u8], addr: SocketAddr) -> Result<(), TracerouteError> {
+        if self.closed {
+            return Err(TracerouteError::Internal("Socket closed".to_string()));
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use windows_sys::Win32::Networking::WinSock::{
+                sendto, AF_INET, SOCKADDR_IN, SOCKET_ERROR,
+            };
+
+            let ip = match addr.ip() {
+                IpAddr::V4(ip) => ip,
+                IpAddr::V6(_) => {
+                    return Err(TracerouteError::Internal(
+                        "IPv6 not supported on Windows".to_string(),
+                    ));
+                }
+            };
+
+            let sa = SOCKADDR_IN {
+                sin_family: AF_INET,
+                sin_port: addr.port().to_be(),
+                sin_addr: windows_sys::Win32::Networking::WinSock::IN_ADDR {
+                    S_un: windows_sys::Win32::Networking::WinSock::IN_ADDR_0 {
+                        S_addr: u32::from_ne_bytes(ip.octets()),
+                    },
+                },
+                sin_zero: [0; 8],
+            };
+
+            let result = unsafe {
+                sendto(
+                    self.socket as usize,
+                    buf.as_ptr(),
+                    buf.len() as i32,
+                    0,
+                    &sa as *const _ as *const _,
+                    std::mem::size_of::<SOCKADDR_IN>() as i32,
+                )
+            };
+
+            if result == SOCKET_ERROR {
+                return Err(TracerouteError::from(std::io::Error::last_os_error()));
+            }
+
+            Ok(())
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = (buf, addr);
+            Err(TracerouteError::Internal("Not on Windows".to_string()))
         }
     }
 }
@@ -367,18 +560,62 @@ pub async fn new_source_sink(
         return Err(TracerouteError::DriverNotAvailable);
     }
 
-    // Use raw socket mode
-    let raw_conn = RawConn::new(target_addr)?;
-
-    // For raw socket mode, we need a separate instance for reading and writing
-    // or we could clone the socket handle. For now, we'll create two RawConn
-    // instances (this is a simplification - in production, you'd want to share
-    // the same underlying socket handle).
-    let raw_conn2 = RawConn::new(target_addr)?;
+    // Use raw socket mode with a shared socket wrapped in Arc
+    // Windows raw sockets work best when the same socket is used for both
+    // reading and writing, matching the Go implementation behavior
+    let shared_conn = std::sync::Arc::new(std::sync::Mutex::new(RawConn::new(target_addr)?));
 
     Ok(SourceSinkHandle {
-        source: Box::new(raw_conn),
-        sink: Box::new(raw_conn2),
+        source: Box::new(SharedRawConn {
+            inner: shared_conn.clone(),
+        }),
+        sink: Box::new(SharedRawConnSink { inner: shared_conn }),
         must_close_port: true, // Windows raw sockets require closing the port before receiving
     })
+}
+
+/// Wrapper for shared RawConn as Source
+pub struct SharedRawConn {
+    inner: std::sync::Arc<std::sync::Mutex<RawConn>>,
+}
+
+#[async_trait]
+impl Source for SharedRawConn {
+    fn set_read_deadline(&mut self, deadline: Instant) -> Result<(), TracerouteError> {
+        let mut conn = self.inner.lock().unwrap();
+        conn.set_read_deadline(deadline)
+    }
+
+    async fn read(&mut self, buf: &mut [u8]) -> Result<usize, TracerouteError> {
+        let mut conn = self.inner.lock().unwrap();
+        conn.read_sync(buf)
+    }
+
+    async fn close(&mut self) -> Result<(), TracerouteError> {
+        let mut conn = self.inner.lock().unwrap();
+        conn.close_sync()
+    }
+
+    fn set_packet_filter(&mut self, spec: PacketFilterSpec) -> Result<(), TracerouteError> {
+        let mut conn = self.inner.lock().unwrap();
+        conn.set_packet_filter_sync(spec)
+    }
+}
+
+/// Wrapper for shared RawConn as Sink
+pub struct SharedRawConnSink {
+    inner: std::sync::Arc<std::sync::Mutex<RawConn>>,
+}
+
+#[async_trait]
+impl Sink for SharedRawConnSink {
+    async fn write_to(&mut self, buf: &[u8], addr: SocketAddr) -> Result<(), TracerouteError> {
+        let conn = self.inner.lock().unwrap();
+        conn.write_to_sync(buf, addr)
+    }
+
+    async fn close(&mut self) -> Result<(), TracerouteError> {
+        // Don't close here - the source wrapper will close
+        Ok(())
+    }
 }

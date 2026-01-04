@@ -399,7 +399,9 @@ impl Sink for RawSink {
             )));
         }
 
-        let (send_buf, sa_len, sa_ptr) = if self.is_ipv6 {
+        // Handle IPv4 and IPv6 separately to avoid use-after-free issues with sockaddr pointers.
+        // The sockaddr structure must remain in scope for the duration of the sendto() call.
+        if self.is_ipv6 {
             // IPv6: macOS has no IPV6_HDRINCL, so strip IPv6 header and set hop limit via socket option
             if buf.len() < 40 {
                 return Err(TracerouteError::MalformedPacket(
@@ -444,11 +446,20 @@ impl Sink for RawSink {
                 sin6_scope_id: 0,
             };
 
-            (
-                payload,
-                std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t,
-                &sa6 as *const _ as *const libc::sockaddr,
-            )
+            let result = unsafe {
+                libc::sendto(
+                    self.fd,
+                    payload.as_ptr() as *const libc::c_void,
+                    payload.len(),
+                    0,
+                    &sa6 as *const _ as *const libc::sockaddr,
+                    std::mem::size_of::<libc::sockaddr_in6>() as libc::socklen_t,
+                )
+            };
+
+            if result < 0 {
+                return Err(TracerouteError::from(std::io::Error::last_os_error()));
+            }
         } else {
             // IPv4: Use IP_HDRINCL, but need to convert ip_len and ip_off to host byte order
             self.write_buf[..buf.len()].copy_from_slice(buf);
@@ -476,26 +487,20 @@ impl Sink for RawSink {
                 sin_zero: [0; 8],
             };
 
-            (
-                &self.write_buf[..buf.len()] as &[u8],
-                std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
-                &sa4 as *const _ as *const libc::sockaddr,
-            )
-        };
+            let result = unsafe {
+                libc::sendto(
+                    self.fd,
+                    self.write_buf.as_ptr() as *const libc::c_void,
+                    buf.len(),
+                    0,
+                    &sa4 as *const _ as *const libc::sockaddr,
+                    std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t,
+                )
+            };
 
-        let result = unsafe {
-            libc::sendto(
-                self.fd,
-                send_buf.as_ptr() as *const libc::c_void,
-                send_buf.len(),
-                0,
-                sa_ptr,
-                sa_len,
-            )
-        };
-
-        if result < 0 {
-            return Err(TracerouteError::from(std::io::Error::last_os_error()));
+            if result < 0 {
+                return Err(TracerouteError::from(std::io::Error::last_os_error()));
+            }
         }
 
         Ok(())

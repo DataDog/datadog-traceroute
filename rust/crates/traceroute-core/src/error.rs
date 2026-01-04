@@ -83,11 +83,19 @@ pub enum TracerouteError {
 }
 
 impl TracerouteError {
-    /// Returns true if this error is retryable (e.g., timeout, packet mismatch).
+    /// Returns true if this error is retryable (e.g., timeout, packet mismatch, parse failure).
+    ///
+    /// Retryable errors indicate that we should continue reading packets rather than
+    /// giving up. This is important because raw sockets may capture packets that aren't
+    /// relevant to our traceroute (e.g., other traffic on the network).
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::ReadTimeout | Self::PacketMismatch | Self::MalformedPacket(_)
+            Self::ReadTimeout
+                | Self::PacketMismatch
+                | Self::MalformedPacket(_)
+                | Self::PacketParseFailed { .. }
+                | Self::PacketTooShort { .. }
         )
     }
 }
@@ -114,6 +122,16 @@ mod tests {
         assert!(TracerouteError::ReadTimeout.is_retryable());
         assert!(TracerouteError::PacketMismatch.is_retryable());
         assert!(TracerouteError::MalformedPacket("test".into()).is_retryable());
+        assert!(TracerouteError::PacketParseFailed {
+            layer: "IP",
+            reason: "test".into()
+        }
+        .is_retryable());
+        assert!(TracerouteError::PacketTooShort {
+            expected: 20,
+            actual: 10
+        }
+        .is_retryable());
         assert!(!TracerouteError::DriverNotAvailable.is_retryable());
     }
 }
