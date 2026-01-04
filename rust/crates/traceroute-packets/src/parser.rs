@@ -240,9 +240,20 @@ impl FrameParser {
                 self.is_dest_unreachable = true;
                 (3, header.code_u8())
             }
-            Icmpv4Type::EchoReply(_) => {
+            Icmpv4Type::EchoReply(echo) => {
                 self.is_echo_reply = true;
-                (0, 0)
+                // Store echo ID and sequence in payload for driver to read
+                let id_bytes = echo.id.to_be_bytes();
+                let seq_bytes = echo.seq.to_be_bytes();
+                self.icmp_info = Some(IcmpInfo {
+                    icmp_type: 0,
+                    icmp_code: 0,
+                    ip_pair,
+                    wrapped_packet_id: echo.id,
+                    icmp_pair: IpPair::default(),
+                    payload: vec![id_bytes[0], id_bytes[1], seq_bytes[0], seq_bytes[1]],
+                });
+                return Ok(());
             }
             Icmpv4Type::EchoRequest(_) => (8, 0),
             Icmpv4Type::Unknown {
@@ -283,9 +294,20 @@ impl FrameParser {
                 self.is_dest_unreachable = true;
                 (1, code.code_u8())
             }
-            Icmpv6Type::EchoReply(_) => {
+            Icmpv6Type::EchoReply(echo) => {
                 self.is_echo_reply = true;
-                (129, 0)
+                // Store echo ID and sequence in payload for driver to read
+                let id_bytes = echo.id.to_be_bytes();
+                let seq_bytes = echo.seq.to_be_bytes();
+                self.icmp_info = Some(IcmpInfo {
+                    icmp_type: 129,
+                    icmp_code: 0,
+                    ip_pair,
+                    wrapped_packet_id: echo.id,
+                    icmp_pair: IpPair::default(),
+                    payload: vec![id_bytes[0], id_bytes[1], seq_bytes[0], seq_bytes[1]],
+                });
+                return Ok(());
             }
             Icmpv6Type::EchoRequest(_) => (128, 0),
             Icmpv6Type::Unknown {
