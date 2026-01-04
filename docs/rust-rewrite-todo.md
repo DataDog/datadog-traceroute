@@ -19,10 +19,10 @@ This is the tracked TODO list for the Rust rewrite plan. Update statuses as work
 
 ## Phase 2: Core Traceroute Engine
 
-- [ ] Implement traceroute scheduler and TTL loop.
-- [ ] Implement concurrency model (serial/parallel behavior parity).
-- [ ] Implement hop aggregation and stats (hop_count, reachable, RTTs).
-- [ ] Port core unit tests for traceroute behavior and normalization.
+- [x] Implement traceroute scheduler and TTL loop.
+- [x] Implement concurrency model (serial/parallel behavior parity).
+- [x] Implement hop aggregation and stats (hop_count, reachable, RTTs).
+- [x] Port core unit tests for traceroute behavior and normalization.
 
 ## Phase 3: Protocol Drivers
 
