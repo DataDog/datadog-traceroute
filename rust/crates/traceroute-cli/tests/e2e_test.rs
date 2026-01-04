@@ -378,6 +378,19 @@ fn run_traceroute_cli(config: &TestConfig) -> Result<Results, String> {
                 // Process still running
                 if start.elapsed() > timeout {
                     eprintln!("Process timed out after {:?}, killing...", timeout);
+
+                    // Capture stderr before killing to help diagnose hangs
+                    let mut stderr_output = Vec::new();
+                    if let Some(mut err) = child.stderr.take() {
+                        use std::io::Read;
+                        // Non-blocking read of whatever is available
+                        let _ = err.read_to_end(&mut stderr_output);
+                    }
+                    let stderr_str = String::from_utf8_lossy(&stderr_output);
+                    if !stderr_str.is_empty() {
+                        eprintln!("CLI stderr before timeout:\n{}", stderr_str);
+                    }
+
                     let _ = child.kill();
                     let _ = child.wait();
                     return Err(format!("Process timed out after {:?}", timeout));
