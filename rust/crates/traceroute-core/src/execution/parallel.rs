@@ -53,24 +53,26 @@ pub async fn traceroute_parallel<D: TracerouteDriver>(
 
         match driver.receive_probe(params.poll_frequency).await {
             Ok(Some(probe)) => {
+                let ttl_idx = probe.ttl as usize;
+                let is_dest = probe.is_dest;
                 debug!(
                     ttl = probe.ttl,
                     ip = %probe.ip,
                     rtt_ms = probe.rtt.as_secs_f64() * 1000.0,
-                    is_dest = probe.is_dest,
+                    is_dest = is_dest,
                     "Received probe response"
                 );
 
                 let mut results_guard = results.lock().await;
-                let existing = &results_guard[probe.ttl as usize];
+                let existing = &results_guard[ttl_idx];
 
                 // Only update if we don't have a response yet, or if we're upgrading
                 // from an ICMP response to a destination response
-                if existing.is_none() || (probe.is_dest && !existing.as_ref().map(|p: &ProbeResponse| p.is_dest).unwrap_or(false)) {
-                    if probe.is_dest {
+                if existing.is_none() || (is_dest && !existing.as_ref().map(|p: &ProbeResponse| p.is_dest).unwrap_or(false)) {
+                    if is_dest {
                         found_dest.store(true, std::sync::atomic::Ordering::Relaxed);
                     }
-                    results_guard[probe.ttl as usize] = Some(probe);
+                    results_guard[ttl_idx] = Some(probe);
                 }
             }
             Ok(None) => {
