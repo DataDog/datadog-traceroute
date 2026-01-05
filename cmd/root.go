@@ -42,8 +42,6 @@ var rootCmd = &cobra.Command{
 	Short: "Multi-protocol datadog traceroute CLI",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		timeout := time.Duration(Args.timeout) * time.Millisecond
-
 		if Args.verbose {
 			log.SetLogLevel(log.LevelTrace)
 		}
@@ -55,7 +53,7 @@ var rootCmd = &cobra.Command{
 			MinTTL:                common.DefaultMinTTL,
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
-			Timeout:               timeout,
+			Timeout:               time.Duration(Args.timeout) * time.Millisecond,
 			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
