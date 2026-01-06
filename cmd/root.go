@@ -42,13 +42,6 @@ var rootCmd = &cobra.Command{
 	Short: "Multi-protocol datadog traceroute CLI",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var timeout time.Duration
-		if Args.timeout == 0 {
-			timeout = common.DefaultNetworkPathTimeout * time.Millisecond
-		} else {
-			timeout = time.Duration(Args.timeout) * time.Millisecond
-		}
-
 		if Args.verbose {
 			log.SetLogLevel(log.LevelTrace)
 		}
@@ -60,7 +53,7 @@ var rootCmd = &cobra.Command{
 			MinTTL:                common.DefaultMinTTL,
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
-			Timeout:               timeout,
+			Timeout:               time.Duration(Args.timeout) * time.Millisecond,
 			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
@@ -107,7 +100,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", 0, "Timeout (ms)")
+	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Timeout (ms)")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
