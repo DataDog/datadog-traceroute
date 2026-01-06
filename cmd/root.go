@@ -45,6 +45,7 @@ var rootCmd = &cobra.Command{
 		if Args.verbose {
 			log.SetLogLevel(log.LevelTrace)
 		}
+		return nil
 
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
