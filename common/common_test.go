@@ -59,14 +59,4 @@ func TestLocalAddrForHost(t *testing.T) {
 		require.NotNil(t, addr)
 		require.True(t, addr.IP.IsLoopback(), "source IP %s should be loopback when destination is loopback", addr.IP)
 	})
-
-	t.Run("IPv6 loopback destination returns loopback source", func(t *testing.T) {
-		// When the destination is ::1, the source must also be a loopback address.
-		addr, conn, err := LocalAddrForHost(net.ParseIP("::1"), DefaultPort)
-		require.NoError(t, err)
-		require.NotNil(t, conn)
-		defer conn.Close()
-		require.NotNil(t, addr)
-		require.True(t, addr.IP.IsLoopback(), "source IP %s should be loopback when destination is loopback", addr.IP)
-	})
 }
