@@ -25,7 +25,7 @@ jobs:
         with:
           go-version-file: ".go-version"
       - run: go mod tidy
-      - run: go test -tags=test -v ./...
+      - run: go test -tags="test ipv6" -v ./...
 
   e2e_localhost_cli_tests:
     name: "E2E Localhost CLI Tests"
