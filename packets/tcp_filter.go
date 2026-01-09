@@ -30,46 +30,73 @@ func (c FilterConfig) GenerateTCP4Filter() ([]bpf.RawInstruction, error) {
 	srcPort := uint32(c.Src.Port())
 	dstPort := uint32(c.Dst.Port())
 
-	// Process to derive the following program:
-	// 1. Generate the BPF program with placeholder values:
-	//    tcpdump -i eth0 -d 'ip and tcp and src 2.4.6.8 and dst 1.3.5.7 and src port 1234 and dst port 5678'
-	// 2. Replace the placeholder values with src/dst AddrPorts
+	// The packet source can yield either Ethernet-framed packets or raw IP packets (no link header),
+	// depending on the interface (e.g., WireGuard is often L3-only). This filter supports both.
+	//
+	// For TCP traceroute we want:
+	// - all ICMPv4 packets (TTL exceeded, unreachable, etc.)
+	// - TCP packets matching a specific 4-tuple
+	//
+	// We only support IPv4 here.
 	return bpf.Assemble([]bpf.Instruction{
-		// (000) ldh      [12] -- load EtherType
-		bpf.LoadAbsolute{Size: 2, Off: 12},
-		// (001) jeq      #0x800           jt 2	jf 17 -- if IPv4, continue, else drop
-		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x800, SkipTrue: 0, SkipFalse: 15},
-		// (002) ldb      [23] -- load Protocol
-		bpf.LoadAbsolute{Size: 1, Off: 23},
-		// (003) jeq      #0x1             jt 16	jf 4 -- if ICMPv4, accept packet, else continue
-		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x1, SkipTrue: 12, SkipFalse: 0},
-		// (004) jeq      #0x6             jt 5	jf 17 -- if TCP, continue, else drop
-		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x6, SkipTrue: 0, SkipFalse: 12},
-		// (005) ld       [26] -- load source IP
-		bpf.LoadAbsolute{Size: 4, Off: 26},
-		// (006) jeq      #0x2040608       jt 7	jf 17 -- if srcAddr matches, continue, else drop
+		// A = packet[0] & 0xf0
+		bpf.LoadAbsolute{Size: 1, Off: 0},
+		bpf.ALUOpConstant{Op: bpf.ALUOpAnd, Val: 0xf0},
+
+		// --- Raw IPv4 block (size 17) ---
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x40, SkipTrue: 0, SkipFalse: 17},
+		// (raw) protocol
+		bpf.LoadAbsolute{Size: 1, Off: 9},
+		// accept ICMPv4
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 1, SkipTrue: 0, SkipFalse: 1},
+		bpf.RetConstant{Val: bpfMaxPacketLen},
+		// require TCP
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 6, SkipTrue: 0, SkipFalse: 12},
+		// src/dst IPs
+		bpf.LoadAbsolute{Size: 4, Off: 12},
 		bpf.JumpIf{Cond: bpf.JumpEqual, Val: srcAddr, SkipTrue: 0, SkipFalse: 10},
-		// (007) ld       [30] -- load destination IP
-		bpf.LoadAbsolute{Size: 4, Off: 30},
-		// (008) jeq      #0x1030507       jt 9	jf 17 -- if dstAddr matches, continue, else drop
+		bpf.LoadAbsolute{Size: 4, Off: 16},
 		bpf.JumpIf{Cond: bpf.JumpEqual, Val: dstAddr, SkipTrue: 0, SkipFalse: 8},
-		// (009) ldh      [20] -- load Fragment Offset
-		bpf.LoadAbsolute{Size: 2, Off: 20},
-		// (010) jset     #0x1fff          jt 17	jf 11 -- if fragmented, drop, else continue
+		// fragment check
+		bpf.LoadAbsolute{Size: 2, Off: 6},
 		bpf.JumpIf{Cond: bpf.JumpBitsSet, Val: 0x1fff, SkipTrue: 6, SkipFalse: 0},
-		// (011) ldxb     4*([14]&0xf) -- x = IP header length
-		bpf.LoadMemShift{Off: 14},
-		// (012) ldh      [x + 14] -- load source port
-		bpf.LoadIndirect{Size: 2, Off: 14},
-		// (013) jeq      #0x4d2           jt 14	jf 17 -- if srcPort matches, continue, else drop
+		// x = ip header length
+		bpf.LoadMemShift{Off: 0},
+		// src/dst ports
+		bpf.LoadIndirect{Size: 2, Off: 0},
 		bpf.JumpIf{Cond: bpf.JumpEqual, Val: srcPort, SkipTrue: 0, SkipFalse: 3},
-		// (014) ldh      [x + 16] -- load destination port
-		bpf.LoadIndirect{Size: 2, Off: 16},
-		// (015) jeq      #0x162e          jt 16	jf 17 -- if dstPort matches, continue, else drop
+		bpf.LoadIndirect{Size: 2, Off: 2},
 		bpf.JumpIf{Cond: bpf.JumpEqual, Val: dstPort, SkipTrue: 0, SkipFalse: 1},
-		// (016) ret      #262144 -- accept packet
-		bpf.RetConstant{Val: 262144},
-		// (017) ret      #0  -- drop packet
+		bpf.RetConstant{Val: bpfMaxPacketLen},
+		bpf.RetConstant{Val: 0},
+
+		// Drop raw IPv6 quickly; we only support IPv4 here.
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x60, SkipTrue: 0, SkipFalse: 1},
+		bpf.RetConstant{Val: 0},
+
+		// --- Ethernet IPv4 ---
+		bpf.LoadAbsolute{Size: 2, Off: 12}, // EtherType
+		// If not IPv4, drop.
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 0x800, SkipTrue: 1, SkipFalse: 0},
+		bpf.RetConstant{Val: 0},
+
+		// Ethernet IPv4 block (size 17)
+		bpf.LoadAbsolute{Size: 1, Off: 23}, // Protocol (14 + 9)
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 1, SkipTrue: 0, SkipFalse: 1},
+		bpf.RetConstant{Val: bpfMaxPacketLen},
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: 6, SkipTrue: 0, SkipFalse: 12},
+		bpf.LoadAbsolute{Size: 4, Off: 26}, // src IP (14 + 12)
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: srcAddr, SkipTrue: 0, SkipFalse: 10},
+		bpf.LoadAbsolute{Size: 4, Off: 30}, // dst IP (14 + 16)
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: dstAddr, SkipTrue: 0, SkipFalse: 8},
+		bpf.LoadAbsolute{Size: 2, Off: 20}, // fragment offset (14 + 6)
+		bpf.JumpIf{Cond: bpf.JumpBitsSet, Val: 0x1fff, SkipTrue: 6, SkipFalse: 0},
+		bpf.LoadMemShift{Off: 14},
+		bpf.LoadIndirect{Size: 2, Off: 14}, // src port (14 + IP header len)
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: srcPort, SkipTrue: 0, SkipFalse: 3},
+		bpf.LoadIndirect{Size: 2, Off: 16}, // dst port
+		bpf.JumpIf{Cond: bpf.JumpEqual, Val: dstPort, SkipTrue: 0, SkipFalse: 1},
+		bpf.RetConstant{Val: bpfMaxPacketLen},
 		bpf.RetConstant{Val: 0},
 	})
 }

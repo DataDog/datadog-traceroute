@@ -52,7 +52,7 @@ func (a *afPacketSource) Read(buf []byte) (int, error) {
 		if err != nil {
 			return n, err
 		}
-		payload, err = stripEthernetHeader(buf[:n])
+		payload, err = stripLinkLayerHeader(buf[:n])
 		if err != nil {
 			return n, err
 		}

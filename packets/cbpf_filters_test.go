@@ -49,10 +49,8 @@ func makeTcpPayload(t *testing.T) []byte {
 	return buf.Bytes()
 }
 
-func makeIcmp4Packet(t *testing.T) []byte {
+func makeIcmp4Packet(t *testing.T, includeEth bool) []byte {
 	tcpBytes := makeTcpPayload(t)[:8]
-
-	eth := makeEth(t, layers.EthernetTypeIPv4)
 	ip4 := &layers.IPv4{
 		Version:  4,
 		TTL:      123,
@@ -71,15 +69,19 @@ func makeIcmp4Packet(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip4, icmp4, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv4)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip4, icmp4, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip4, icmp4, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
 
-func makeIcmp6Packet(t *testing.T) []byte {
+func makeIcmp6Packet(t *testing.T, includeEth bool) []byte {
 	tcpBytes := makeTcpPayload(t)
-
-	eth := makeEth(t, layers.EthernetTypeIPv6)
 	ip6 := &layers.IPv6{
 		Version:    6,
 		SrcIP:      net.ParseIP("::1"),
@@ -97,13 +99,18 @@ func makeIcmp6Packet(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip6, icmp6, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv6)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip6, icmp6, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip6, icmp6, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
 
-func makeUdp4Packet(t *testing.T) []byte {
-	eth := makeEth(t, layers.EthernetTypeIPv4)
+func makeUdp4Packet(t *testing.T, includeEth bool) []byte {
 	ip4 := &layers.IPv4{
 		Version:  4,
 		TTL:      123,
@@ -124,13 +131,18 @@ func makeUdp4Packet(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip4, udp, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv4)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip4, udp, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip4, udp, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
 
-func makeUdp6Packet(t *testing.T) []byte {
-	eth := makeEth(t, layers.EthernetTypeIPv6)
+func makeUdp6Packet(t *testing.T, includeEth bool) []byte {
 	ip6 := &layers.IPv6{
 		Version:    6,
 		SrcIP:      net.ParseIP("::1"),
@@ -149,13 +161,18 @@ func makeUdp6Packet(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip6, udp, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv6)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip6, udp, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip6, udp, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
 
-func makeTcp4SynPacket(t *testing.T) []byte {
-	eth := makeEth(t, layers.EthernetTypeIPv4)
+func makeTcp4SynPacket(t *testing.T, includeEth bool) []byte {
 	ip4 := &layers.IPv4{
 		Version:  4,
 		TTL:      123,
@@ -179,13 +196,18 @@ func makeTcp4SynPacket(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip4, tcp, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv4)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip4, tcp, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip4, tcp, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
 
-func makeTcp4SynAckPacket(t *testing.T) []byte {
-	eth := makeEth(t, layers.EthernetTypeIPv4)
+func makeTcp4SynAckPacket(t *testing.T, includeEth bool) []byte {
 	ip4 := &layers.IPv4{
 		Version:  4,
 		TTL:      123,
@@ -210,7 +232,13 @@ func makeTcp4SynAckPacket(t *testing.T) []byte {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	err := gopacket.SerializeLayers(buf, opts, eth, ip4, tcp, payload)
+	if includeEth {
+		eth := makeEth(t, layers.EthernetTypeIPv4)
+		err := gopacket.SerializeLayers(buf, opts, eth, ip4, tcp, payload)
+		require.NoError(t, err)
+		return buf.Bytes()
+	}
+	err := gopacket.SerializeLayers(buf, opts, ip4, tcp, payload)
 	require.NoError(t, err)
 	return buf.Bytes()
 }
@@ -231,17 +259,30 @@ func TestClassicBPFFilters(t *testing.T) {
 		name   string
 		packet []byte
 	}
-	icmp4 := packetDef{"icmp4", makeIcmp4Packet(t)}
-	icmp6 := packetDef{"icmp6", makeIcmp6Packet(t)}
-	udp4 := packetDef{"udp4", makeUdp4Packet(t)}
-	udp6 := packetDef{"udp6", makeUdp6Packet(t)}
-	tcp4Syn := packetDef{"tcp4Syn", makeTcp4SynPacket(t)}
-	tcp4Synack := packetDef{"tcp4Synack", makeTcp4SynAckPacket(t)}
+	icmp4Eth := packetDef{"icmp4-eth", makeIcmp4Packet(t, true)}
+	icmp4Raw := packetDef{"icmp4-raw", makeIcmp4Packet(t, false)}
+	icmp6Eth := packetDef{"icmp6-eth", makeIcmp6Packet(t, true)}
+	icmp6Raw := packetDef{"icmp6-raw", makeIcmp6Packet(t, false)}
+	udp4Eth := packetDef{"udp4-eth", makeUdp4Packet(t, true)}
+	udp4Raw := packetDef{"udp4-raw", makeUdp4Packet(t, false)}
+	udp6Eth := packetDef{"udp6-eth", makeUdp6Packet(t, true)}
+	udp6Raw := packetDef{"udp6-raw", makeUdp6Packet(t, false)}
+	tcp4SynEth := packetDef{"tcp4Syn-eth", makeTcp4SynPacket(t, true)}
+	tcp4SynRaw := packetDef{"tcp4Syn-raw", makeTcp4SynPacket(t, false)}
+	tcp4SynackEth := packetDef{"tcp4Synack-eth", makeTcp4SynAckPacket(t, true)}
+	tcp4SynackRaw := packetDef{"tcp4Synack-raw", makeTcp4SynAckPacket(t, false)}
 
 	tcp4TupleFilter, err := FilterConfig{
 		Src: netip.MustParseAddrPort("127.0.0.1:345"),
 		Dst: netip.MustParseAddrPort("127.0.0.2:678"),
 	}.GenerateTCP4Filter()
+	require.NoError(t, err)
+
+	icmpFilter, err := getClassicBPFFilter(PacketFilterSpec{FilterType: FilterTypeICMP})
+	require.NoError(t, err)
+	udpFilter, err := getClassicBPFFilter(PacketFilterSpec{FilterType: FilterTypeUDP})
+	require.NoError(t, err)
+	tcpSynackFilter, err := getClassicBPFFilter(PacketFilterSpec{FilterType: FilterTypeSYNACK})
 	require.NoError(t, err)
 
 	type packetCase struct {
@@ -257,60 +298,90 @@ func TestClassicBPFFilters(t *testing.T) {
 			name:    "drop all filter",
 			program: dropAllFilter,
 			expected: []packetCase{
-				{icmp4, false},
-				{icmp6, false},
-				{udp4, false},
-				{udp6, false},
-				{tcp4Syn, false},
-				{tcp4Synack, false},
+				{icmp4Eth, false},
+				{icmp4Raw, false},
+				{icmp6Eth, false},
+				{icmp6Raw, false},
+				{udp4Eth, false},
+				{udp4Raw, false},
+				{udp6Eth, false},
+				{udp6Raw, false},
+				{tcp4SynEth, false},
+				{tcp4SynRaw, false},
+				{tcp4SynackEth, false},
+				{tcp4SynackRaw, false},
 			},
 		},
 		{
 			name:    "icmp filter",
 			program: icmpFilter,
 			expected: []packetCase{
-				{icmp4, true},
-				{icmp6, true},
-				{udp4, false},
-				{udp6, false},
-				{tcp4Syn, false},
-				{tcp4Synack, false},
+				{icmp4Eth, true},
+				{icmp4Raw, true},
+				{icmp6Eth, true},
+				{icmp6Raw, true},
+				{udp4Eth, false},
+				{udp4Raw, false},
+				{udp6Eth, false},
+				{udp6Raw, false},
+				{tcp4SynEth, false},
+				{tcp4SynRaw, false},
+				{tcp4SynackEth, false},
+				{tcp4SynackRaw, false},
 			},
 		},
 		{
 			name:    "udp filter",
 			program: udpFilter,
 			expected: []packetCase{
-				{icmp4, true},
-				{icmp6, true},
-				{udp4, true},
-				{udp6, true},
-				{tcp4Syn, false},
-				{tcp4Synack, false},
+				{icmp4Eth, true},
+				{icmp4Raw, true},
+				{icmp6Eth, true},
+				{icmp6Raw, true},
+				{udp4Eth, true},
+				{udp4Raw, true},
+				{udp6Eth, true},
+				{udp6Raw, true},
+				{tcp4SynEth, false},
+				{tcp4SynRaw, false},
+				{tcp4SynackEth, false},
+				{tcp4SynackRaw, false},
 			},
 		},
 		{
 			name:    "tcp tuple filter",
 			program: tcp4TupleFilter,
 			expected: []packetCase{
-				{icmp4, true},
-				{icmp6, false},
-				{udp4, false},
-				{udp6, false},
-				{tcp4Syn, true},
-				{tcp4Synack, true},
+				{icmp4Eth, true},
+				{icmp4Raw, true},
+				{icmp6Eth, false},
+				{icmp6Raw, false},
+				{udp4Eth, false},
+				{udp4Raw, false},
+				{udp6Eth, false},
+				{udp6Raw, false},
+				{tcp4SynEth, true},
+				{tcp4SynRaw, true},
+				{tcp4SynackEth, true},
+				{tcp4SynackRaw, true},
 			},
 		},
 		{
 			name:    "tcp synack filter",
 			program: tcpSynackFilter,
 			expected: []packetCase{
-				{icmp4, false},
-				{icmp6, false},
-				{udp4, false},
-				{udp6, false},
-				{tcp4Syn, false},
-				{tcp4Synack, true},
+				{icmp4Eth, false},
+				{icmp4Raw, false},
+				{icmp6Eth, false},
+				{icmp6Raw, false},
+				{udp4Eth, false},
+				{udp4Raw, false},
+				{udp6Eth, false},
+				{udp6Raw, false},
+				{tcp4SynEth, false},
+				{tcp4SynRaw, false},
+				{tcp4SynackEth, true},
+				{tcp4SynackRaw, true},
 			},
 		},
 	}
