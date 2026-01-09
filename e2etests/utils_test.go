@@ -30,7 +30,7 @@ const (
 	fakeNetworkTarget = "198.51.100.2"
 
 	numTraceroutes = 3
-	numE2eProbes = 10
+	numE2eProbes   = 10
 )
 
 var (

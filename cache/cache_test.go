@@ -101,15 +101,15 @@ func TestGet(t *testing.T) {
 
 func TestGetWithExpiration(t *testing.T) {
 	tests := []struct {
-		name          string
-		key           string
-		expiration    time.Duration
-		preSeedCache  func()
-		callback      func() (int, error)
-		wantValue     int
-		wantErr       bool
-		shouldCache   bool
-		callbackCalls int
+		name           string
+		key            string
+		expiration     time.Duration
+		preSeedCache   func()
+		callback       func() (int, error)
+		wantValue      int
+		wantErr        bool
+		shouldCache    bool
+		callbackCalls  int
 		checkAfterWait *time.Duration // if set, wait this duration and verify cache state
 	}{
 		{
@@ -245,4 +245,3 @@ func TestGet_DifferentTypes(t *testing.T) {
 func ptrDuration(d time.Duration) *time.Duration {
 	return &d
 }
-

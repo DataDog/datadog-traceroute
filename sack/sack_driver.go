@@ -239,9 +239,9 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 		}
 
 		return &common.ProbeResponse{
-			TTL:    uint8(relSeq),
-			IP:     ipPair.SrcAddr,
-			RTT:    rtt,
+			TTL: uint8(relSeq),
+			IP:  ipPair.SrcAddr,
+			RTT: rtt,
 			// Note that some servers don't properly reply with SACK responses, even if they respond with the
 			// SACK permitted option during the handshake.  In these cases an ICMP TTL Exceeded response from
 			// the destination indicates that we've reached the destination.

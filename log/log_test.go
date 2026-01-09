@@ -95,4 +95,3 @@ func TestLogLevelOrder(t *testing.T) {
 		t.Error("Log levels are not in expected ascending order")
 	}
 }
-

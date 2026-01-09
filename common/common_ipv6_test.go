@@ -17,7 +17,7 @@ import (
 
 // Runs under the ipv6 build tag because some environments lack IPv6 loopback support.
 func TestLocalAddrForHostIPv6Loopback(t *testing.T) {
-    // When the destination is ::1, the source must also be a loopback address.
+	// When the destination is ::1, the source must also be a loopback address.
 	addr, conn, err := LocalAddrForHost(net.ParseIP("::1"), DefaultPort)
 	require.NoError(t, err)
 	require.NotNil(t, conn)

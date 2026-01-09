@@ -19,7 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
-) 
+)
 
 //revive:disable:var-naming These names are intended to match the Windows API names
 
