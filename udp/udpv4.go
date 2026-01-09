@@ -48,17 +48,17 @@ func NewUDPv4(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, dela
 	buffer := gopacket.NewSerializeBufferExpectedSize(36, 0)
 
 	return &UDPv4{
-		Target:           target,
-		TargetPort:       targetPort,
-		MinTTL:           minTTL,
-		MaxTTL:           maxTTL,
-		srcIP:            net.IP{}, // avoid linter error on linux as it's only used on windows
-		srcPort:          0,        // avoid linter error on linux as it's only used on windows
-		Delay:            delay,
-		Timeout:          timeout,
-		icmpParser:       icmpParser,
-		buffer:           buffer,
-		UseWindowsDriver: useDriver,
+		Target:     target,
+		TargetPort: targetPort,
+		MinTTL:     minTTL,
+		MaxTTL:     maxTTL,
+		srcIP:      net.IP{}, // avoid linter error on linux as it's only used on windows
+		srcPort:    0,        // avoid linter error on linux as it's only used on windows
+		Delay:      delay,
+		Timeout:    timeout,
+		icmpParser: icmpParser,
+		buffer:     buffer,
+		UseWindowsDriver:  useDriver,
 	}
 }
 

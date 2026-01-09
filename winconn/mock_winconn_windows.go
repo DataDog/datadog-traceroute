@@ -14,7 +14,6 @@ import (
 
 	common "github.com/DataDog/datadog-traceroute/common"
 )
-
 // MockRawConnWrapper is a mock of RawConnWrapper interface.
 type MockRawConnWrapper struct {
 	ctrl     *gomock.Controller
