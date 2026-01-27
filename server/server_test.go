@@ -6,6 +6,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,4 +39,44 @@ func TestTracerouteHandlerMissingTarget(t *testing.T) {
 	srv.TracerouteHandler(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestHealthHandler(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.HealthHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var response HealthResponse
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+	assert.Equal(t, "healthy", response.Status)
+	assert.NotEmpty(t, response.Timestamp)
+	assert.NotEmpty(t, response.Uptime)
+}
+
+func TestHealthHandlerHead(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodHead, "/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.HealthHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+	assert.Empty(t, w.Body.String())
+}
+
+func TestHealthHandlerMethodNotAllowed(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodPost, "/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.HealthHandler(w, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
