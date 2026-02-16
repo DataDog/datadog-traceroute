@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-traceroute
 
-go 1.24.10
+go 1.25.7
 
 require (
 	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
@@ -14,9 +14,9 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	golang.org/x/net v0.43.0
+	golang.org/x/net v0.49.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.36.0
+	golang.org/x/sys v0.40.0
 )
 
 require (
