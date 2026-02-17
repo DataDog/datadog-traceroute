@@ -124,7 +124,7 @@ func (r *Results) EnrichWithReverseDns() {
 
 // Normalize results
 func (r *Results) Normalize() {
-	r.TestRunID = uuid.New().String()
+	r.TestRunID = uuid.NewString()
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeTracerouteHopsCount()
@@ -146,7 +146,7 @@ func (r *Results) RemovePrivateHops() {
 
 func (r *Results) normalizeTracerouteRuns() {
 	for i := range r.Traceroute.Runs {
-		r.Traceroute.Runs[i].RunID = uuid.New().String()
+		r.Traceroute.Runs[i].RunID = uuid.NewString()
 	}
 }
 
