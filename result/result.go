@@ -5,12 +5,12 @@ import (
 	"net"
 
 	"github.com/DataDog/datadog-traceroute/reversedns"
-	"github.com/google/uuid"
 )
 
 type (
 	// Results all the results from a single test run
 	Results struct {
+		TestRunID   string      `json:"test_run_id"`
 		Protocol    string      `json:"protocol"`
 		Source      Source      `json:"source"`
 		Destination Destination `json:"destination"`
@@ -123,6 +123,7 @@ func (r *Results) EnrichWithReverseDns() {
 
 // Normalize results
 func (r *Results) Normalize() {
+	r.normalizeTestRunID()
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeTracerouteHopsCount()
@@ -142,9 +143,13 @@ func (r *Results) RemovePrivateHops() {
 	}
 }
 
+func (r *Results) normalizeTestRunID() {
+	r.TestRunID = newBase64UUID()
+}
+
 func (r *Results) normalizeTracerouteRuns() {
 	for i := range r.Traceroute.Runs {
-		r.Traceroute.Runs[i].RunID = uuid.New().String()
+		r.Traceroute.Runs[i].RunID = newBase64UUID()
 	}
 }
 
