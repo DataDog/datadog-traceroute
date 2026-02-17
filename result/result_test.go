@@ -2,13 +2,13 @@ package result
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/reversedns"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -413,11 +413,12 @@ func TestResults_TestRunID(t *testing.T) {
 		assert.NotEmpty(t, r.TestRunID)
 	})
 
-	t.Run("valid uuid format", func(t *testing.T) {
+	t.Run("valid base64-encoded uuid", func(t *testing.T) {
 		r := Results{}
 		r.Normalize()
-		_, err := uuid.Parse(r.TestRunID)
-		require.NoError(t, err, "TestRunID should be a valid UUID")
+		decoded, err := base64.RawURLEncoding.DecodeString(r.TestRunID)
+		require.NoError(t, err, "TestRunID should be valid base64 RawURL encoding")
+		assert.Len(t, decoded, 16, "decoded TestRunID should be 16 bytes (UUID)")
 	})
 
 	t.Run("unique across calls", func(t *testing.T) {

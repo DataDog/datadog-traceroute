@@ -1,6 +1,7 @@
 package result
 
 import (
+	"encoding/base64"
 	"math"
 	"net"
 
@@ -124,7 +125,7 @@ func (r *Results) EnrichWithReverseDns() {
 
 // Normalize results
 func (r *Results) Normalize() {
-	r.TestRunID = uuid.NewString()
+	r.normalizeTestRunID()
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeTracerouteHopsCount()
@@ -144,9 +145,15 @@ func (r *Results) RemovePrivateHops() {
 	}
 }
 
+func (r *Results) normalizeTestRunID() {
+	id := uuid.New()
+	r.TestRunID = base64.RawURLEncoding.EncodeToString(id[:])
+}
+
 func (r *Results) normalizeTracerouteRuns() {
 	for i := range r.Traceroute.Runs {
-		r.Traceroute.Runs[i].RunID = uuid.NewString()
+		id := uuid.New()
+		r.Traceroute.Runs[i].RunID = base64.RawURLEncoding.EncodeToString(id[:])
 	}
 }
 
