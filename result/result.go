@@ -11,6 +11,7 @@ import (
 type (
 	// Results all the results from a single test run
 	Results struct {
+		TestRunID   string      `json:"test_run_id"`
 		Protocol    string      `json:"protocol"`
 		Source      Source      `json:"source"`
 		Destination Destination `json:"destination"`
@@ -123,6 +124,7 @@ func (r *Results) EnrichWithReverseDns() {
 
 // Normalize results
 func (r *Results) Normalize() {
+	r.TestRunID = uuid.New().String()
 	r.normalizeTracerouteRuns()
 	r.normalizeTracerouteHops()
 	r.normalizeTracerouteHopsCount()

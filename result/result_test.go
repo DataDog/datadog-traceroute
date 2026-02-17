@@ -2,12 +2,15 @@ package result
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"testing"
 
 	"github.com/DataDog/datadog-traceroute/reversedns"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResults_Normalize(t *testing.T) {
@@ -212,6 +215,9 @@ func TestResults_Normalize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.Results.Normalize()
+			assert.NotEmpty(t, tt.Results.TestRunID)
+			tt.Results.TestRunID = "test-run-id"
+			tt.ExpectedResults.TestRunID = "test-run-id"
 			for i := range tt.Results.Traceroute.Runs {
 				assert.NotEmpty(t, tt.Results.Traceroute.Runs[i].RunID)
 				tt.Results.Traceroute.Runs[i].RunID = fmt.Sprintf("id-%d", i)
@@ -393,4 +399,51 @@ func TestResults_RemovePrivateHops(t *testing.T) {
 	}
 	result.RemovePrivateHops()
 	assert.Equal(t, expectedResults, result)
+}
+
+func TestResults_TestRunID(t *testing.T) {
+	t.Run("empty before normalize", func(t *testing.T) {
+		r := Results{}
+		assert.Empty(t, r.TestRunID)
+	})
+
+	t.Run("set after normalize", func(t *testing.T) {
+		r := Results{}
+		r.Normalize()
+		assert.NotEmpty(t, r.TestRunID)
+	})
+
+	t.Run("valid uuid format", func(t *testing.T) {
+		r := Results{}
+		r.Normalize()
+		_, err := uuid.Parse(r.TestRunID)
+		require.NoError(t, err, "TestRunID should be a valid UUID")
+	})
+
+	t.Run("unique across calls", func(t *testing.T) {
+		r1 := Results{}
+		r1.Normalize()
+		r2 := Results{}
+		r2.Normalize()
+		assert.NotEqual(t, r1.TestRunID, r2.TestRunID)
+	})
+
+	t.Run("json serialization", func(t *testing.T) {
+		r := Results{}
+		r.Normalize()
+		data, err := json.Marshal(r)
+		require.NoError(t, err)
+
+		var raw map[string]json.RawMessage
+		err = json.Unmarshal(data, &raw)
+		require.NoError(t, err)
+
+		val, ok := raw["test_run_id"]
+		require.True(t, ok, "test_run_id should be present at the root of the JSON payload")
+
+		var id string
+		err = json.Unmarshal(val, &id)
+		require.NoError(t, err)
+		assert.Equal(t, r.TestRunID, id)
+	})
 }
