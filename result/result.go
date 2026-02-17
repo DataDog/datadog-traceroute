@@ -1,12 +1,10 @@
 package result
 
 import (
-	"encoding/base64"
 	"math"
 	"net"
 
 	"github.com/DataDog/datadog-traceroute/reversedns"
-	"github.com/google/uuid"
 )
 
 type (
@@ -146,14 +144,12 @@ func (r *Results) RemovePrivateHops() {
 }
 
 func (r *Results) normalizeTestRunID() {
-	id := uuid.New()
-	r.TestRunID = base64.RawURLEncoding.EncodeToString(id[:])
+	r.TestRunID = newBase64UUID()
 }
 
 func (r *Results) normalizeTracerouteRuns() {
 	for i := range r.Traceroute.Runs {
-		id := uuid.New()
-		r.Traceroute.Runs[i].RunID = base64.RawURLEncoding.EncodeToString(id[:])
+		r.Traceroute.Runs[i].RunID = newBase64UUID()
 	}
 }
 
