@@ -12,6 +12,7 @@ import (
 	"os"
 
 	ddlog "github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/server"
 	"github.com/spf13/cobra"
 )
@@ -21,8 +22,9 @@ import (
 const defaultServerPort = 3765
 
 var (
-	addr     string
-	logLevel string
+	addr             string
+	logLevel         string
+	useWindowsDriver bool
 )
 
 var rootCmd = &cobra.Command{
@@ -36,6 +38,13 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		ddlog.SetLogLevel(level)
+
+		if useWindowsDriver {
+			if err := packets.StartDriver(); err != nil {
+				return fmt.Errorf("failed to start driver: %w", err)
+			}
+			log.Printf("Windows driver initialized")
+		}
 
 		srv := server.NewServer()
 
@@ -53,6 +62,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Flags().StringVarP(&addr, "addr", "a", fmt.Sprintf(":%d", defaultServerPort), "HTTP server address to listen on")
 	rootCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (error, warn, info, debug, trace)")
+	rootCmd.Flags().BoolVar(&useWindowsDriver, "windows-driver", false, "Use Windows driver for traceroute (Windows only)")
 }
 
 func main() {
