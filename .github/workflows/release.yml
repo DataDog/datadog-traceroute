@@ -11,6 +11,8 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v2
         with:

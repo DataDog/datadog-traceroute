@@ -10,6 +10,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   unit_tests:
     runs-on: ${{ matrix.os }}
