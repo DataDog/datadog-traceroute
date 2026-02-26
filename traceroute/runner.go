@@ -29,7 +29,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 	case "udp":
 		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
+			return nil, err
 		}
 		cfg := udp.NewUDPv4(
 			target.Addr().AsSlice(),
@@ -48,7 +48,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 	case "tcp":
 		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
+			return nil, err
 		}
 
 		doSyn := func() (*result.TracerouteRun, error) {
@@ -74,7 +74,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 	case "icmp":
 		target, err := parseTarget(params.Hostname, 80, params.WantV6)
 		if err != nil {
-			return nil, fmt.Errorf("invalid target: %w", err)
+			return nil, err
 		}
 		cfg := icmp.Params{
 			Target: target.Addr(),
@@ -94,7 +94,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return nil, fmt.Errorf("could not generate icmp traceroute results: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unknown Protocol: %q", params.Protocol)
+		return nil, &InvalidTargetError{Err: fmt.Errorf("unknown protocol: %q", params.Protocol)}
 	}
 	return trRun, nil
 }
@@ -161,7 +161,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 
 	host, portStr, err = net.SplitHostPort(raw)
 	if err != nil {
-		return netip.AddrPort{}, fmt.Errorf("invalid address: %w", err)
+		return netip.AddrPort{}, &InvalidTargetError{Err: fmt.Errorf("invalid address: %w", err)}
 	}
 
 	ip, err := netip.ParseAddr(host)
@@ -169,7 +169,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 		// Not an IP — do DNS resolution
 		ips, err := net.LookupIP(host)
 		if err != nil || len(ips) == 0 {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
+			return netip.AddrPort{}, &DNSError{Host: host, Err: err}
 		}
 
 		found := false
@@ -189,7 +189,11 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 			}
 		}
 		if !found {
-			return netip.AddrPort{}, fmt.Errorf("failed to resolve host %q: %w", host, err)
+			family := "IPv4"
+			if wantIPv6 {
+				family = "IPv6"
+			}
+			return netip.AddrPort{}, &DNSError{Host: host, Err: fmt.Errorf("no %s address found", family)}
 		}
 		if !ip.IsValid() {
 			ip = netip.MustParseAddr(ips[0].String())
@@ -198,7 +202,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 1 || port > 65535 {
-		return netip.AddrPort{}, fmt.Errorf("invalid port: %v", portStr)
+		return netip.AddrPort{}, &InvalidTargetError{Err: fmt.Errorf("invalid port: %v", portStr)}
 	}
 
 	return netip.AddrPortFrom(ip, uint16(port)), nil
