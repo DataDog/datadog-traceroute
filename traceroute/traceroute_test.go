@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/golang/mock/gomock"
@@ -356,6 +357,17 @@ func Test_runTracerouteMulti_partialFailure(t *testing.T) {
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 	runTracerouteOnceFn = runTracerouteOnceFnAlternating
 
+	// Capture warning logs
+	var warnMessages []string
+	origLogger := log.Logger{
+		Warnf: func(format string, args ...interface{}) error {
+			warnMessages = append(warnMessages, fmt.Sprintf(format, args...))
+			return nil
+		},
+	}
+	log.SetLogger(origLogger)
+	defer log.SetLogger(log.Logger{})
+
 	tr := NewTraceroute()
 	results, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
 
@@ -365,6 +377,28 @@ func Test_runTracerouteMulti_partialFailure(t *testing.T) {
 	// At least 1 run should have succeeded (runs 1 and 3 succeed, run 2 fails)
 	assert.GreaterOrEqual(t, len(results.Traceroute.Runs), 1)
 	assert.LessOrEqual(t, len(results.Traceroute.Runs), 3)
+
+	// Warning log should have been emitted with failure count
+	require.Len(t, warnMessages, 1)
+	assert.Contains(t, warnMessages[0], "Some traceroute runs failed")
+	assert.Contains(t, warnMessages[0], "/3")
+}
+
+func Test_runTracerouteMulti_allFailSameError(t *testing.T) {
+	// All runs fail with the same error — the returned error should be deduplicated
+	runTracerouteOnceFnSameError := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+		return nil, fmt.Errorf("DNS resolution failed")
+	}
+
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	runTracerouteOnceFn = runTracerouteOnceFnSameError
+
+	tr := NewTraceroute()
+	_, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
+
+	require.Error(t, err)
+	// Should appear only once despite 3 runs failing with the same message
+	assert.Equal(t, "DNS resolution failed", err.Error())
 }
 
 func Test_deduplicateErrors(t *testing.T) {
