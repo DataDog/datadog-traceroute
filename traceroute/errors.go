@@ -31,6 +31,8 @@ const (
 	ErrCodeDenied ErrorCode = "DENIED"
 	// ErrCodeInvalidRequest indicates bad parameters from the caller.
 	ErrCodeInvalidRequest ErrorCode = "INVALID_REQUEST"
+	// ErrCodeFailedEncoding indicates a failure to encode the response.
+	ErrCodeFailedEncoding ErrorCode = "FAILED_ENCODING"
 	// ErrCodeUnknown is the catch-all for unclassified errors.
 	ErrCodeUnknown ErrorCode = "UNKNOWN"
 )

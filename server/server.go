@@ -71,7 +71,7 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
 		writeErrorResponse(w, traceroute.ErrorResponse{
-			Code:    traceroute.ErrCodeUnknown,
+			Code:    traceroute.ErrCodeFailedEncoding,
 			Message: "Failed to encode response",
 		}, http.StatusInternalServerError)
 		return
@@ -99,7 +99,7 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		writeErrorResponse(w, traceroute.ErrorResponse{
-			Code:    traceroute.ErrCodeUnknown,
+			Code:    traceroute.ErrCodeFailedEncoding,
 			Message: "Failed to encode health response",
 		}, http.StatusInternalServerError)
 		return
