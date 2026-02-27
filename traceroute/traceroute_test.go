@@ -330,3 +330,89 @@ func Test_runTracerouteMulti(t *testing.T) {
 		})
 	}
 }
+
+func Test_runTracerouteMulti_partialFailure(t *testing.T) {
+	var counter atomic.Int32
+	// Alternate between success and failure
+	runTracerouteOnceFnAlternating := func(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+		n := counter.Add(1)
+		if n%2 == 0 {
+			return nil, fmt.Errorf("simulated failure on run %d", n)
+		}
+		return &result.TracerouteRun{
+			Source: result.TracerouteSource{
+				IPAddress: net.ParseIP("10.10.88.88"),
+				Port:      1122,
+			},
+			Destination: result.TracerouteDestination{
+				IPAddress: net.ParseIP(fmt.Sprintf("10.10.10.%d", n)),
+			},
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	runTracerouteOnceFn = runTracerouteOnceFnAlternating
+
+	tr := NewTraceroute()
+	results, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
+
+	// Should succeed despite some failures
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	// At least 1 run should have succeeded (runs 1 and 3 succeed, run 2 fails)
+	assert.GreaterOrEqual(t, len(results.Traceroute.Runs), 1)
+	assert.LessOrEqual(t, len(results.Traceroute.Runs), 3)
+}
+
+func Test_deduplicateErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []error
+		expected int
+	}{
+		{
+			name:     "empty",
+			input:    []error{},
+			expected: 0,
+		},
+		{
+			name:     "all unique",
+			input:    []error{fmt.Errorf("a"), fmt.Errorf("b"), fmt.Errorf("c")},
+			expected: 3,
+		},
+		{
+			name:     "all same",
+			input:    []error{fmt.Errorf("same"), fmt.Errorf("same"), fmt.Errorf("same")},
+			expected: 1,
+		},
+		{
+			name:     "mixed",
+			input:    []error{fmt.Errorf("a"), fmt.Errorf("b"), fmt.Errorf("a"), fmt.Errorf("c"), fmt.Errorf("b")},
+			expected: 3,
+		},
+		{
+			name:     "single",
+			input:    []error{fmt.Errorf("only")},
+			expected: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deduplicateErrors(tt.input)
+			assert.Len(t, result, tt.expected)
+		})
+	}
+
+	// Verify order preservation
+	t.Run("preserves order", func(t *testing.T) {
+		input := []error{fmt.Errorf("first"), fmt.Errorf("second"), fmt.Errorf("first"), fmt.Errorf("third")}
+		result := deduplicateErrors(input)
+		require.Len(t, result, 3)
+		assert.Equal(t, "first", result[0].Error())
+		assert.Equal(t, "second", result[1].Error())
+		assert.Equal(t, "third", result[2].Error())
+	})
+}

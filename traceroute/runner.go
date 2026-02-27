@@ -168,8 +168,11 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 	if err != nil {
 		// Not an IP — do DNS resolution
 		ips, err := net.LookupIP(host)
-		if err != nil || len(ips) == 0 {
+		if err != nil {
 			return netip.AddrPort{}, &DNSError{Host: host, Err: err}
+		}
+		if len(ips) == 0 {
+			return netip.AddrPort{}, &DNSError{Host: host, Err: fmt.Errorf("no addresses found")}
 		}
 
 		found := false
@@ -202,7 +205,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 1 || port > 65535 {
-		return netip.AddrPort{}, &InvalidTargetError{Err: fmt.Errorf("invalid port: %v", portStr)}
+		return netip.AddrPort{}, &InvalidTargetError{Err: fmt.Errorf("invalid port: %s", portStr)}
 	}
 
 	return netip.AddrPortFrom(ip, uint16(port)), nil

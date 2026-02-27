@@ -110,7 +110,9 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 func writeErrorResponse(w http.ResponseWriter, resp traceroute.ErrorResponse, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Errorf("failed to encode error response: %v", err)
+	}
 }
 
 // Start starts the HTTP server on the specified address
