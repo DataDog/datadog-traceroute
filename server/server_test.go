@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +40,46 @@ func TestTracerouteHandlerMissingTarget(t *testing.T) {
 	srv.TracerouteHandler(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var errResp traceroute.ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, traceroute.ErrCodeInvalidRequest, errResp.Code)
+	assert.NotEmpty(t, errResp.Message)
+}
+
+func TestTracerouteHandlerDNSFailure(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=nonexistent.invalid.host.example", nil)
+	w := httptest.NewRecorder()
+
+	srv.TracerouteHandler(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var errResp traceroute.ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, traceroute.ErrCodeDNS, errResp.Code)
+	assert.NotEmpty(t, errResp.Message)
+}
+
+func TestTracerouteHandlerInvalidProtocol(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=127.0.0.1&protocol=ftp", nil)
+	w := httptest.NewRecorder()
+
+	srv.TracerouteHandler(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var errResp traceroute.ErrorResponse
+	err := json.NewDecoder(w.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, traceroute.ErrCodeInvalidRequest, errResp.Code)
 }
 
 func TestHealthHandler(t *testing.T) {

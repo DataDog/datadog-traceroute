@@ -55,7 +55,7 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 func (t Traceroute) runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
 	var results result.Results
-	var multiErr []error
+	var tracerouteErrors []error
 	resultsAndErrorsMu := &sync.Mutex{}
 
 	// regular traceroutes
@@ -66,7 +66,7 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 			trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
 			resultsAndErrorsMu.Lock()
 			if err != nil {
-				multiErr = append(multiErr, err)
+				tracerouteErrors = append(tracerouteErrors, err)
 			} else {
 				results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
 			}
@@ -93,7 +93,7 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
 				resultsAndErrorsMu.Lock()
 				if err != nil {
-					multiErr = append(multiErr, err)
+					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
 					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
 				} else {
 					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
@@ -124,8 +124,28 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 
 	wg.Wait()
-	if len(multiErr) > 0 {
-		return nil, errors.Join(multiErr...)
+
+	// Only fail if all traceroute runs failed
+	if params.TracerouteQueries > 0 && len(results.Traceroute.Runs) == 0 && len(tracerouteErrors) > 0 {
+		return nil, errors.Join(deduplicateErrors(tracerouteErrors)...)
+	}
+	if len(tracerouteErrors) > 0 {
+		log.Warnf("Some traceroute runs failed (%d/%d): %v", len(tracerouteErrors), params.TracerouteQueries, errors.Join(tracerouteErrors...))
 	}
 	return &results, nil
+}
+
+// deduplicateErrors returns a subset of errs with unique .Error() messages,
+// preserving the order of first occurrence.
+func deduplicateErrors(errs []error) []error {
+	seen := make(map[string]struct{}, len(errs))
+	unique := make([]error, 0, len(errs))
+	for _, err := range errs {
+		msg := err.Error()
+		if _, ok := seen[msg]; !ok {
+			seen[msg] = struct{}{}
+			unique = append(unique, err)
+		}
+	}
+	return unique
 }

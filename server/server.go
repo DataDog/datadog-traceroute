@@ -7,7 +7,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -46,21 +45,35 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	params, err := parseTracerouteParams(r.URL)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid parameters: %v", err), http.StatusBadRequest)
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    traceroute.ErrCodeInvalidRequest,
+			Message: err.Error(),
+		}, http.StatusBadRequest)
 		return
 	}
 
 	// Run traceroute
 	results, err := s.tr.RunTraceroute(r.Context(), params)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Traceroute failed: %v", err), http.StatusInternalServerError)
+		classified := traceroute.ClassifyError(err)
+		status := http.StatusInternalServerError
+		if classified.Code == traceroute.ErrCodeInvalidRequest {
+			status = http.StatusBadRequest
+		}
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    classified.Code,
+			Message: classified.Message,
+		}, status)
 		return
 	}
 
 	// Return JSON response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    traceroute.ErrCodeFailedEncoding,
+			Message: "Failed to encode response",
+		}, http.StatusInternalServerError)
 		return
 	}
 }
@@ -85,8 +98,20 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    traceroute.ErrCodeFailedEncoding,
+			Message: "Failed to encode health response",
+		}, http.StatusInternalServerError)
 		return
+	}
+}
+
+// writeErrorResponse writes a structured JSON error to the response.
+func writeErrorResponse(w http.ResponseWriter, resp traceroute.ErrorResponse, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Errorf("failed to encode error response: %v", err)
 	}
 }
 
