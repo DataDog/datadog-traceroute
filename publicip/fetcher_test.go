@@ -252,6 +252,7 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 		body           string
 		serverDelay    time.Duration
 		clientTimeout  time.Duration
+		maxDuration    time.Duration
 		wantIP         string
 		expectedErr    string
 	}{
@@ -317,6 +318,15 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			contextTimeout: 100 * time.Millisecond, // Expires before ipCheckerCallTimeout (2s)
 			expectedErr:    "backoff retry error: context deadline exceeded",
 		},
+		{
+			name:           "context timeout cancels slow server requests",
+			statusCode:     http.StatusInternalServerError,
+			body:           "error",
+			serverDelay:    5000 * time.Millisecond,
+			maxDuration:    300 * time.Millisecond, // Actual max is around the context timeout. More headroom is added to avoid flakiness.
+			contextTimeout: 50 * time.Millisecond,
+			expectedErr:    "backoff retry error: context deadline exceeded",
+		},
 	}
 
 	for _, tt := range tests {
@@ -356,7 +366,13 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 				url = tt.url
 			}
 
+			now := time.Now()
 			gotIP, err := getPublicIPUsingIPChecker(ctx, client, backoffPolicy, url)
+			elapsed := time.Since(now)
+
+			if tt.maxDuration > 0 {
+				assert.Less(t, elapsed, tt.maxDuration)
+			}
 
 			if tt.expectedErr != "" {
 				assert.Error(t, err)

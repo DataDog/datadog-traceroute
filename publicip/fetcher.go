@@ -37,7 +37,7 @@ func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backof
 }
 
 func getPublicIPUsingIPChecker(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
-	req, err := http.NewRequest("GET", dest, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", dest, nil)
 	if err != nil {
 		return nil, errors.New("failed to create new request: " + err.Error())
 	}
