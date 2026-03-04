@@ -248,6 +248,7 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 		name           string
 		url            string
 		contextTimeout time.Duration
+		noDeadline     bool
 		statusCode     int
 		body           string
 		serverDelay    time.Duration
@@ -327,6 +328,15 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 			contextTimeout: 50 * time.Millisecond,
 			expectedErr:    "backoff retry error: context deadline exceeded",
 		},
+		{
+			name:        "context with no deadline is cancelled for long requests",
+			statusCode:  http.StatusInternalServerError,
+			body:        "error",
+			serverDelay: 5000 * time.Millisecond,
+			maxDuration: 3000 * time.Millisecond,
+			noDeadline:  true,
+			expectedErr: "backoff retry error: context deadline exceeded",
+		},
 	}
 
 	for _, tt := range tests {
@@ -353,12 +363,17 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 				backoffPolicy.MaxInterval = 50 * time.Millisecond
 			}
 
-			timeout := 1 * time.Second
-			if tt.contextTimeout > 0 {
-				timeout = tt.contextTimeout
+			var ctx context.Context
+			var cancel context.CancelFunc
+			if tt.noDeadline {
+				ctx, cancel = context.WithCancel(context.Background()) // mimics a parent context with no deadline
+			} else {
+				timeout := 1 * time.Second
+				if tt.contextTimeout > 0 {
+					timeout = tt.contextTimeout
+				}
+				ctx, cancel = context.WithTimeout(context.Background(), timeout)
 			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
 			url := server.URL
