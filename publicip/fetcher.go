@@ -37,16 +37,16 @@ func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backof
 }
 
 func getPublicIPUsingIPChecker(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff, dest string) (net.IP, error) {
-	req, err := http.NewRequest("GET", dest, nil)
-	if err != nil {
-		return nil, errors.New("failed to create new request: " + err.Error())
-	}
-
-	operation := func() (net.IP, error) {
-		return handleRequest(client, req)
-	}
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, ipCheckerCallTimeout)
 	defer cancel()
+
+	operation := func() (net.IP, error) {
+		req, err := http.NewRequestWithContext(ctxWithTimeout, "GET", dest, nil)
+		if err != nil {
+			return nil, backoff.Permanent(errors.New("failed to create new request: " + err.Error()))
+		}
+		return handleRequest(client, req)
+	}
 	result, err := backoff.Retry(ctxWithTimeout, operation, backoff.WithBackOff(backoffPolicy))
 	if err != nil {
 		return nil, errors.New("backoff retry error: " + err.Error())
