@@ -32,7 +32,7 @@ type FrameParser struct {
 }
 
 var ignoredLayerErr = &common.ReceiveProbeNoPktError{
-	Err: fmt.Errorf("FrameParser saw an a layer type not used by traceroute (e.g. SCTP) and decided to ignore it"),
+	Err: fmt.Errorf("FrameParser saw a layer type not used by traceroute (e.g. SCTP) and decided to ignore it"),
 }
 
 const expectedLayerCount = 2

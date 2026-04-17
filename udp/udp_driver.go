@@ -188,7 +188,7 @@ func (u *udpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
 		TTL:    probe.ttl,
 		IP:     ipPair.SrcAddr,
 		RTT:    rtt,
-		IsDest: ipPair.SrcAddr == u.getTargetAddrPort().Addr(),
+		IsDest: u.parser.IsDestinationUnreachable() || ipPair.SrcAddr == u.getTargetAddrPort().Addr(),
 	}, nil
 }
 

@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
+	"sync"
 	"syscall"
 
+	"golang.org/x/net/ipv6"
 	"golang.org/x/sys/unix"
 )
 
@@ -23,50 +25,81 @@ type sinkDarwin struct {
 	sock     *os.File
 	rawConn  syscall.RawConn
 	writeBuf []byte
+
+	// ipv6Once guards lazy creation of the IPv6 socket. On macOS,
+	// IPPROTO_RAW doesn't support sendmsg with ancillary data, so we
+	// create the socket with the actual transport protocol (NextHeader)
+	// from the first packet.
+	ipv6Once   sync.Once
+	ipv6Proto  int
+	ipv6Err    error
 }
 
 var _ Sink = &sinkDarwin{}
 
 // NewSinkDarwin returns a new sinkDarwin implementing packet sink
 func NewSinkDarwin(addr netip.Addr) (Sink, error) {
-	var domain, protocol int
+	s := &sinkDarwin{
+		writeBuf: make([]byte, 4096),
+	}
+
 	switch {
 	case addr.Is4():
-		domain = unix.AF_INET
-		protocol = unix.IPPROTO_IP
-	case addr.Is6():
-		domain = unix.AF_INET6
-		protocol = unix.IPPROTO_IPV6
-	default:
-		return nil, fmt.Errorf("SinkDarwin supports only IPv4 or IPv6 addresses")
-	}
-
-	fd, err := unix.Socket(domain, unix.SOCK_RAW, unix.IPPROTO_RAW)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create raw socket: %w", err)
-	}
-
-	// darwin only supports IP_HDRINCL for IPv4...
-	if addr.Is4() {
-		err = unix.SetsockoptInt(fd, protocol, unix.IP_HDRINCL, 1)
+		fd, err := unix.Socket(unix.AF_INET, unix.SOCK_RAW, unix.IPPROTO_RAW)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create raw socket: %w", err)
+		}
+		err = unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_HDRINCL, 1)
 		if err != nil {
 			unix.Close(fd)
 			return nil, fmt.Errorf("failed to set header include option: %w", err)
 		}
+		sock := os.NewFile(uintptr(fd), "")
+		rawConn, err := sock.SyscallConn()
+		if err != nil {
+			sock.Close()
+			return nil, fmt.Errorf("failed to create SyscallConn(): %w", err)
+		}
+		s.sock = sock
+		s.rawConn = rawConn
+	case addr.Is6():
+		// Defer socket creation to WriteTo — macOS does not support
+		// IPPROTO_RAW for IPv6 sendmsg with ancillary data, so we need
+		// the actual transport protocol from the packet's NextHeader field.
+		// Socket created lazily in ensureIPv6Socket.
+	default:
+		return nil, fmt.Errorf("SinkDarwin supports only IPv4 or IPv6 addresses")
 	}
 
-	sock := os.NewFile(uintptr(fd), "")
-	rawConn, err := sock.SyscallConn()
-	if err != nil {
-		sock.Close()
-		return nil, fmt.Errorf("failed to create SyscallConn(): %w", err)
-	}
+	return s, nil
+}
 
-	return &sinkDarwin{
-		sock:     sock,
-		rawConn:  rawConn,
-		writeBuf: make([]byte, 4096),
-	}, nil
+const ipv6HeaderSize = 40
+
+// ensureIPv6Socket lazily creates the IPv6 raw socket using the transport
+// protocol from the IPv6 NextHeader field.
+func (p *sinkDarwin) ensureIPv6Socket(nextHeader int) error {
+	p.ipv6Once.Do(func() {
+		p.ipv6Proto = nextHeader
+		fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_RAW, nextHeader)
+		if err != nil {
+			p.ipv6Err = fmt.Errorf("failed to create IPv6 raw socket (proto %d): %w", nextHeader, err)
+			return
+		}
+		sock := os.NewFile(uintptr(fd), "")
+		rawConn, err := sock.SyscallConn()
+		if err != nil {
+			sock.Close()
+			p.ipv6Err = fmt.Errorf("failed to create SyscallConn(): %w", err)
+			return
+		}
+		p.sock = sock
+		p.rawConn = rawConn
+	})
+	if p.ipv6Err == nil && nextHeader != p.ipv6Proto {
+		return fmt.Errorf("IPv6 socket bound to protocol %d, but got packet with NextHeader %d; only one protocol at a time is supported", p.ipv6Proto, nextHeader)
+	}
+	return p.ipv6Err
 }
 
 // updateNtohs16 replaces network-order uint16 with host-order, in-place
@@ -83,6 +116,7 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 	}
 
 	var sendBuf []byte
+	var oob []byte
 	switch {
 	case addr.Addr().Is4():
 		if len(buf) > len(p.writeBuf) {
@@ -103,29 +137,34 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 		updateNtohs16(sendBuf[ip_lenOffset : ip_lenOffset+2])
 		updateNtohs16(sendBuf[ip_offOffset : ip_offOffset+2])
 	case addr.Addr().Is6():
+		if len(buf) < ipv6HeaderSize {
+			return fmt.Errorf("sinkDarwin WriteTo: packet too small for IPv6 header")
+		}
+		// Read NextHeader before stripping, so we can create the right socket
+		nextHeader := int(buf[6])
+		if err := p.ensureIPv6Socket(nextHeader); err != nil {
+			return err
+		}
 		// IPv6: darwin has no IPV6_HDRINCL, so we need to strip the IPv6 header
 		var ttl uint8
 		sendBuf, ttl, err = stripIPv6Header(buf)
 		if err != nil {
 			return fmt.Errorf("failed to strip IPv6 header: %w", err)
 		}
-		var controlErr error
-		// set the TTL via IPV6_HOPLIMIT
-		err = p.rawConn.Control(func(fd uintptr) {
-			controlErr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_HOPLIMIT, int(ttl))
-		})
-		if err != nil {
-			return fmt.Errorf("failed to call Control() for IPV6_HOPLIMIT: %w", controlErr)
+		control := ipv6.ControlMessage{
+			HopLimit: int(ttl),
 		}
-		if controlErr != nil {
-			return fmt.Errorf("failed to set IPV6_HOPLIMIT: %w", controlErr)
-		}
+		oob = control.Marshal()
 	default:
 		return fmt.Errorf("invalid address family %s", addr)
 	}
 
 	writeErr := p.rawConn.Write(func(fd uintptr) bool {
-		err = unix.Sendto(int(fd), sendBuf, 0, sa)
+		if oob != nil {
+			err = unix.Sendmsg(int(fd), sendBuf, oob, sa, 0)
+		} else {
+			err = unix.Sendto(int(fd), sendBuf, 0, sa)
+		}
 		if err == nil {
 			return true
 		}
@@ -138,5 +177,8 @@ func (p *sinkDarwin) WriteTo(buf []byte, addr netip.AddrPort) error {
 
 // Close closes the socket
 func (p *sinkDarwin) Close() error {
-	return p.sock.Close()
+	if p.sock != nil {
+		return p.sock.Close()
+	}
+	return nil
 }

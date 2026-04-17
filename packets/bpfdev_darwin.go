@@ -11,163 +11,106 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"syscall"
 	"time"
-	"unsafe"
+
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 
 	"github.com/DataDog/datadog-traceroute/common"
-	"github.com/DataDog/datadog-traceroute/log"
-	"golang.org/x/sys/unix"
 )
 
-// Note: the BSD docs say BPF headers are aligned along the machine's word boundary.
-// This isn't true anymore for 64 bit systems, the alignment is still 4 bytes.
-// So it's not aligned by the size of a pointer but rather the alignment of the BpfHdr struct here.
-const bpfSize = int(unsafe.Alignof(unix.BpfHdr{}))
+const (
+	pcapSnapLen    = 4096
+	pcapBufferSize = 1024 * 1024 // 1 MB kernel BPF buffer
+)
 
-func bpfAlign(x int) int {
-	const mask = bpfSize - 1
-	return (x + mask) &^ mask
-}
-
-// maxBpfDevices is the hard limit MacOS has for bpf devices
-const maxBpfDevices = 256
-
-func pickBpfDevice() (int, error) {
-	for i := 0; i < maxBpfDevices; i++ {
-		name := fmt.Sprintf("/dev/bpf%d", i)
-		fd, err := unix.Open(name, unix.O_RDWR, 0)
-		if err == unix.EBUSY {
-			continue
-		}
-		if err != nil {
-			return 0, fmt.Errorf("pickBpfDevice failed to open %s: %w", name, err)
-		}
-
-		return fd, nil
-	}
-
-	return 0, fmt.Errorf("pickBpfDevice tried all %d bpf devices, were all busy", maxBpfDevices)
-}
-
-type BpfDevice struct {
-	fd         int
-	deadline   time.Time
-	readBuf    []byte
-	pktBuf     []byte
+// PcapSource implements the Source interface using libpcap on macOS.
+type PcapSource struct {
+	handle     *pcap.Handle
 	isLoopback bool
+	deadline   time.Time
 }
 
-// Close implements Source.
-func (b *BpfDevice) Close() error {
-	if b.fd == 0 {
-		return nil
-	}
-	fd := b.fd
-	b.fd = 0
-	return unix.Close(fd)
-}
-
-var _ Source = &BpfDevice{}
-
-func (b *BpfDevice) hasNextPacket() bool {
-	return len(b.pktBuf) > 0
-}
+var _ Source = &PcapSource{}
 
 var errNoNewPackets = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("no new packets before timeout")}
 
-func (b *BpfDevice) readPackets() error {
-	timeout := getReadTimeout(b.deadline)
-	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
-	err := syscall.SetBpfTimeout(b.fd, &tv)
-	if err != nil {
-		return fmt.Errorf("readPackets failed toSetBpfTimeout: %w", err)
+// Close implements Source.
+func (p *PcapSource) Close() error {
+	if p.handle != nil {
+		p.handle.Close()
+		p.handle = nil
 	}
-	n, err := unix.Read(b.fd, b.readBuf)
-	if err == unix.EINTR {
-		return errNoNewPackets
-	}
-	if err != nil {
-		return fmt.Errorf("readPackets failed to Read: %w", err)
-	}
-	b.pktBuf = b.readBuf[:n]
-	if n == 0 {
-		return errNoNewPackets
-	}
-
 	return nil
 }
 
-// nextPacket returns the next packet, including ethernet header (but not the darwin BpfHdr)
-func (b *BpfDevice) nextPacket() ([]byte, error) {
-	if len(b.pktBuf) < int(unsafe.Sizeof(unix.BpfHdr{})) {
-		return nil, fmt.Errorf("nextPacket: buffer size=%d is too small", len(b.pktBuf))
-	}
-	header := (*unix.BpfHdr)(unsafe.Pointer(&b.pktBuf[0]))
-	start := int(header.Hdrlen)
-	pktFinish := start + int(header.Caplen)
-	dataFinish := bpfAlign(pktFinish)
-	if len(b.pktBuf) < pktFinish {
-		log.Tracef("CRASHING")
-		return nil, fmt.Errorf("nextPacket: buffer size=%d is smaller than expected size %d", len(b.pktBuf), pktFinish)
-	}
-
-	packet := b.pktBuf[start:pktFinish]
-	if len(b.pktBuf) > dataFinish {
-		b.pktBuf = b.pktBuf[dataFinish:]
-	} else {
-		b.pktBuf = nil
-	}
-
-	return packet, nil
-}
-
-// Read implements Source.
-func (b *BpfDevice) Read(buf []byte) (int, error) {
-	var payload []byte
-	for payload == nil {
-		if !b.hasNextPacket() {
-			err := b.readPackets()
-			if err != nil {
-				return 0, err
-			}
+// Read implements Source. It returns one IP-layer packet (link-layer header stripped).
+func (p *PcapSource) Read(buf []byte) (int, error) {
+	for {
+		if !p.deadline.IsZero() && time.Now().After(p.deadline) {
+			return 0, errNoNewPackets
 		}
 
-		linkFrame, err := b.nextPacket()
+		data, _, err := p.handle.ReadPacketData()
+		if err == pcap.NextErrorTimeoutExpired {
+			if !p.deadline.IsZero() && time.Now().After(p.deadline) {
+				return 0, errNoNewPackets
+			}
+			continue
+		}
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("PcapSource Read failed: %w", err)
 		}
 
-		// BPF returns different link-layer headers depending on interface type:
-		// - Loopback interface (DLT_NULL): 4-byte address family header
-		// - Regular interfaces (DLT_EN10MB): 14-byte Ethernet header
-		if b.isLoopback {
-			// Skip the 4-byte DLT_NULL header to get to the IP packet
-			if len(linkFrame) < 4 {
-				return 0, fmt.Errorf("loopback packet too short: %d bytes", len(linkFrame))
+		var payload []byte
+		if p.isLoopback {
+			if len(data) < 4 {
+				continue
 			}
-			payload = linkFrame[4:]
+			payload = data[4:]
 		} else {
-			payload, err = stripEthernetHeader(linkFrame)
+			payload, err = stripEthernetHeader(data)
 			if err != nil {
 				return 0, err
 			}
+			if payload == nil {
+				continue // non-IP packet, skip
+			}
 		}
-	}
 
-	return copy(buf, payload), nil
+		return copy(buf, payload), nil
+	}
 }
 
 // SetReadDeadline implements Source.
-func (b *BpfDevice) SetReadDeadline(t time.Time) error {
-	b.deadline = t
+func (p *PcapSource) SetReadDeadline(t time.Time) error {
+	p.deadline = t
 	return nil
 }
 
-// SetPacketFilter sets this Source to only return certain packets.
-func (b *BpfDevice) SetPacketFilter(_ PacketFilterSpec) error {
-	// not implemented, no-op on MacOS
-	return nil
+// SetPacketFilter applies a BPF filter expression to the pcap handle.
+func (p *PcapSource) SetPacketFilter(spec PacketFilterSpec) error {
+	expr, err := filterSpecToExpr(spec)
+	if err != nil {
+		return err
+	}
+	return p.handle.SetBPFFilter(expr)
+}
+
+// filterSpecToExpr converts a PacketFilterSpec to a tcpdump filter expression.
+func filterSpecToExpr(spec PacketFilterSpec) (string, error) {
+	switch spec.FilterType {
+	case FilterTypeICMP:
+		return "icmp or icmp6", nil
+	case FilterTypeUDP:
+		return "icmp or icmp6 or udp", nil
+	case FilterTypeTCP:
+		return "icmp or icmp6 or tcp", nil
+	case FilterTypeSYNACK:
+		return "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack != 0", nil
+	default:
+		return "", fmt.Errorf("unsupported filter type %d", spec.FilterType)
+	}
 }
 
 func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
@@ -217,32 +160,49 @@ func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
 	return net.Interface{}, fmt.Errorf("deviceForTarget couldn't find a matching interface")
 }
 
+// NewBpfDevice returns a new Source using libpcap for packet capture.
 func NewBpfDevice(targetIp netip.Addr) (Source, error) {
 	iface, err := deviceForTarget(targetIp)
 	if err != nil {
 		return nil, fmt.Errorf("NewBpfDevice failed to find interface for target: %w", err)
 	}
 
-	fd, err := pickBpfDevice()
+	inactive, err := pcap.NewInactiveHandle(iface.Name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewBpfDevice failed to create pcap handle: %w", err)
 	}
-	err = syscall.SetBpfImmediate(fd, 1)
-	if err != nil {
-		unix.Close(fd)
-		return nil, fmt.Errorf("NewBpfDevice failed to SetBpfImmediate: %w", err)
+	if err := inactive.SetSnapLen(pcapSnapLen); err != nil {
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to set snap len: %w", err)
+	}
+	if err := inactive.SetPromisc(false); err != nil {
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to set promisc: %w", err)
+	}
+	if err := inactive.SetTimeout(100 * time.Millisecond); err != nil {
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to set timeout: %w", err)
+	}
+	if err := inactive.SetBufferSize(pcapBufferSize); err != nil {
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to set buffer size: %w", err)
 	}
 
-	err = syscall.SetBpfInterface(fd, iface.Name)
+	handle, err := inactive.Activate()
 	if err != nil {
-		unix.Close(fd)
-		return nil, fmt.Errorf("NewBpfDevice failed to SetBpfInterface: %w", err)
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to activate pcap handle: %w", err)
 	}
 
-	return &BpfDevice{
-		fd:         fd,
-		readBuf:    make([]byte, 4096),
-		pktBuf:     nil, // no packets yet
+	// Verify the link type is something we can handle
+	lt := handle.LinkType()
+	if lt != layers.LinkTypeNull && lt != layers.LinkTypeLoop && lt != layers.LinkTypeEthernet {
+		handle.Close()
+		return nil, fmt.Errorf("NewBpfDevice: unsupported link type %v on %s", lt, iface.Name)
+	}
+
+	return &PcapSource{
+		handle:     handle,
 		isLoopback: iface.Flags&net.FlagLoopback != 0,
 	}, nil
 }
