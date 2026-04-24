@@ -2,6 +2,8 @@ module github.com/DataDog/datadog-traceroute
 
 go 1.25.6
 
+toolchain go1.26.2
+
 require (
 	github.com/DataDog/datadog-agent/pkg/network/driver v0.0.0-20250930180617-1968b85a8a3b
 	github.com/cenkalti/backoff/v5 v5.0.3
