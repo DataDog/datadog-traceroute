@@ -24,7 +24,7 @@ import (
 
 func newTestSource(t *testing.T) Source {
 	t.Helper()
-	handle, err := NewSourceSink(netip.MustParseAddr("127.0.0.1"), false)
+	handle, err := NewSourceSink(netip.MustParseAddr("127.0.0.1"), true)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		handle.Source.Close()
@@ -37,8 +37,10 @@ func doTCPExchange(t *testing.T) {
 	t.Helper()
 	server := testutils.NewTCPServerOnAddress("127.0.0.1:0", func(c net.Conn) {
 		r := bufio.NewReader(c)
-		r.ReadBytes(byte('\n'))
-		c.Write([]byte("pong\n"))
+		_, err := r.ReadBytes(byte('\n'))
+		require.NoError(t, err)
+		_, err = c.Write([]byte("pong\n"))
+		require.NoError(t, err)
 		testutils.GracefulCloseTCP(c)
 	})
 	t.Cleanup(server.Shutdown)
@@ -47,9 +49,11 @@ func doTCPExchange(t *testing.T) {
 
 	conn, err := net.Dial("tcp", server.Address())
 	require.NoError(t, err)
-	conn.Write([]byte("ping\n"))
+	_, err = conn.Write([]byte("ping\n"))
+	require.NoError(t, err)
 	r := bufio.NewReader(conn)
-	r.ReadBytes(byte('\n'))
+	_, err = r.ReadBytes(byte('\n'))
+	require.NoError(t, err)
 	testutils.GracefulCloseTCP(conn)
 }
 
@@ -62,7 +66,7 @@ func TestFilterICMPBlocksTCP(t *testing.T) {
 	doTCPExchange(t)
 
 	buf := make([]byte, 4096)
-	source.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	require.NoError(t, source.SetReadDeadline(time.Now().Add(500*time.Millisecond)))
 	_, err = source.Read(buf)
 
 	var noPkt *common.ReceiveProbeNoPktError
@@ -79,12 +83,13 @@ func TestFilterICMPPassesICMP(t *testing.T) {
 	// Send UDP to a closed port to trigger ICMP Port Unreachable
 	conn, err := net.Dial("udp", "127.0.0.1:19234")
 	require.NoError(t, err)
-	conn.Write([]byte("hello"))
-	conn.Close()
+	_, err = conn.Write([]byte("hello"))
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
 
 	buf := make([]byte, 4096)
 	parser := NewFrameParser()
-	source.SetReadDeadline(time.Now().Add(2 * time.Second))
+	require.NoError(t, source.SetReadDeadline(time.Now().Add(2*time.Second)))
 	err = ReadAndParse(source, buf, parser)
 	require.NoError(t, err, "expected to capture ICMP packet")
 	assert.Equal(t, layers.LayerTypeICMPv4, parser.GetTransportLayer())

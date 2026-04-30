@@ -26,9 +26,9 @@ const (
 
 // PcapSource implements the Source interface using libpcap on macOS.
 type PcapSource struct {
-	handle     *pcap.Handle
-	isLoopback bool
-	deadline   time.Time
+	handle   *pcap.Handle
+	linkType layers.LinkType
+	deadline time.Time
 }
 
 var _ Source = &PcapSource{}
@@ -63,12 +63,13 @@ func (p *PcapSource) Read(buf []byte) (int, error) {
 		}
 
 		var payload []byte
-		if p.isLoopback {
+		switch p.linkType {
+		case layers.LinkTypeNull, layers.LinkTypeLoop:
 			if len(data) < 4 {
 				continue
 			}
 			payload = data[4:]
-		} else {
+		case layers.LinkTypeEthernet:
 			payload, err = stripEthernetHeader(data)
 			if err != nil {
 				return 0, err
@@ -76,6 +77,8 @@ func (p *PcapSource) Read(buf []byte) (int, error) {
 			if payload == nil {
 				continue // non-IP packet, skip
 			}
+		default:
+			return 0, fmt.Errorf("PcapSource Read: unsupported link type %v", p.linkType)
 		}
 
 		return copy(buf, payload), nil
@@ -105,12 +108,24 @@ func filterSpecToExpr(spec PacketFilterSpec) (string, error) {
 	case FilterTypeUDP:
 		return "icmp or icmp6 or udp", nil
 	case FilterTypeTCP:
-		return "icmp or icmp6 or tcp", nil
+		return filterTCPExpr(spec.FilterConfig)
 	case FilterTypeSYNACK:
 		return "tcp[tcpflags] & tcp-syn != 0 and tcp[tcpflags] & tcp-ack != 0", nil
 	default:
 		return "", fmt.Errorf("unsupported filter type %d", spec.FilterType)
 	}
+}
+
+// filterTCPExpr builds a tcpdump expression that passes ICMP/ICMPv6 plus
+// TCP traffic matching the given 4-tuple (src/dst addr+port).
+func filterTCPExpr(cfg FilterConfig) (string, error) {
+	if !cfg.Src.IsValid() || !cfg.Dst.IsValid() {
+		return "", fmt.Errorf("FilterTypeTCP requires valid Src and Dst in FilterConfig")
+	}
+	return fmt.Sprintf(
+		"icmp or icmp6 or (tcp and host %s and host %s and port %d and port %d)",
+		cfg.Src.Addr(), cfg.Dst.Addr(), cfg.Src.Port(), cfg.Dst.Port(),
+	), nil
 }
 
 func deviceForTarget(targetIp netip.Addr) (net.Interface, error) {
@@ -202,7 +217,7 @@ func NewBpfDevice(targetIp netip.Addr) (Source, error) {
 	}
 
 	return &PcapSource{
-		handle:     handle,
-		isLoopback: iface.Flags&net.FlagLoopback != 0,
+		handle:   handle,
+		linkType: handle.LinkType(),
 	}, nil
 }
