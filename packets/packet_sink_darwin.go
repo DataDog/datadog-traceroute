@@ -26,10 +26,9 @@ type sinkDarwin struct {
 	rawConn  syscall.RawConn
 	writeBuf []byte
 
-	// ipv6Once guards lazy creation of the IPv6 socket. On macOS,
-	// IPPROTO_RAW doesn't support sendmsg with ancillary data, so we
-	// create the socket with the actual transport protocol (NextHeader)
-	// from the first packet.
+	// ipv6Once guards lazy creation of the IPv6 socket. On macOS, IPPROTO_RAW
+	// doesn't support sending IPv6 packets (the protocol in the IP packet
+	// will be set to 255), so we need to make a protocol-specific socket.
 	ipv6Once   sync.Once
 	ipv6Proto  int
 	ipv6Err    error
@@ -81,7 +80,7 @@ const ipv6HeaderSize = 40
 func (p *sinkDarwin) ensureIPv6Socket(nextHeader int) error {
 	p.ipv6Once.Do(func() {
 		p.ipv6Proto = nextHeader
-		fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_RAW, nextHeader)
+		fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_RAW, unix.IPPROTO_RAW)
 		if err != nil {
 			p.ipv6Err = fmt.Errorf("failed to create IPv6 raw socket (proto %d): %w", nextHeader, err)
 			return
