@@ -53,6 +53,99 @@ IPv6 is only partially supported.
 
 Note: Windows driver is needed for all protocol-variant for IPv6s on server versions.
 
+# Getting Started
+
+## Prerequisites
+
+- Go 1.25.6+
+- Root/administrator privileges (required for raw sockets)
+
+## Building
+
+```bash
+# Build the CLI
+make build
+# or: go build .
+
+# Build the HTTP server
+make build-server
+```
+
+## CLI Usage
+
+```bash
+sudo ./datadog-traceroute [flags] <target>
+```
+
+### Examples
+
+```bash
+# UDP traceroute (default)
+sudo ./datadog-traceroute google.com
+
+# TCP SYN traceroute on port 443
+sudo ./datadog-traceroute -P tcp -p 443 google.com
+
+# ICMP traceroute with reverse DNS
+sudo ./datadog-traceroute -P icmp --reverse-dns google.com
+
+# TCP SACK traceroute with verbose output
+sudo ./datadog-traceroute -P tcp --tcp-method sack -p 443 -v google.com
+
+# IPv6 traceroute
+sudo ./datadog-traceroute --ipv6 google.com
+```
+
+Output is JSON.
+
+### Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--proto` | `-P` | `udp` | Protocol (`udp`, `tcp`, `icmp`) |
+| `--port` | `-p` | `33434` | Destination port |
+| `--traceroute-queries` | `-q` | `3` | Number of traceroute queries |
+| `--e2e-queries` | `-Q` | `50` | Number of end-to-end probe queries |
+| `--max-ttl` | `-m` | `30` | Maximum TTL |
+| `--timeout` | | `3000` | Timeout in milliseconds |
+| `--tcp-method` | | `syn` | TCP method (`syn`, `sack`, `prefer_sack`) |
+| `--ipv6` | | `false` | Use IPv6 |
+| `--reverse-dns` | | `false` | Enrich IPs with reverse DNS names |
+| `--source-public-ip` | | `false` | Enrich with source public IP |
+| `--skip-private-hops` | | `false` | Skip private hops |
+| `--windows-driver` | | `false` | Use Windows driver (Windows only) |
+| `--verbose` | `-v` | `false` | Verbose logging |
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `version` | Print version, commit, build date, and Go version |
+
+## HTTP Server
+
+An HTTP server mode is also available. See [server/README.md](server/README.md) for details.
+
+```bash
+# Run the server (default port 3765)
+sudo ./datadog-traceroute-server
+
+# Query it
+curl 'http://localhost:3765/traceroute?target=google.com&protocol=tcp&port=443'
+```
+
+## Testing
+
+```bash
+# Unit tests
+make test
+
+# E2E tests (require root)
+sudo go test -tags=e2etest -v ./e2etests/...
+```
+
+See [e2etests/README.md](e2etests/README.md) for the full e2e test matrix and instructions.
+
 # Publishing Changes
 
 After merging changes to `main` create a release by:
@@ -71,7 +164,7 @@ After merging changes to `main` create a release by:
    This will create a git tag that can now be referenced in other repos.
    This will trigger go-releaser that will add installable artifacts to the release.
 
-# Usage
+# Downstream Consumers
 
 `datadog-traceroute` is used by:
 
