@@ -81,12 +81,12 @@ func (d *SourceDriver) setupSourceDriver() error {
 func (d *SourceDriver) SetDataFilters(filters []driver.FilterDefinition) error {
 	var id int64
 	for _, filter := range filters {
-		err := d.handle.SynchronousDeviceIoControl(
+		_, err := d.handle.SynchronousDeviceIoControl(
 			driver.SetDataFilterIOCTL,
 			(*byte)(unsafe.Pointer(&filter)),
 			uint32(unsafe.Sizeof(filter)),
 			(*byte)(unsafe.Pointer(&id)),
-			uint32(unsafe.Sizeof(id)), nil, nil)
+			uint32(unsafe.Sizeof(id)))
 		if err != nil {
 			return fmt.Errorf("failed to set filter: %v", err)
 		}
