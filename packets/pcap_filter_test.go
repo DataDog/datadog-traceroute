@@ -10,7 +10,6 @@ package packets
 import (
 	"bufio"
 	"net"
-	"net/netip"
 	"testing"
 	"time"
 
@@ -24,13 +23,12 @@ import (
 
 func newTestSource(t *testing.T) Source {
 	t.Helper()
-	handle, err := NewSourceSink(netip.MustParseAddr("127.0.0.1"), true)
+	source, closeSource, err := newTestSourceForLoopback()
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		handle.Source.Close()
-		handle.Sink.Close()
+		require.NoError(t, closeSource())
 	})
-	return handle.Source
+	return source
 }
 
 func doTCPExchange(t *testing.T) {
