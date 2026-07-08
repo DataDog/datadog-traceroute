@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	pcapSnapLen    = 4096
-	pcapBufferSize = 1024 * 1024 // 1 MB kernel BPF buffer
+	pcapSnapLen     = 4096
+	pcapReadTimeout = 100 * time.Millisecond
+	pcapBufferSize  = 1024 * 1024 // 1 MB kernel BPF buffer
 )
 
 // PcapSource implements the Source interface using libpcap on macOS.
@@ -194,9 +195,13 @@ func NewBpfDevice(targetIp netip.Addr) (Source, error) {
 		inactive.CleanUp()
 		return nil, fmt.Errorf("NewBpfDevice failed to set promisc: %w", err)
 	}
-	if err := inactive.SetTimeout(100 * time.Millisecond); err != nil {
+	if err := inactive.SetTimeout(pcapReadTimeout); err != nil {
 		inactive.CleanUp()
 		return nil, fmt.Errorf("NewBpfDevice failed to set timeout: %w", err)
+	}
+	if err := inactive.SetImmediateMode(true); err != nil {
+		inactive.CleanUp()
+		return nil, fmt.Errorf("NewBpfDevice failed to set immediate mode: %w", err)
 	}
 	if err := inactive.SetBufferSize(pcapBufferSize); err != nil {
 		inactive.CleanUp()
