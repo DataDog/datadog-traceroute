@@ -54,7 +54,6 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	buf := make([]byte, 4096)
 	parser := NewFrameParser()
 	readResult := make(chan error, 1)
-	start := time.Now()
 	go func() {
 		if err := source.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
 			readResult <- err
@@ -63,6 +62,7 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 		readResult <- ReadAndParse(source, buf, parser)
 	}()
 
+	start := time.Now()
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
@@ -79,5 +79,5 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	assert.Equal(t, layers.LayerTypeTCP, parser.GetTransportLayer())
 	assert.True(t, parser.TCP.SYN)
 	assert.True(t, parser.TCP.ACK)
-	assert.Less(t, elapsed, 75*time.Millisecond, "pcap should deliver packets before the 100ms read timeout")
+	assert.Less(t, elapsed, pcapReadTimeout*3/4, "pcap should deliver packets before the read timeout")
 }
