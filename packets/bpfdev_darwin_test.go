@@ -40,6 +40,7 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	t.Cleanup(func() {
 		_ = listener.Close()
 	})
+	listenerPort := layers.TCPPort(listener.Addr().(*net.TCPAddr).Port)
 
 	acceptErr := make(chan error, 1)
 	go func() {
@@ -59,7 +60,19 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 			readResult <- err
 			return
 		}
-		readResult <- ReadAndParse(source, buf, parser)
+		for {
+			if err := ReadAndParse(source, buf, parser); err != nil {
+				readResult <- err
+				return
+			}
+			if parser.GetTransportLayer() == layers.LayerTypeTCP &&
+				parser.TCP.SYN &&
+				parser.TCP.ACK &&
+				parser.TCP.SrcPort == listenerPort {
+				readResult <- nil
+				return
+			}
+		}
 	}()
 
 	start := time.Now()
@@ -79,5 +92,6 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	assert.Equal(t, layers.LayerTypeTCP, parser.GetTransportLayer())
 	assert.True(t, parser.TCP.SYN)
 	assert.True(t, parser.TCP.ACK)
+	assert.Equal(t, listenerPort, parser.TCP.SrcPort)
 	assert.Less(t, elapsed, pcapReadTimeout*3/4, "pcap should deliver packets before the read timeout")
 }
