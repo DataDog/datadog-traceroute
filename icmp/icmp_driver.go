@@ -147,7 +147,7 @@ func (s *icmpDriver) getRTTFromRelSeq(relSeq uint8, receivedAt time.Time) (time.
 	if !ok || t.IsZero() {
 		return 0, fmt.Errorf("getRTTFromRelSeq: no probe sent for relative sequence number %d", relSeq)
 	}
-	return receivedAt.Sub(t), nil
+	return packets.RTT(receivedAt, t), nil
 }
 
 var errPacketDidNotMatchTraceroute = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("packet did not match the traceroute")}

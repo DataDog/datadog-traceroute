@@ -68,3 +68,16 @@ func ReadAndParse(source Source, buffer []byte, parser *FrameParser) (time.Time,
 
 	return receivedAt, nil
 }
+
+// RTT computes the round-trip time for a probe sent at sendTime, given the
+// receivedAt timestamp returned by ReadAndParse. A kernel-provided capture
+// timestamp carries no monotonic clock reading, so it isn't protected against
+// the system wall clock stepping backward between sendTime and receivedAt. If
+// that happens, receivedAt could predate sendTime and yield a negative RTT;
+// in that case we fall back to measuring against the current time instead.
+func RTT(receivedAt, sendTime time.Time) time.Duration {
+	if receivedAt.Before(sendTime) {
+		return time.Since(sendTime)
+	}
+	return receivedAt.Sub(sendTime)
+}

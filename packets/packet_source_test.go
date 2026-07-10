@@ -105,3 +105,21 @@ func TestReadAndParseFallsBackToNowWithoutKernelTimestamp(t *testing.T) {
 	require.False(t, receivedAt.Before(before))
 	require.False(t, receivedAt.After(after))
 }
+
+func TestRTTFallsBackToNowOnClockStepBackward(t *testing.T) {
+	sendTime := time.Now()
+	// simulate a kernel capture timestamp that predates sendTime, e.g. because the
+	// system wall clock stepped backward between the two readings.
+	receivedAt := sendTime.Add(-time.Second)
+
+	rtt := RTT(receivedAt, sendTime)
+	require.GreaterOrEqual(t, rtt, time.Duration(0), "RTT must never be negative")
+}
+
+func TestRTTUsesCaptureTimestampWhenNonNegative(t *testing.T) {
+	sendTime := time.Now()
+	receivedAt := sendTime.Add(10 * time.Millisecond)
+
+	rtt := RTT(receivedAt, sendTime)
+	require.Equal(t, 10*time.Millisecond, rtt)
+}

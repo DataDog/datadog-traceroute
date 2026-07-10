@@ -158,7 +158,7 @@ func (s *sackDriver) getRTTFromRelSeq(relSeq uint32, receivedAt time.Time) (time
 	if s.sendTimes[relSeq].IsZero() {
 		return 0, fmt.Errorf("getRTTFromRelSeq: no probe sent for relative sequence number %d", relSeq)
 	}
-	return receivedAt.Sub(s.sendTimes[relSeq]), nil
+	return packets.RTT(receivedAt, s.sendTimes[relSeq]), nil
 }
 
 var errPacketDidNotMatchTraceroute = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("packet did not match the traceroute")}

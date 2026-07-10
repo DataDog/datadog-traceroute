@@ -262,7 +262,7 @@ func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeRespon
 	if probe == (probeData{}) {
 		return nil, common.ErrPacketDidNotMatchTraceroute
 	}
-	rtt := receivedAt.Sub(probe.sendTime)
+	rtt := packets.RTT(receivedAt, probe.sendTime)
 
 	return &common.ProbeResponse{
 		TTL:    probe.ttl,
