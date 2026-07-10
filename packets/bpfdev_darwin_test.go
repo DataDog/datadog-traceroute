@@ -61,7 +61,7 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 			return
 		}
 		for {
-			if err := ReadAndParse(source, buf, parser); err != nil {
+			if _, err := ReadAndParse(source, buf, parser); err != nil {
 				readResult <- err
 				return
 			}

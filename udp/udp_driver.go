@@ -122,15 +122,15 @@ func (u *udpDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse, 
 	if err != nil {
 		return nil, fmt.Errorf("udpDriver failed to SetReadDeadline: %w", err)
 	}
-	err = packets.ReadAndParse(u.source, u.buffer, u.parser)
+	receivedAt, err := packets.ReadAndParse(u.source, u.buffer, u.parser)
 	if err != nil {
 		return nil, err
 	}
 
-	return u.handleProbeLayers()
+	return u.handleProbeLayers(receivedAt)
 }
 
-func (u *udpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
+func (u *udpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeResponse, error) {
 	ipPair, err := u.parser.GetIPPair()
 	if err != nil {
 		return nil, fmt.Errorf("udpDriver failed to get IP pair: %w", err)
@@ -182,7 +182,7 @@ func (u *udpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
 	if probe == (probeData{}) {
 		return nil, common.ErrPacketDidNotMatchTraceroute
 	}
-	rtt := time.Since(probe.sendTime)
+	rtt := receivedAt.Sub(probe.sendTime)
 
 	return &common.ProbeResponse{
 		TTL:    probe.ttl,

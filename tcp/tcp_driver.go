@@ -153,12 +153,12 @@ func (t *tcpDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse, 
 		return nil, fmt.Errorf("tcpDriver failed to SetReadDeadline: %w", err)
 	}
 
-	err = packets.ReadAndParse(t.source, t.buffer, t.parser)
+	receivedAt, err := packets.ReadAndParse(t.source, t.buffer, t.parser)
 	if err != nil {
 		return nil, err
 	}
 
-	return t.handleProbeLayers()
+	return t.handleProbeLayers(receivedAt)
 }
 
 func (t *tcpDriver) ExpectedIPPair() packets.IPPair {
@@ -169,7 +169,7 @@ func (t *tcpDriver) ExpectedIPPair() packets.IPPair {
 	}
 }
 
-func (t *tcpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
+func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeResponse, error) {
 	ipPair, err := t.parser.GetIPPair()
 	if err != nil {
 		return nil, fmt.Errorf("tcpDriver failed to get IP pair: %w", err)
@@ -262,7 +262,7 @@ func (t *tcpDriver) handleProbeLayers() (*common.ProbeResponse, error) {
 	if probe == (probeData{}) {
 		return nil, common.ErrPacketDidNotMatchTraceroute
 	}
-	rtt := time.Since(probe.sendTime)
+	rtt := receivedAt.Sub(probe.sendTime)
 
 	return &common.ProbeResponse{
 		TTL:    probe.ttl,

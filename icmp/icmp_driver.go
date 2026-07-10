@@ -132,13 +132,14 @@ func (s *icmpDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse,
 	if err != nil {
 		return nil, fmt.Errorf("icmpDriver failed to SetReadDeadline: %w", err)
 	}
-	if err := packets.ReadAndParse(s.source, s.buffer, s.parser); err != nil {
+	receivedAt, err := packets.ReadAndParse(s.source, s.buffer, s.parser)
+	if err != nil {
 		return nil, err
 	}
-	return s.handleProbeLayers(s.parser)
+	return s.handleProbeLayers(s.parser, receivedAt)
 }
 
-func (s *icmpDriver) getRTTFromRelSeq(relSeq uint8) (time.Duration, error) {
+func (s *icmpDriver) getRTTFromRelSeq(relSeq uint8, receivedAt time.Time) (time.Duration, error) {
 	if relSeq < s.params.ParallelParams.MinTTL || relSeq > s.params.ParallelParams.MaxTTL {
 		return 0, fmt.Errorf("getRTTFromRelSeq: invalid relative sequence number %d", relSeq)
 	}
@@ -146,12 +147,12 @@ func (s *icmpDriver) getRTTFromRelSeq(relSeq uint8) (time.Duration, error) {
 	if !ok || t.IsZero() {
 		return 0, fmt.Errorf("getRTTFromRelSeq: no probe sent for relative sequence number %d", relSeq)
 	}
-	return time.Since(t), nil
+	return receivedAt.Sub(t), nil
 }
 
 var errPacketDidNotMatchTraceroute = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("packet did not match the traceroute")}
 
-func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.ProbeResponse, error) {
+func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser, receivedAt time.Time) (*common.ProbeResponse, error) {
 	ipPair, err := parser.GetIPPair()
 	if err != nil {
 		return nil, fmt.Errorf("icmpDriver failed to get IP pair: %w", err)
@@ -187,7 +188,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			if uint16(echo.ID) != s.echoID {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("mismatched echo ID")}
 			}
-			rtt, err := s.getRTTFromRelSeq(uint8(echo.Seq))
+			rtt, err := s.getRTTFromRelSeq(uint8(echo.Seq), receivedAt)
 			if err != nil {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
@@ -201,7 +202,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			if parser.ICMP4.Id != s.echoID {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("mismatched echo ID")}
 			}
-			rtt, err := s.getRTTFromRelSeq(uint8(parser.ICMP4.Seq))
+			rtt, err := s.getRTTFromRelSeq(uint8(parser.ICMP4.Seq), receivedAt)
 			if err != nil {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
@@ -242,7 +243,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			if echo.Identifier != s.echoID {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("mismatched echo ID")}
 			}
-			rtt, err := s.getRTTFromRelSeq(uint8(echo.SeqNumber))
+			rtt, err := s.getRTTFromRelSeq(uint8(echo.SeqNumber), receivedAt)
 			if err != nil {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
@@ -262,7 +263,7 @@ func (s *icmpDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 			if id != s.echoID {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("mismatched echo ID")}
 			}
-			rtt, err := s.getRTTFromRelSeq(uint8(seq))
+			rtt, err := s.getRTTFromRelSeq(uint8(seq), receivedAt)
 			if err != nil {
 				return nil, &common.BadPacketError{Err: fmt.Errorf("icmpDriver failed to get RTT: %w", err)}
 			}
