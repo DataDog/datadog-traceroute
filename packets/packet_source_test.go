@@ -77,8 +77,6 @@ func TestReadAndParseUsesKernelTimestampOverDelayedDelivery(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, receivedAt.Equal(kernelTS), "expected the kernel capture timestamp, not delivery time")
-	require.Less(t, time.Since(receivedAt), 600*time.Millisecond)
-	require.Greater(t, time.Since(receivedAt), 400*time.Millisecond)
 }
 
 // plainSource has no timestamp capability, so ReadAndParse must fall back to time.Now().

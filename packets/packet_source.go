@@ -49,10 +49,10 @@ func ReadAndParse(source Source, buffer []byte, parser *FrameParser) (time.Time,
 		return time.Time{}, &common.ReceiveProbeNoPktError{Err: err}
 	}
 	if err != nil {
-		return time.Time{}, fmt.Errorf("ConnHandle failed to Read: %w", err)
+		return time.Time{}, fmt.Errorf("Source failed to Read: %w", err)
 	}
 	if n == 0 {
-		return time.Time{}, fmt.Errorf("ConnHandle Read() returned 0 bytes")
+		return time.Time{}, fmt.Errorf("Source Read() returned 0 bytes")
 	}
 
 	receivedAt := time.Now()
