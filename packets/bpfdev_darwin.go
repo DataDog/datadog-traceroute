@@ -40,6 +40,7 @@ func (p *PcapSource) LastPacketTimestamp() (time.Time, bool) {
 }
 
 var _ Source = &PcapSource{}
+var _ TimestampedSource = &PcapSource{}
 
 var errNoNewPackets = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("no new packets before timeout")}
 
