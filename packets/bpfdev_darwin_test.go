@@ -54,22 +54,27 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 
 	buf := make([]byte, 4096)
 	parser := NewFrameParser()
-	readResult := make(chan error, 1)
+	type readOutcome struct {
+		receivedAt time.Time
+		err        error
+	}
+	readResult := make(chan readOutcome, 1)
 	go func() {
 		if err := source.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-			readResult <- err
+			readResult <- readOutcome{err: err}
 			return
 		}
 		for {
-			if err := ReadAndParse(source, buf, parser); err != nil {
-				readResult <- err
+			receivedAt, err := ReadAndParse(source, buf, parser)
+			if err != nil {
+				readResult <- readOutcome{err: err}
 				return
 			}
 			if parser.GetTransportLayer() == layers.LayerTypeTCP &&
 				parser.TCP.SYN &&
 				parser.TCP.ACK &&
 				parser.TCP.SrcPort == listenerPort {
-				readResult <- nil
+				readResult <- readOutcome{receivedAt: receivedAt}
 				return
 			}
 		}
@@ -80,9 +85,11 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
 
+	var receivedAt time.Time
 	select {
-	case err := <-readResult:
-		require.NoError(t, err)
+	case outcome := <-readResult:
+		require.NoError(t, outcome.err)
+		receivedAt = outcome.receivedAt
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for packet capture")
 	}
@@ -94,4 +101,13 @@ func TestPcapSourceDeliversPacketsWithoutReadTimeoutDelay(t *testing.T) {
 	assert.True(t, parser.TCP.ACK)
 	assert.Equal(t, listenerPort, parser.TCP.SrcPort)
 	assert.Less(t, elapsed, pcapReadTimeout*3/4, "pcap should deliver packets before the read timeout")
+
+	// Assert that the timestamp ReadAndParse returns for this packet actually came from
+	// PcapSource's kernel/BPF capture timestamp, not a userspace time.Now() fallback --
+	// this is the real production wiring, unlike the fake TimestampedSource used in
+	// packet_source_test.go, so it guards against PcapSource silently losing its
+	// LastPacketTimestamp implementation.
+	require.False(t, receivedAt.IsZero(), "expected a non-zero capture timestamp from PcapSource")
+	assert.False(t, receivedAt.Before(start), "capture timestamp should not predate the connection attempt")
+	assert.False(t, receivedAt.After(start.Add(elapsed)), "capture timestamp should not be after the packet was observed by the test")
 }

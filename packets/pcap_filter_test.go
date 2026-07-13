@@ -88,7 +88,7 @@ func TestFilterICMPPassesICMP(t *testing.T) {
 	buf := make([]byte, 4096)
 	parser := NewFrameParser()
 	require.NoError(t, source.SetReadDeadline(time.Now().Add(2*time.Second)))
-	err = ReadAndParse(source, buf, parser)
+	_, err = ReadAndParse(source, buf, parser)
 	require.NoError(t, err, "expected to capture ICMP packet")
 	assert.Equal(t, layers.LayerTypeICMPv4, parser.GetTransportLayer())
 }

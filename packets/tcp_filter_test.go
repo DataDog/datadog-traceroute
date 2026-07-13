@@ -127,7 +127,7 @@ func doTestCase(t *testing.T, tc tcpTestCase) {
 	parser := NewFrameParser()
 
 	source.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	err = ReadAndParse(source, buffer, parser)
+	_, err = ReadAndParse(source, buffer, parser)
 
 	if !errors.Is(err, os.ErrDeadlineExceeded) {
 		// ErrDeadlineExceeded is what the test checks for, so we should only blow up on real errors

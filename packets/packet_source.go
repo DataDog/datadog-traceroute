@@ -31,23 +31,53 @@ type Source interface {
 	SetPacketFilter(spec PacketFilterSpec) error
 }
 
-// ReadAndParse reads from the given source into the buffer, and parses it with parser
-func ReadAndParse(source Source, buffer []byte, parser *FrameParser) error {
+// TimestampedSource is implemented by Sources that can report a kernel-provided
+// capture timestamp for the most recently read packet, which is more accurate
+// than a userspace time.Now() taken after Read() returns.
+type TimestampedSource interface {
+	// LastPacketTimestamp returns the kernel timestamp of the most recently
+	// read packet, if available.
+	LastPacketTimestamp() (time.Time, bool)
+}
+
+// ReadAndParse reads from the given source into the buffer, and parses it with parser.
+// It returns the time the packet was received, preferring a kernel-provided
+// timestamp (via TimestampedSource) over a userspace time.Now() when available.
+func ReadAndParse(source Source, buffer []byte, parser *FrameParser) (time.Time, error) {
 	n, err := source.Read(buffer)
 	if errors.Is(err, os.ErrDeadlineExceeded) {
-		return &common.ReceiveProbeNoPktError{Err: err}
+		return time.Time{}, &common.ReceiveProbeNoPktError{Err: err}
 	}
 	if err != nil {
-		return fmt.Errorf("ConnHandle failed to Read: %w", err)
+		return time.Time{}, fmt.Errorf("Source failed to Read: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("ConnHandle Read() returned 0 bytes")
+		return time.Time{}, fmt.Errorf("Source Read() returned 0 bytes")
 	}
 
-	err = parser.Parse(buffer[:n])
-	if err != nil {
-		return err
+	receivedAt := time.Now()
+	if ts, ok := source.(TimestampedSource); ok {
+		if kernelTime, ok := ts.LastPacketTimestamp(); ok {
+			receivedAt = kernelTime
+		}
 	}
 
-	return nil
+	if err := parser.Parse(buffer[:n]); err != nil {
+		return time.Time{}, err
+	}
+
+	return receivedAt, nil
+}
+
+// RTT computes the round-trip time for a probe sent at sendTime, given the
+// receivedAt timestamp returned by ReadAndParse. A kernel-provided capture
+// timestamp carries no monotonic clock reading, so it isn't protected against
+// the system wall clock stepping backward between sendTime and receivedAt. If
+// that happens, receivedAt could predate sendTime and yield a negative RTT;
+// in that case we fall back to measuring against the current time instead.
+func RTT(receivedAt, sendTime time.Time) time.Duration {
+	if receivedAt.Before(sendTime) {
+		return time.Since(sendTime)
+	}
+	return receivedAt.Sub(sendTime)
 }

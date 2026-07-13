@@ -218,6 +218,70 @@ func TestTCPDriverTwoHops(t *testing.T) {
 	require.True(t, probeResp.IsDest)
 }
 
+// timestampedMockSource wraps a MockSource with a fixed kernel capture timestamp,
+// simulating a Source implementing packets.TimestampedSource.
+type timestampedMockSource struct {
+	*packets.MockSource
+	ts time.Time
+}
+
+func (t *timestampedMockSource) LastPacketTimestamp() (time.Time, bool) {
+	return t.ts, true
+}
+
+var _ packets.Source = &timestampedMockSource{}
+var _ packets.TimestampedSource = &timestampedMockSource{}
+
+func TestTCPDriverUsesKernelTimestampForRTT(t *testing.T) {
+	packets.RandomizePacketIDBase()
+
+	ctrl := gomock.NewController(t)
+	rawSource := packets.NewMockSource(ctrl)
+	mockSink := packets.NewMockSink(ctrl)
+
+	config := NewTCPv4(
+		net.ParseIP("1.2.3.4"),
+		80,
+		1,
+		30,
+		10*time.Millisecond,
+		1*time.Second,
+		false,
+		false,
+	)
+	config.srcIP = net.ParseIP("5.6.7.8")
+	config.srcPort = 12345
+
+	source := &timestampedMockSource{MockSource: rawSource}
+	driver := newTCPDriver(config, mockSink, source)
+
+	mockSink.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
+	require.NoError(t, driver.SendProbe(1))
+	afterSend := time.Now()
+
+	// the kernel timestamp is set just after the probe was sent, implying a small,
+	// bounded RTT -- regardless of how long the simulated Read() delivery takes.
+	source.ts = afterSend.Add(20 * time.Millisecond)
+
+	ackPacket := mockTCPResp(t, config, true, true, false, driver.seqNum)
+	rawSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
+	rawSource.EXPECT().Read(gomock.Any()).DoAndReturn(func(buf []byte) (int, error) {
+		// simulate delivery arriving well after the packet was actually captured
+		time.Sleep(300 * time.Millisecond)
+		return copy(buf, ackPacket), nil
+	})
+
+	probeResp, err := driver.ReceiveProbe(1 * time.Second)
+	require.NoError(t, err)
+	require.True(t, probeResp.IsDest)
+
+	// if the driver used delivery time (time.Now()) instead of the kernel timestamp,
+	// RTT would be at least the 300ms artificial delivery delay.
+	require.GreaterOrEqual(t, probeResp.RTT, time.Duration(0))
+	require.Less(t, probeResp.RTT, 250*time.Millisecond,
+		"RTT should be computed from the kernel capture timestamp, not delayed delivery time")
+}
+
 func TestTCPDriverRST(t *testing.T) {
 	config, driver, mockSink, mockSource := initTest(t)
 

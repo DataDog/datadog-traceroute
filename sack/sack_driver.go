@@ -104,12 +104,12 @@ func (s *sackDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse,
 	if err != nil {
 		return nil, fmt.Errorf("sackDriver failed to SetReadDeadline: %w", err)
 	}
-	err = packets.ReadAndParse(s.source, s.buffer, s.parser)
+	receivedAt, err := packets.ReadAndParse(s.source, s.buffer, s.parser)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.handleProbeLayers(s.parser)
+	return s.handleProbeLayers(s.parser, receivedAt)
 }
 
 func (s *sackDriver) ExpectedIPPair() packets.IPPair {
@@ -151,19 +151,19 @@ func getMinSack(localInitSeq uint32, opts []layers.TCPOption) (uint32, error) {
 	return minSack, nil
 }
 
-func (s *sackDriver) getRTTFromRelSeq(relSeq uint32) (time.Duration, error) {
+func (s *sackDriver) getRTTFromRelSeq(relSeq uint32, receivedAt time.Time) (time.Duration, error) {
 	if relSeq < uint32(s.params.ParallelParams.MinTTL) || relSeq > uint32(s.params.ParallelParams.MaxTTL) {
 		return 0, fmt.Errorf("getRTTFromRelSeq: invalid relative sequence number %d", relSeq)
 	}
 	if s.sendTimes[relSeq].IsZero() {
 		return 0, fmt.Errorf("getRTTFromRelSeq: no probe sent for relative sequence number %d", relSeq)
 	}
-	return time.Since(s.sendTimes[relSeq]), nil
+	return packets.RTT(receivedAt, s.sendTimes[relSeq]), nil
 }
 
 var errPacketDidNotMatchTraceroute = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("packet did not match the traceroute")}
 
-func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.ProbeResponse, error) {
+func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser, receivedAt time.Time) (*common.ProbeResponse, error) {
 	ipPair, err := parser.GetIPPair()
 	if err != nil {
 		return nil, fmt.Errorf("sackDriver failed to get IP pair: %w", err)
@@ -193,7 +193,7 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 				Err: fmt.Errorf("endpoint returned SACK-permitted but found no SACK options: %w", err),
 			}
 		}
-		rtt, err := s.getRTTFromRelSeq(relSeq)
+		rtt, err := s.getRTTFromRelSeq(relSeq, receivedAt)
 		if err != nil {
 			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTT: %w", err)}
 		}
@@ -233,15 +233,15 @@ func (s *sackDriver) handleProbeLayers(parser *packets.FrameParser) (*common.Pro
 		}
 
 		relSeq := tcpInfo.Seq - s.state.localInitSeq
-		rtt, err := s.getRTTFromRelSeq(relSeq)
+		rtt, err := s.getRTTFromRelSeq(relSeq, receivedAt)
 		if err != nil {
 			return nil, &common.BadPacketError{Err: fmt.Errorf("sackDriver failed to get RTT: %w", err)}
 		}
 
 		return &common.ProbeResponse{
-			TTL:    uint8(relSeq),
-			IP:     ipPair.SrcAddr,
-			RTT:    rtt,
+			TTL: uint8(relSeq),
+			IP:  ipPair.SrcAddr,
+			RTT: rtt,
 			// Note that some servers don't properly reply with SACK responses, even if they respond with the
 			// SACK permitted option during the handshake.  In these cases an ICMP TTL Exceeded response from
 			// the destination indicates that we've reached the destination.
@@ -274,7 +274,7 @@ func (s *sackDriver) ReadHandshake(localPort uint16) error {
 	}
 	for !s.IsHandshakeFinished() {
 		// we should have already connected by now so it should be over quickly
-		err = packets.ReadAndParse(s.source, s.buffer, s.parser)
+		_, err = packets.ReadAndParse(s.source, s.buffer, s.parser)
 
 		if errors.Is(err, os.ErrDeadlineExceeded) {
 			return fmt.Errorf("sackDriver readHandshake timed out")

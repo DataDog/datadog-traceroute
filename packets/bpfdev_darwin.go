@@ -27,12 +27,20 @@ const (
 
 // PcapSource implements the Source interface using libpcap on macOS.
 type PcapSource struct {
-	handle   *pcap.Handle
-	linkType layers.LinkType
-	deadline time.Time
+	handle       *pcap.Handle
+	linkType     layers.LinkType
+	deadline     time.Time
+	lastKernelTS time.Time
+}
+
+// LastPacketTimestamp implements TimestampedSource. It returns the kernel/BPF
+// capture timestamp of the most recently read packet.
+func (p *PcapSource) LastPacketTimestamp() (time.Time, bool) {
+	return p.lastKernelTS, !p.lastKernelTS.IsZero()
 }
 
 var _ Source = &PcapSource{}
+var _ TimestampedSource = &PcapSource{}
 
 var errNoNewPackets = &common.ReceiveProbeNoPktError{Err: fmt.Errorf("no new packets before timeout")}
 
@@ -52,7 +60,10 @@ func (p *PcapSource) Read(buf []byte) (int, error) {
 			return 0, errNoNewPackets
 		}
 
-		data, _, err := p.handle.ReadPacketData()
+		data, ci, err := p.handle.ReadPacketData()
+		if err == nil {
+			p.lastKernelTS = ci.Timestamp
+		}
 		if err == pcap.NextErrorTimeoutExpired {
 			if !p.deadline.IsZero() && time.Now().After(p.deadline) {
 				return 0, errNoNewPackets
