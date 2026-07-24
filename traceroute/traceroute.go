@@ -150,27 +150,31 @@ func logTerminalOutcome(params TracerouteParams, destinationPort int, results *r
 func (t Traceroute) runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
 	var results result.Results
-	var tracerouteErrors []error
-	resultsAndErrorsMu := &sync.Mutex{}
+
+	tracerouteQueryCount := params.TracerouteQueries
+	if tracerouteQueryCount < 0 {
+		tracerouteQueryCount = 0
+	}
+	tracerouteRuns := make([]*result.TracerouteRun, tracerouteQueryCount)
+	tracerouteRunErrors := make([]error, tracerouteQueryCount)
 
 	// regular traceroutes
-	for i := 0; i < params.TracerouteQueries; i++ {
+	for i := 0; i < tracerouteQueryCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(runIndex int) {
 			defer wg.Done()
 			trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
-			resultsAndErrorsMu.Lock()
-			if err != nil {
-				tracerouteErrors = append(tracerouteErrors, err)
-			} else {
-				results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
+			if err == nil && trRun == nil {
+				err = fmt.Errorf("traceroute run %d returned nil without an error", runIndex)
 			}
-			resultsAndErrorsMu.Unlock()
-		}()
+			tracerouteRuns[runIndex] = trRun
+			tracerouteRunErrors[runIndex] = err
+		}(i)
 	}
 
 	// Launched up front (rather than after e2e pacing) so it runs concurrently with the
 	// e2e probe loop below instead of only starting once that loop's pacing has elapsed.
+	var sourcePublicIP string
 	if params.CollectSourcePublicIP {
 		log.Trace("collect public ip")
 		wg.Add(1)
@@ -181,19 +185,22 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 				log.Debugf("Error getting IP: %s", err)
 				return
 			}
-
-			resultsAndErrorsMu.Lock()
-			defer resultsAndErrorsMu.Unlock()
-			results.Source.PublicIP = ip.String()
+			sourcePublicIP = ip.String()
 		}()
 	}
 
-	if params.E2eQueries > 0 {
+	e2eQueryCount := params.E2eQueries
+	if e2eQueryCount < 0 {
+		e2eQueryCount = 0
+	}
+	e2eRTTs := make([]float64, e2eQueryCount)
+	launchedE2eQueries := 0
+	if e2eQueryCount > 0 {
 		delay := e2eQueriesDelay(params)
 		log.Tracef("e2e query delay: %d msec", delay.Milliseconds())
 
 		// e2e probes
-		for i := 0; i < params.E2eQueries; i++ {
+		for i := 0; i < e2eQueryCount; i++ {
 			// stop launching new probes once the caller/run context is done
 			if ctx.Err() != nil {
 				break
@@ -201,19 +208,17 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 
 			log.Tracef("send e2e probe #%d", i+1)
 			wg.Add(1)
-			go func() {
+			launchedE2eQueries = i + 1
+			go func(probeIndex int) {
 				defer wg.Done()
 				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
-				resultsAndErrorsMu.Lock()
 				if err != nil {
 					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
-					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
-				} else {
-					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
+					return
 				}
-				resultsAndErrorsMu.Unlock()
-			}()
-			if i < (params.E2eQueries - 1) { // don't add delay for last query
+				e2eRTTs[probeIndex] = e2eRtt
+			}(i)
+			if i < (e2eQueryCount - 1) { // don't add delay for last query
 				timer := time.NewTimer(delay)
 				select {
 				case <-timer.C:
@@ -225,6 +230,21 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 
 	wg.Wait()
+
+	var tracerouteErrors []error
+	for i, trRun := range tracerouteRuns {
+		if err := tracerouteRunErrors[i]; err != nil {
+			tracerouteErrors = append(tracerouteErrors, err)
+			continue
+		}
+		if trRun != nil {
+			results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
+		}
+	}
+	if launchedE2eQueries > 0 {
+		results.E2eProbe.RTTs = e2eRTTs[:launchedE2eQueries]
+	}
+	results.Source.PublicIP = sourcePublicIP
 
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
