@@ -73,11 +73,6 @@ func setSockopts(_network, _address string, _c syscall.RawConn) error {
 }
 
 func dialSackTCP(ctx context.Context, p Params) (net.Conn, error) {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return nil, fmt.Errorf("dialTcp: expected a deadline")
-	}
-
 	d := net.Dialer{
 		Timeout: p.HandshakeTimeout,
 		Control: setSockopts,
@@ -88,10 +83,12 @@ func dialSackTCP(ctx context.Context, p Params) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to dial %s: %w", target, err)
 	}
 
-	err = conn.SetDeadline(deadline)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to set deadline: %w", err)
+	if deadline, ok := ctx.Deadline(); ok {
+		err = conn.SetDeadline(deadline)
+		if err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("failed to set deadline: %w", err)
+		}
 	}
 	return conn, err
 }
@@ -112,8 +109,13 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}
 	udpConn.Close()
-	deadline := time.Now().Add(p.MaxTimeout())
-	ctx, cancel := context.WithDeadline(ctx, deadline)
+	var cancel context.CancelFunc
+	if p.HandshakeTimeout > 0 || p.ParallelParams.TracerouteTimeout > 0 {
+		deadline := time.Now().Add(p.MaxTimeout())
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 
 	// create the raw packet connection which watches for TCP/ICMP responses

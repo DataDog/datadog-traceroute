@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
@@ -18,6 +21,42 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type controlledDeadlineContext struct {
+	context.Context
+	done    chan struct{}
+	expired atomic.Bool
+	once    sync.Once
+}
+
+func newControlledDeadlineContext() *controlledDeadlineContext {
+	return &controlledDeadlineContext{
+		Context: context.Background(),
+		done:    make(chan struct{}),
+	}
+}
+
+func (c *controlledDeadlineContext) Deadline() (time.Time, bool) {
+	return time.Now().Add(time.Hour), true
+}
+
+func (c *controlledDeadlineContext) Done() <-chan struct{} {
+	return c.done
+}
+
+func (c *controlledDeadlineContext) Err() error {
+	if c.expired.Load() {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+func (c *controlledDeadlineContext) expire() {
+	c.once.Do(func() {
+		c.expired.Store(true)
+		close(c.done)
+	})
+}
 
 func Test_runTracerouteMulti(t *testing.T) {
 	var counter atomic.Int32
@@ -449,4 +488,451 @@ func Test_deduplicateErrors(t *testing.T) {
 		assert.Equal(t, "second", result[1].Error())
 		assert.Equal(t, "third", result[2].Error())
 	})
+}
+
+func Test_e2eQueriesDelay(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   TracerouteParams
+		expected time.Duration
+	}{
+		{
+			name: "total timeout set: splits the run budget evenly across e2e queries",
+			params: TracerouteParams{
+				TotalTimeout: 500 * time.Millisecond,
+				E2eQueries:   5,
+			},
+			expected: 100 * time.Millisecond,
+		},
+		{
+			name: "total timeout set: capped at 1 second",
+			params: TracerouteParams{
+				TotalTimeout: 100 * time.Second,
+				E2eQueries:   2,
+			},
+			expected: 1 * time.Second,
+		},
+		{
+			name: "no total timeout: falls back to legacy MaxTTL*Timeout/E2eQueries formula",
+			params: TracerouteParams{
+				MaxTTL:     30,
+				Timeout:    100 * time.Millisecond,
+				E2eQueries: 3,
+			},
+			expected: (30 * 100 * time.Millisecond) / 3,
+		},
+		{
+			name: "no total timeout: legacy formula capped at 1 second",
+			params: TracerouteParams{
+				MaxTTL:     30,
+				Timeout:    time.Second,
+				E2eQueries: 2,
+			},
+			expected: 1 * time.Second,
+		},
+		{
+			name: "total timeout determines run-level pacing when both fields are set",
+			params: TracerouteParams{
+				TotalTimeout: 200 * time.Millisecond,
+				MaxTTL:       30,
+				Timeout:      time.Hour, // would dominate the legacy formula if it were used
+				E2eQueries:   2,
+			},
+			expected: 100 * time.Millisecond,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, e2eQueriesDelay(tt.params))
+		})
+	}
+}
+
+func TestRunTraceroute_ContextDeadline(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	tests := []struct {
+		name         string
+		totalTimeout time.Duration
+		wantDeadline bool
+		wantTimeout  time.Duration
+	}{
+		{
+			name:         "zero total timeout leaves the context unbounded",
+			totalTimeout: 0,
+			wantDeadline: false,
+			wantTimeout:  0,
+		},
+		{
+			name:         "positive total timeout bounds the context passed to each probe",
+			totalTimeout: time.Second,
+			wantDeadline: true,
+			wantTimeout:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var hadDeadline bool
+			var probeTimeout time.Duration
+			runTracerouteOnceFn = func(ctx context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
+				_, hadDeadline = ctx.Deadline()
+				probeTimeout = params.Timeout
+				return &result.TracerouteRun{}, nil
+			}
+
+			tr := NewTraceroute()
+			params := TracerouteParams{
+				Hostname:          "example.com",
+				TracerouteQueries: 1,
+				MaxTTL:            common.DefaultMaxTTL,
+				TotalTimeout:      tt.totalTimeout,
+			}
+			_, err := tr.RunTraceroute(context.Background(), params)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantDeadline, hadDeadline)
+			assert.Equal(t, tt.wantTimeout, probeTimeout)
+		})
+	}
+}
+
+func TestRunTraceroute_NegativeTotalTimeoutIsRejected(t *testing.T) {
+	// direct library callers (e.g. datadog-agent) bypass CLI/HTTP query validation, so
+	// RunTraceroute itself must reject a negative TotalTimeout rather than silently treating
+	// it like a disabled deadline the way zero is documented to behave.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	called := false
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		called = true
+		return &result.TracerouteRun{}, nil
+	}
+
+	tr := NewTraceroute()
+	params := TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 1,
+		MaxTTL:            common.DefaultMaxTTL,
+		TotalTimeout:      -1 * time.Second,
+	}
+	_, err := tr.RunTraceroute(context.Background(), params)
+
+	require.Error(t, err)
+	var targetErr *InvalidTargetError
+	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+	assert.False(t, called, "should reject before running any probes")
+}
+
+func TestRunTraceroute_NegativeProbeTimeoutIsRejected(t *testing.T) {
+	tr := NewTraceroute()
+	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+		Hostname: "example.com",
+		MaxTTL:   common.DefaultMaxTTL,
+		Timeout:  -time.Millisecond,
+	})
+
+	require.Error(t, err)
+	var targetErr *InvalidTargetError
+	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+}
+
+func TestLogTerminalOutcome(t *testing.T) {
+	var debugMessages, warnMessages, errorMessages []string
+	log.SetLogger(log.Logger{
+		Debugf: func(format string, args ...interface{}) {
+			debugMessages = append(debugMessages, fmt.Sprintf(format, args...))
+		},
+		Warnf: func(format string, args ...interface{}) error {
+			warnMessages = append(warnMessages, fmt.Sprintf(format, args...))
+			return nil
+		},
+		Errorf: func(format string, args ...interface{}) error {
+			errorMessages = append(errorMessages, fmt.Sprintf(format, args...))
+			return nil
+		},
+	})
+	defer log.SetLogger(log.Logger{})
+
+	params := TracerouteParams{
+		Hostname:          "example.com",
+		Protocol:          "udp",
+		TracerouteQueries: 3,
+	}
+
+	logTerminalOutcome(params, 443, &result.Results{
+		TestRunID: "test-id",
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{{}, {}},
+		},
+	}, nil)
+	logTerminalOutcome(params, 443, &result.Results{
+		TestRunID: "timeout-id",
+		TimedOut:  true,
+		Traceroute: result.Traceroute{
+			Runs: []result.TracerouteRun{{}},
+		},
+	}, nil)
+	logTerminalOutcome(params, 443, nil, context.Canceled)
+
+	require.Len(t, debugMessages, 1)
+	assert.Contains(t, debugMessages[0], `traceroute_run_completed hostname="example.com" protocol="udp" outcome=success`)
+	assert.Contains(t, debugMessages[0], "completed_runs=2 requested_runs=3 timed_out=false destination_port=443")
+	assert.Contains(t, debugMessages[0], `test_run_id="test-id"`)
+
+	require.Len(t, warnMessages, 1)
+	assert.Contains(t, warnMessages[0], "outcome=timeout")
+	assert.Contains(t, warnMessages[0], "completed_runs=1 requested_runs=3 timed_out=true destination_port=443")
+	assert.Contains(t, warnMessages[0], `test_run_id="timeout-id"`)
+
+	require.Len(t, errorMessages, 1)
+	assert.Contains(t, errorMessages[0], "outcome=error")
+	assert.Contains(t, errorMessages[0], "completed_runs=0 requested_runs=3 timed_out=false destination_port=443")
+	assert.NotContains(t, errorMessages[0], "test_run_id=")
+}
+
+func TestRunTraceroute_MaxTTLIsValidatedBeforeDriverConversion(t *testing.T) {
+	tr := NewTraceroute()
+
+	for _, maxTTL := range []int{-1, 0, common.MaxAllowedTTL + 1, 512} {
+		t.Run(fmt.Sprintf("rejects %d", maxTTL), func(t *testing.T) {
+			_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+				Hostname: "example.com",
+				MaxTTL:   maxTTL,
+			})
+
+			require.Error(t, err)
+			var targetErr *InvalidTargetError
+			assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+			assert.Contains(t, err.Error(), "max TTL")
+		})
+	}
+
+	t.Run("accepts uint8 maximum", func(t *testing.T) {
+		results, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+			Hostname: "example.com",
+			MaxTTL:   common.MaxAllowedTTL,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, results)
+	})
+}
+
+func TestRunTraceroute_TotalTimeoutCancelsSlowProbes(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	tr := NewTraceroute()
+	params := TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 3,
+		MaxTTL:            common.DefaultMaxTTL,
+		TotalTimeout:      50 * time.Millisecond,
+		// Deliberately much larger than TotalTimeout to prove the overall run
+		// deadline is what stops the probes, not the per-hop Timeout.
+		Timeout: time.Hour,
+	}
+
+	start := time.Now()
+	_, err := tr.RunTraceroute(context.Background(), params)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, elapsed, 1*time.Second, "should be canceled by TotalTimeout rather than waiting on the much larger per-hop Timeout")
+}
+
+func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRuns(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	var calls atomic.Int32
+	completed := make(chan struct{})
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		if calls.Add(1) == 1 {
+			close(completed)
+			return &result.TracerouteRun{
+				Hops: []*result.TracerouteHop{
+					{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+				},
+			}, nil
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	tr := NewTraceroute()
+	ctx := newControlledDeadlineContext()
+	go func() {
+		<-completed
+		ctx.expire()
+	}()
+	results, err := tr.RunTraceroute(ctx, TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 3,
+		MaxTTL:            common.DefaultMaxTTL,
+		Timeout:           0,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.True(t, results.TimedOut)
+	require.Len(t, results.Traceroute.Runs, 1)
+	require.Len(t, results.Traceroute.Runs[0].Hops, 1)
+	assert.True(t, results.Traceroute.Runs[0].Hops[0].IsDest)
+}
+
+func TestRunTraceroute_DeadlineDiscardsIncompleteE2eProbeSet(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	tracerouteCompleted := make(chan struct{})
+	firstE2eCompleted := make(chan struct{})
+	secondE2eStarted := make(chan struct{})
+	var e2eCalls atomic.Int32
+	runTracerouteOnceFn = func(ctx context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		run := &result.TracerouteRun{
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+			},
+		}
+		if params.MinTTL != params.MaxTTL {
+			close(tracerouteCompleted)
+			return run, nil
+		}
+		if e2eCalls.Add(1) == 1 {
+			close(firstE2eCompleted)
+			return run, nil
+		}
+		close(secondE2eStarted)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	ctx := newControlledDeadlineContext()
+	go func() {
+		<-tracerouteCompleted
+		<-firstE2eCompleted
+		<-secondE2eStarted
+		ctx.expire()
+	}()
+
+	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
+		Hostname:          "example.com",
+		MinTTL:            1,
+		MaxTTL:            common.DefaultMaxTTL,
+		TracerouteQueries: 1,
+		E2eQueries:        2,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.True(t, results.TimedOut)
+	require.Len(t, results.Traceroute.Runs, 1)
+	assert.Equal(t, result.E2eProbe{}, results.E2eProbe)
+}
+
+func TestRunTraceroute_BothTimeoutsCoexistOnHappyPath(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	runTracerouteOnceFn = func(_ context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	tr := NewTraceroute()
+	params := TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 2,
+		E2eQueries:        2,
+		MaxTTL:            5,
+		Timeout:           50 * time.Millisecond,
+		TotalTimeout:      5 * time.Second,
+	}
+
+	results, err := tr.RunTraceroute(context.Background(), params)
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.Len(t, results.Traceroute.Runs, 2)
+	assert.Len(t, results.E2eProbe.RTTs, 2)
+	assert.False(t, results.TimedOut)
+}
+
+func TestRunTraceroute_E2ePacingStopsOnCancellation(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	started := make(chan struct{})
+	var startedOnce sync.Once
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		startedOnce.Do(func() { close(started) })
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	tr := NewTraceroute()
+	params := TracerouteParams{
+		Hostname:   "example.com",
+		E2eQueries: 5,
+		MaxTTL:     common.MaxAllowedTTL,
+		Timeout:    time.Second, // legacy e2eQueriesDelay formula yields the 1s cap between probes
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-started
+		cancel()
+	}()
+
+	start := time.Now()
+	results, err := tr.RunTraceroute(ctx, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, results)
+	assert.Less(t, elapsed, 1*time.Second, "pacing loop should stop scheduling new probes once ctx is canceled, not sleep through all remaining delays")
+}
+
+func TestRunTraceroute_PublicIPCollectionStartsConcurrentlyWithE2ePacing(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	runTracerouteOnceFn = func(_ context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	start := time.Now()
+	var getIPCalledAt time.Duration
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockFetcher := publicip.NewMockFetcher(ctrl)
+	mockFetcher.EXPECT().GetIP(gomock.Any()).DoAndReturn(func(_ context.Context) (net.IP, error) {
+		getIPCalledAt = time.Since(start)
+		return net.ParseIP("8.8.8.8"), nil
+	})
+
+	tr := NewTraceroute()
+	tr.publicIPFetcher = mockFetcher
+
+	params := TracerouteParams{
+		E2eQueries:            3,
+		MaxTTL:                1_000_000,
+		Timeout:               time.Second, // legacy formula yields the 1s cap between e2e probes
+		CollectSourcePublicIP: true,
+	}
+
+	_, err := tr.runTracerouteMulti(context.Background(), params, 42)
+
+	require.NoError(t, err)
+	assert.Less(t, getIPCalledAt, 500*time.Millisecond, "public IP collection should start concurrently with e2e pacing, not only after it finishes")
 }

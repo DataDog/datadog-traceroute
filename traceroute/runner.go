@@ -24,10 +24,12 @@ type runTracerouteOnceFnType func(ctx context.Context, params TracerouteParams, 
 var runTracerouteOnceFn = runTracerouteOnce
 
 func runTracerouteOnce(ctx context.Context, params TracerouteParams, destinationPort int) (*result.TracerouteRun, error) {
+	probeTimeout := effectiveProbeTimeout(params)
+
 	var trRun *result.TracerouteRun
 	switch params.Protocol {
 	case "udp":
-		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
+		target, err := parseTarget(ctx, params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
@@ -37,34 +39,34 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			uint8(params.MinTTL),
 			uint8(params.MaxTTL),
 			time.Duration(params.Delay)*time.Millisecond,
-			params.Timeout,
+			probeTimeout,
 			params.UseWindowsDriver)
 
-		trRun, err = cfg.Traceroute()
+		trRun, err = cfg.TracerouteContext(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("could not generate udp traceroute results: %w", err)
 		}
 
 	case "tcp":
-		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
+		target, err := parseTarget(ctx, params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
 
 		doSyn := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
-			return tr.Traceroute()
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, probeTimeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
+			return tr.TracerouteContext(ctx)
 		}
 		doSack := func() (*result.TracerouteRun, error) {
-			sackParams, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), params.Timeout, params.UseWindowsDriver)
+			sackParams, err := makeSackParams(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), probeTimeout, params.UseWindowsDriver)
 			if err != nil {
 				return nil, fmt.Errorf("failed to make sack params: %w", err)
 			}
-			return sack.RunSackTraceroute(context.TODO(), sackParams)
+			return sack.RunSackTraceroute(ctx, sackParams)
 		}
 		doSynSocket := func() (*result.TracerouteRun, error) {
-			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, params.Timeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
-			return tr.TracerouteSequentialSocket()
+			tr := tcp.NewTCPv4(target.Addr().AsSlice(), target.Port(), uint8(params.MinTTL), uint8(params.MaxTTL), time.Duration(params.Delay)*time.Millisecond, probeTimeout, params.TCPSynParisTracerouteMode, params.UseWindowsDriver)
+			return tr.TracerouteSequentialSocketContext(ctx)
 		}
 
 		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
@@ -72,7 +74,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return nil, err
 		}
 	case "icmp":
-		target, err := parseTarget(params.Hostname, 80, params.WantV6)
+		target, err := parseTarget(ctx, params.Hostname, 80, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +84,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 				TracerouteParams: common.TracerouteParams{
 					MinTTL:            uint8(params.MinTTL),
 					MaxTTL:            uint8(params.MaxTTL),
-					TracerouteTimeout: params.Timeout,
+					TracerouteTimeout: probeTimeout,
 					PollFrequency:     100 * time.Millisecond,
 					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
 				},
@@ -97,6 +99,15 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		return nil, &InvalidTargetError{Err: fmt.Errorf("unknown protocol: %q", params.Protocol)}
 	}
 	return trRun, nil
+}
+
+const sackSendDelay = 10 * time.Millisecond
+
+// effectiveProbeTimeout returns the independently configured per-probe timeout. Zero
+// deliberately means no per-probe deadline; TotalTimeout, when set, is still enforced
+// by the shared RunTraceroute context.
+func effectiveProbeTimeout(params TracerouteParams) time.Duration {
+	return params.Timeout
 }
 
 // runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.
@@ -135,7 +146,7 @@ func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8
 			MaxTTL:            maxTTL,
 			TracerouteTimeout: timeout,
 			PollFrequency:     100 * time.Millisecond,
-			SendDelay:         10 * time.Millisecond,
+			SendDelay:         sackSendDelay,
 		},
 	}
 	params := sack.Params{
@@ -149,7 +160,7 @@ func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8
 	return params, nil
 }
 
-func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {
+func parseTarget(ctx context.Context, raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {
 	var host, portStr string
 	var err error
 
@@ -167,7 +178,7 @@ func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, er
 	ip, err := netip.ParseAddr(host)
 	if err != nil {
 		// Not an IP — do DNS resolution
-		ips, err := net.LookupIP(host)
+		ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
 		if err != nil {
 			return netip.AddrPort{}, &DNSError{Host: host, Err: err}
 		}

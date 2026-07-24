@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/stretchr/testify/assert"
@@ -211,4 +212,66 @@ func TestFakeNetworkCLI(t *testing.T) {
 			testCLI(t, config)
 		})
 	}
+}
+
+func TestFakeNetworkCLITotalTimeout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the controlled fake network is configured only in Linux CI")
+	}
+
+	tests := []struct {
+		name     string
+		protocol string
+		timeout  *int
+	}{
+		{
+			name:     "UDP_total_timeout_uses_default_probe_timeout",
+			protocol: "udp",
+		},
+		{
+			name:     "UDP_zero_probe_timeout_still_obeys_total_timeout",
+			protocol: "udp",
+			timeout:  intPtr(0),
+		},
+		{
+			name:     "TCP_probe_timeout_longer_than_total_timeout",
+			protocol: "tcp",
+			timeout:  intPtr(10_000),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []string{
+				"--proto", tt.protocol,
+				"--traceroute-queries", "1",
+				"--e2e-queries", "0",
+				"--total-timeout-ms", "100",
+			}
+			if tt.timeout != nil {
+				args = append(args, "--timeout", strconv.Itoa(*tt.timeout))
+			}
+			args = append(args, fakeNetworkTimeoutTarget)
+
+			binaryPath := getCLIBinaryPath(t)
+			cmd := exec.Command("sudo", append([]string{binaryPath}, args...)...)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			start := time.Now()
+			err := cmd.Run()
+			elapsed := time.Since(start)
+
+			require.Error(t, err, "a deadline with no completed traceroute run must fail")
+			assert.Empty(t, stdout.String(), "timeout errors must not emit partial JSON")
+			assert.Contains(t, stderr.String(), "context deadline exceeded")
+			assert.GreaterOrEqual(t, elapsed, 80*time.Millisecond)
+			assert.Less(t, elapsed, 2*time.Second, "the total timeout must cap the real driver path")
+		})
+	}
+}
+
+func intPtr(value int) *int {
+	return &value
 }

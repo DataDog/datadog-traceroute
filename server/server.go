@@ -6,18 +6,24 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 )
 
 // Server is the HTTP server for the traceroute API
 type Server struct {
-	tr        *traceroute.Traceroute
+	tr        tracerouteRunner
 	startTime time.Time
+}
+
+type tracerouteRunner interface {
+	RunTraceroute(context.Context, traceroute.TracerouteParams) (*result.Results, error)
 }
 
 // HealthResponse represents the health check response
@@ -59,6 +65,8 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusInternalServerError
 		if classified.Code == traceroute.ErrCodeInvalidRequest {
 			status = http.StatusBadRequest
+		} else if classified.Code == traceroute.ErrCodeTimeout {
+			status = http.StatusGatewayTimeout
 		}
 		writeErrorResponse(w, traceroute.ErrorResponse{
 			Code:    classified.Code,

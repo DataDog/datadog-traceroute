@@ -28,9 +28,12 @@ const (
 	publicPort   = 443
 
 	fakeNetworkTarget = "198.51.100.2"
+	// fakeNetworkTimeoutTarget is routed through the fake router but has no endpoint,
+	// so traceroute probes cannot complete before an intentionally short total timeout.
+	fakeNetworkTimeoutTarget = "198.51.100.99"
 
 	numTraceroutes = 3
-	numE2eProbes = 10
+	numE2eProbes   = 10
 )
 
 var (

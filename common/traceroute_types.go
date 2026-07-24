@@ -77,7 +77,10 @@ type TracerouteParams struct {
 	MinTTL uint8
 	// MaxTTL is the TTL to end the traceroute at
 	MaxTTL uint8
-	// TracerouteTimeout is the maximum time to wait for a response
+	// TracerouteTimeout is the maximum time to wait for each probe response.
+	// Parallel traceroutes may run longer overall because probes are sent with
+	// SendDelay between them, but responses received after their probe's deadline
+	// are ignored.
 	TracerouteTimeout time.Duration
 	// PollFrequency is how often to poll for a response
 	PollFrequency time.Duration

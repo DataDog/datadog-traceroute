@@ -25,6 +25,7 @@ type args struct {
 	e2eQueries            int
 	maxTTL                int
 	timeout               int
+	totalTimeoutMs        int
 	tcpmethod             string
 	port                  int
 	wantV6                bool
@@ -46,6 +47,16 @@ var rootCmd = &cobra.Command{
 			log.SetLogLevel(log.LevelTrace)
 		}
 
+		if err := common.ValidateMaxTTL("--max-ttl", Args.maxTTL); err != nil {
+			return err
+		}
+		if err := common.ValidateTimeoutMs("--timeout", Args.timeout, common.MaxTimeoutMs); err != nil {
+			return err
+		}
+		if err := common.ValidateTimeoutMs("--total-timeout-ms", Args.totalTimeoutMs, common.MaxTimeoutMs); err != nil {
+			return err
+		}
+
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
 			Port:                  Args.port,
@@ -54,6 +65,7 @@ var rootCmd = &cobra.Command{
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
 			Timeout:               time.Duration(Args.timeout) * time.Millisecond,
+			TotalTimeout:          time.Duration(Args.totalTimeoutMs) * time.Millisecond,
 			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
@@ -96,11 +108,12 @@ func init() {
 	rootCmd.Flags().StringVarP(&Args.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
 	rootCmd.Flags().IntVarP(&Args.port, "port", "p", common.DefaultPort, "Destination port")
 	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries")
-	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
+	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, fmt.Sprintf("Maximum TTL (%d-%d)", common.DefaultMinTTL, common.MaxAllowedTTL))
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Timeout (ms)")
+	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms)")
+	rootCmd.Flags().IntVarP(&Args.totalTimeoutMs, "total-timeout-ms", "", common.DefaultTotalTimeoutMs, "Total timeout for the whole traceroute run (ms). 0 disables the overall deadline")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
 	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")

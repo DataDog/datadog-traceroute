@@ -40,6 +40,8 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 
 	results := make([]*ProbeResponse, int(p.MaxTTL)+1)
 	resultsMu := sync.Mutex{}
+	probeSentAt := make([]time.Time, int(p.MaxTTL)+1)
+	probeSentAtMu := sync.RWMutex{}
 	writeProbe := func(probe *ProbeResponse) {
 		log.Tracef("found probe %+v", probe)
 		resultsMu.Lock()
@@ -59,7 +61,11 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 		}
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, p.MaxTimeout())
+	var timeout time.Duration
+	if p.TracerouteTimeout > 0 {
+		timeout = p.MaxTimeout()
+	}
+	timeoutCtx, cancel := contextWithOptionalTimeout(ctx, timeout)
 	defer cancel()
 
 	g, groupCtx := errgroup.WithContext(timeoutCtx)
@@ -79,13 +85,25 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return nil
 			}
 
+			// Record the start before SendProbe so even a driver that receives a response
+			// immediately cannot race ahead of the per-probe deadline bookkeeping.
+			probeSentAtMu.Lock()
+			probeSentAt[i] = time.Now()
+			probeSentAtMu.Unlock()
+
 			err := t.SendProbe(uint8(i))
 			if err != nil {
 				return fmt.Errorf("SendProbe() failed: %w", err)
 			}
 			sentOnce.Do(func() { close(hasSent) })
 
-			time.Sleep(p.SendDelay)
+			// wait for at least SendDelay to pass, but don't block past writerCtx being canceled/expired
+			timer := time.NewTimer(p.SendDelay)
+			select {
+			case <-timer.C:
+			case <-writerCtx.Done():
+				timer.Stop()
+			}
 		}
 		return nil
 	})
@@ -108,6 +126,19 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return fmt.Errorf("ReceiveProbe() failed: %w", err)
 			} else if err = p.validateProbe(probe); err != nil {
 				return err
+			}
+
+			probeSentAtMu.RLock()
+			sentAt := probeSentAt[probe.TTL]
+			probeSentAtMu.RUnlock()
+			if sentAt.IsZero() {
+				// A response for a TTL that has not been sent by this run cannot belong
+				// to one of its active probes.
+				continue
+			}
+			if p.TracerouteTimeout > 0 && time.Since(sentAt) > p.TracerouteTimeout {
+				log.Tracef("ignoring response for TTL %d received after per-probe timeout", probe.TTL)
+				continue
 			}
 
 			writeProbe(probe)

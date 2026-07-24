@@ -15,8 +15,14 @@ import (
 	"github.com/DataDog/datadog-traceroute/result"
 )
 
-// Traceroute runs a UDP traceroute
+// Traceroute runs a UDP traceroute with no deadline of its own. Prefer TracerouteContext
+// when the caller wants the run bounded by a context deadline.
 func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
+	return u.TracerouteContext(context.Background())
+}
+
+// TracerouteContext runs a UDP traceroute bounded by ctx.
+func (u *UDPv4) TracerouteContext(ctx context.Context) (*result.TracerouteRun, error) {
 	targetAddr, ok := common.UnmappedAddrFromSlice(u.Target)
 	if !ok {
 		return nil, fmt.Errorf("failed to get netipAddr for target %s", u.Target)
@@ -61,7 +67,7 @@ func (u *UDPv4) Traceroute() (*result.TracerouteRun, error) {
 			SendDelay:         u.Delay,
 		},
 	}
-	resp, err := common.TracerouteParallel(context.Background(), driver, params)
+	resp, err := common.TracerouteParallel(ctx, driver, params)
 	if err != nil {
 		return nil, err
 	}

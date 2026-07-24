@@ -23,6 +23,9 @@ curl 'http://localhost:8080/traceroute?target=example.com&protocol=tcp&port=443&
 
 # UDP traceroute with custom settings
 curl 'http://localhost:8080/traceroute?target=8.8.8.8&protocol=udp&max-ttl=20&traceroute-queries=5'
+
+# Bound the complete call to 10 seconds; each probe keeps the default 3-second timeout
+curl 'http://localhost:8080/traceroute?target=8.8.8.8&total_timeout_ms=10000'
 ```
 
 #### Response
@@ -42,8 +45,13 @@ Returns JSON with the traceroute results. Example:
   "e2e_probe": {
     "rtts": [...]
   },
+  "timed_out": false,
   "source": {
     "public_ip": ""
   }
 }
 ```
+
+If the total timeout expires after one or more traceroute queries complete, the response
+contains only those completed runs and sets `timed_out` to `true`. If no query completes,
+the endpoint returns HTTP `504` with a `TIMEOUT` error.

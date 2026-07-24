@@ -186,6 +186,30 @@ func TestParallelTracerouteTimeout(t *testing.T) {
 	}
 }
 
+func TestParallelTracerouteIgnoresResponseAfterProbeTimeout(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.TracerouteTimeout = 20 * time.Millisecond
+	params.SendDelay = 30 * time.Millisecond
+
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	var receiveCalls atomic.Int32
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		if receiveCalls.Add(1) == 1 {
+			time.Sleep(params.TracerouteTimeout + 10*time.Millisecond)
+			return mockResult(1), nil
+		}
+		return pollData(nil, params.PollFrequency)
+	}
+
+	results, err := TracerouteParallel(context.Background(), m, params)
+
+	require.NoError(t, err)
+	require.Len(t, results, int(params.MaxTTL))
+	require.Nil(t, results[0], "a response received after its probe's Timeout must be ignored")
+}
+
 func TestParallelTracerouteMinTTL(t *testing.T) {
 	// same as TestParallelTraceroute but it checks that we don't send TTL=1 when MinTTL=2
 
@@ -467,6 +491,56 @@ func TestParallelSupport(t *testing.T) {
 
 	_, err := TracerouteParallel(context.Background(), m, parallelParams)
 	require.ErrorContains(t, err, "doesn't support parallel")
+}
+
+func TestParallelTracerouteSendDelayRespectsContextDeadline(t *testing.T) {
+	// this test checks that a SendDelay longer than the remaining context budget
+	// does not make TracerouteParallel block past that budget
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.SendDelay = 1 * time.Second
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	t.Parallel()
+
+	m.sendHandler = func(_ uint8) error {
+		return nil
+	}
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, elapsed, params.SendDelay)
+}
+
+func TestParallelTracerouteZeroTimeoutUsesParentContext(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 0
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.GreaterOrEqual(t, elapsed, 30*time.Millisecond,
+		"zero Timeout must not create an immediate shared deadline")
 }
 
 func TestParallelSendFirst(t *testing.T) {

@@ -98,6 +98,14 @@ sudo ./datadog-traceroute --ipv6 google.com
 
 Output is JSON.
 
+When a total timeout expires after at least one traceroute query completes, the result
+contains only completed traceroute runs, discards the incomplete end-to-end probe set,
+and sets `timed_out` to `true`. Each call emits one stable
+`traceroute_run_completed` terminal log with the hostname, protocol, outcome,
+completed/requested run counts, timeout indication, destination port, and—when
+results exist—the test run ID. Success is logged at debug, timeout at warning, and
+other failures at error.
+
 ### Flags
 
 | Flag | Short | Default | Description |
@@ -106,8 +114,9 @@ Output is JSON.
 | `--port` | `-p` | `33434` | Destination port |
 | `--traceroute-queries` | `-q` | `3` | Number of traceroute queries |
 | `--e2e-queries` | `-Q` | `50` | Number of end-to-end probe queries |
-| `--max-ttl` | `-m` | `30` | Maximum TTL |
-| `--timeout` | | `3000` | Timeout in milliseconds |
+| `--max-ttl` | `-m` | `30` | Maximum TTL (1-255) |
+| `--timeout` | | `3000` | Per-probe timeout in milliseconds. `0` disables the per-probe deadline. Must be non-negative |
+| `--total-timeout-ms` | | `0` | Total timeout for the entire traceroute call, in milliseconds. `0` disables the overall deadline. Independent from `--timeout`: when both are set, each probe is capped by `--timeout` and the complete call is capped by `--total-timeout-ms`. Must be non-negative |
 | `--tcp-method` | | `syn` | TCP method (`syn`, `sack`, `prefer_sack`) |
 | `--ipv6` | | `false` | Use IPv6 |
 | `--reverse-dns` | | `false` | Enrich IPs with reverse DNS names |
@@ -173,4 +182,3 @@ After merging changes to `main` create a release by:
   - [Datadog Synthetic Monitoring](https://www.datadoghq.com/product/synthetic-monitoring/)
     - Used for Network Tests in Managed Locations and [datadog-agent](https://github.com/DataDog/datadog-agent)
     - Used for API Tests traceroute in Private Locations
-

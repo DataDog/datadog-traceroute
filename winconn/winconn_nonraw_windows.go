@@ -19,7 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/log"
-) 
+)
 
 //revive:disable:var-naming These names are intended to match the Windows API names
 
@@ -253,7 +253,13 @@ func (r *Conn) getSocketError() error {
 // Waits to get ICMP response from hop
 // returns the IP of the hop, the time it took to get the response, the ICMP type, the ICMP code, and an error
 func (r *Conn) GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 	err := r.sendConnect(destIP, destPort)
 

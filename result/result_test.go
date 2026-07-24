@@ -13,6 +13,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestResultsTimedOutJSON(t *testing.T) {
+	encoded, err := json.Marshal(Results{TimedOut: true})
+	require.NoError(t, err)
+
+	var decoded struct {
+		TimedOut bool `json:"timed_out"`
+	}
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	assert.True(t, decoded.TimedOut)
+}
+
 func TestResults_Normalize(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -280,7 +291,7 @@ func TestResults_EnrichWithReverseDns(t *testing.T) {
 			}
 			defer func() { reversedns.LookupAddrFn = net.DefaultResolver.LookupAddr }()
 
-			tt.Results.EnrichWithReverseDns()
+			tt.Results.EnrichWithReverseDnsContext(context.Background())
 			assert.Equal(t, tt.ExpectedResults, tt.Results)
 		})
 	}

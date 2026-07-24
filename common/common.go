@@ -8,10 +8,13 @@
 package common
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"net"
 	"net/netip"
 	"strconv"
+	"time"
 
 	"golang.org/x/net/ipv4"
 
@@ -20,13 +23,22 @@ import (
 )
 
 const (
-	DefaultNetworkPathTimeout    = 3000
+	DefaultNetworkPathTimeout = 3000
+	DefaultTotalTimeoutMs     = 0 // 0 means no overall run timeout is enforced
+
+	// MaxTimeoutMs is the largest millisecond value that can be converted to a time.Duration
+	// (int64 nanoseconds) without overflowing. It's a pure overflow guard, not a business
+	// limit: existing CLI/HTTP callers must keep working with whatever timeout they already
+	// send, so this is deliberately not an arbitrarily chosen "reasonable" cap.
+	MaxTimeoutMs = math.MaxInt64 / int64(time.Millisecond)
+
 	DefaultPort                  = 33434
 	DefaultTracerouteQueries     = 3
 	DefaultNumE2eProbes          = 50
 	DefaultMinTTL                = 1
 	DefaultMaxTTL                = 30
-	DefaultDelay                 = 50 //msec
+	MaxAllowedTTL                = 255 // TTL is represented as uint8 by all traceroute drivers
+	DefaultDelay                 = 50  //msec
 	DefaultProtocol              = "udp"
 	DefaultTcpMethod             = "syn"
 	DefaultWantV6                = false
@@ -61,6 +73,42 @@ func (c CanceledError) Error() string {
 // MismatchError
 func (m MismatchError) Error() string {
 	return string(m)
+}
+
+// ValidateTimeoutMs validates a millisecond timeout value supplied by a caller (CLI flag or
+// HTTP query parameter). It rejects negative values, which would otherwise silently disable
+// a deadline that the documentation says only zero disables, and values exceeding max. Pass
+// MaxTimeoutMs as max to only guard against overflowing time.Duration once converted to
+// nanoseconds, without imposing any additional business limit. A non-positive max disables
+// the upper bound entirely.
+func ValidateTimeoutMs(name string, ms int, max int64) error {
+	if ms < 0 {
+		return fmt.Errorf("%s must not be negative, got %d", name, ms)
+	}
+	if max > 0 && int64(ms) > max {
+		return fmt.Errorf("%s must not exceed %d, got %d", name, max, ms)
+	}
+	return nil
+}
+
+// ValidateMaxTTL validates MaxTTL before it is converted to the uint8 representation used
+// by the packet drivers. Without this check, values above 255 wrap modulo 256 and can cause
+// a traceroute to probe a much smaller TTL range than the caller requested.
+func ValidateMaxTTL(name string, maxTTL int) error {
+	if maxTTL < DefaultMinTTL || maxTTL > MaxAllowedTTL {
+		return fmt.Errorf("%s must be between %d and %d, got %d", name, DefaultMinTTL, MaxAllowedTTL, maxTTL)
+	}
+	return nil
+}
+
+// contextWithOptionalTimeout applies timeout when it is positive. A zero timeout means
+// no local deadline, while the parent context can still enforce TotalTimeout or caller
+// cancellation.
+func contextWithOptionalTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return context.WithCancel(ctx)
 }
 
 // LocalAddrForHost takes in a destination IP and port and returns the local
