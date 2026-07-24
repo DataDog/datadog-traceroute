@@ -246,6 +246,11 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 	results.Source.PublicIP = sourcePublicIP
 
+	var allTracerouteRunsFailedErr error
+	if params.TracerouteQueries > 0 && len(results.Traceroute.Runs) == 0 && len(tracerouteErrors) > 0 {
+		allTracerouteRunsFailedErr = errors.Join(deduplicateErrors(tracerouteErrors)...)
+	}
+
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
 		// Explicit cancellation is not a timeout and must never expose partial output.
@@ -256,6 +261,11 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 		// happened to complete.
 		results.E2eProbe = result.E2eProbe{}
 		if len(results.Traceroute.Runs) == 0 {
+			// Preserve a more specific error that completed before the deadline.
+			// Deadline-derived probe errors still classify as timeouts.
+			if allTracerouteRunsFailedErr != nil {
+				return nil, allTracerouteRunsFailedErr
+			}
 			return nil, context.DeadlineExceeded
 		}
 		results.TimedOut = true
@@ -263,8 +273,8 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 
 	// Only fail if all traceroute runs failed
-	if params.TracerouteQueries > 0 && len(results.Traceroute.Runs) == 0 && len(tracerouteErrors) > 0 {
-		return nil, errors.Join(deduplicateErrors(tracerouteErrors)...)
+	if allTracerouteRunsFailedErr != nil {
+		return nil, allTracerouteRunsFailedErr
 	}
 	if len(tracerouteErrors) > 0 {
 		log.Warnf("Some traceroute runs failed (%d/%d): %v", len(tracerouteErrors), params.TracerouteQueries, errors.Join(tracerouteErrors...))

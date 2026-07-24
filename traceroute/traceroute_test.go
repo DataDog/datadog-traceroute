@@ -747,6 +747,28 @@ func TestRunTraceroute_TotalTimeoutCancelsSlowProbes(t *testing.T) {
 	assert.Less(t, elapsed, 1*time.Second, "should be canceled by TotalTimeout rather than waiting on the much larger per-hop Timeout")
 }
 
+func TestRunTraceroute_RequestErrorWinsDeadlineRace(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	ctx := newControlledDeadlineContext()
+	runTracerouteOnceFn = func(_ context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		ctx.expire()
+		return nil, &InvalidTargetError{Err: fmt.Errorf("unknown protocol: %q", "ftp")}
+	}
+
+	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
+		Hostname:          "127.0.0.1",
+		Protocol:          "ftp",
+		TracerouteQueries: 1,
+		MaxTTL:            common.DefaultMaxTTL,
+	})
+
+	require.Nil(t, results)
+	var invalidTargetErr *InvalidTargetError
+	require.ErrorAs(t, err, &invalidTargetErr)
+	assert.Equal(t, ErrCodeInvalidRequest, ClassifyError(err).Code)
+}
+
 func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRuns(t *testing.T) {
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
