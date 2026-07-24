@@ -6,6 +6,7 @@
 package sack
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -21,6 +22,8 @@ import (
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
 )
+
+const sackHandshakeTimeout = 500 * time.Millisecond
 
 type sackDriver struct {
 	sink packets.Sink
@@ -264,11 +267,20 @@ func (s *sackDriver) FakeHandshake() {
 	}
 }
 
-// ReadHandshake polls for a synack from the target and populates the localInitSeq and localInitAck fields.
-// it also checks that the target supports SACK.
-func (s *sackDriver) ReadHandshake(localPort uint16) error {
+// ReadHandshake polls for a synack from the target and populates the localInitSeq and
+// localInitAck fields. It also checks that the target supports SACK. The packet-source
+// deadline is bounded by both the handshake timeout and the caller's context deadline.
+func (s *sackDriver) ReadHandshake(ctx context.Context, localPort uint16) error {
 	s.localPort = localPort
-	err := s.source.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	readDeadline := time.Now().Add(sackHandshakeTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(readDeadline) {
+		readDeadline = ctxDeadline
+	}
+	err := s.source.SetReadDeadline(readDeadline)
 	if err != nil {
 		return fmt.Errorf("sackDriver failed to SetReadDeadline: %w", err)
 	}
@@ -276,7 +288,9 @@ func (s *sackDriver) ReadHandshake(localPort uint16) error {
 		// we should have already connected by now so it should be over quickly
 		_, err = packets.ReadAndParse(s.source, s.buffer, s.parser)
 
-		if errors.Is(err, os.ErrDeadlineExceeded) {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		} else if errors.Is(err, os.ErrDeadlineExceeded) {
 			return fmt.Errorf("sackDriver readHandshake timed out")
 			// deadline exceeded is normally retryable, so this comes second in order
 		} else if common.CheckProbeRetryable("ReadHandshake", err) {

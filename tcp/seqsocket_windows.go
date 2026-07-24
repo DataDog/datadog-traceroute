@@ -47,18 +47,11 @@ func (t *TCPv4) TracerouteSequentialSocketContext(ctx context.Context) (*result.
 			return nil, ctx.Err()
 		}
 
-		// Cap this hop's timeout by the context's remaining deadline so a single
-		// hop can't block past the overall deadline (e.g. TotalTimeout).
-		hopTimeout, err := capHopTimeout(ctx, t.Timeout)
-		if err != nil {
-			return nil, err
-		}
-
 		s, err := winconn.NewConn()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create raw socket: %w", err)
 		}
-		hop, err := t.sendAndReceiveSocket(s, i, hopTimeout)
+		hop, err := t.sendAndReceiveSocket(ctx, s, i, t.Timeout)
 		s.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to run traceroute: %w", err)
@@ -85,29 +78,7 @@ func (t *TCPv4) TracerouteSequentialSocketContext(ctx context.Context) (*result.
 	}, nil
 }
 
-// capHopTimeout returns baseTimeout, unless ctx has a deadline that would elapse sooner,
-// in which case it returns the time remaining until that deadline instead. This keeps a
-// single hop's GetHop call from blocking past an overall deadline such as TotalTimeout.
-// An already-expired deadline returns context.DeadlineExceeded.
-func capHopTimeout(ctx context.Context, baseTimeout time.Duration) (time.Duration, error) {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return baseTimeout, nil
-	}
-	remaining := time.Until(deadline)
-	if remaining <= 0 {
-		return 0, context.DeadlineExceeded
-	}
-	if baseTimeout <= 0 {
-		return remaining, nil
-	}
-	if remaining < baseTimeout {
-		return remaining, nil
-	}
-	return baseTimeout, nil
-}
-
-func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
+func (t *TCPv4) sendAndReceiveSocket(ctx context.Context, s winconn.ConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
 	// set the TTL
 	err := s.SetTTL(ttl)
 	if err != nil {
@@ -115,7 +86,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
-	hopIP, end, icmpType, icmpCode, err := s.GetHop(timeout, t.Target, t.DestPort)
+	hopIP, end, icmpType, icmpCode, err := s.GetHop(ctx, timeout, t.Target, t.DestPort)
 	if err != nil {
 		log.Errorf("failed to get hop: %s", err.Error())
 		return nil, fmt.Errorf("failed to get hop: %w", err)

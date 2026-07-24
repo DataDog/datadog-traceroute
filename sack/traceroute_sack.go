@@ -177,7 +177,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 
 	log.Debugf("sack traceroute reading handshake %s", p.Target)
 
-	err = driver.ReadHandshake(tcpAddr.AddrPort().Port())
+	err = driver.ReadHandshake(ctx, tcpAddr.AddrPort().Port())
 	if err != nil {
 		return nil, fmt.Errorf("sack traceroute failed to read handshake: %w", err)
 	}

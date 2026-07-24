@@ -66,7 +66,7 @@ type (
 	// connection for Windows
 	ConnWrapper interface {
 		SetTTL(ttl int) error
-		GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error)
+		GetHop(ctx context.Context, timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error)
 		Close()
 	}
 
@@ -249,16 +249,16 @@ func (r *Conn) getSocketError() error {
 	return windows.Errno(errCode)
 }
 
-// GetHop sends a TCP SYN packet to the destination IP and port
-// Waits to get ICMP response from hop
-// returns the IP of the hop, the time it took to get the response, the ICMP type, the ICMP code, and an error
-func (r *Conn) GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error) {
-	ctx := context.Background()
+// GetHop sends a TCP SYN packet to the destination IP and port and waits for an
+// ICMP response. The caller context bounds the whole run, while a positive timeout
+// independently bounds this hop.
+func (r *Conn) GetHop(ctx context.Context, timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error) {
+	hopCtx := ctx
 	var cancel context.CancelFunc
 	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
+		hopCtx, cancel = context.WithTimeout(ctx, timeout)
 	} else {
-		ctx, cancel = context.WithCancel(ctx)
+		hopCtx, cancel = context.WithCancel(ctx)
 	}
 	defer cancel()
 	err := r.sendConnect(destIP, destPort)
@@ -266,10 +266,13 @@ func (r *Conn) GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (ne
 	if errors.Is(err, windows.WSAEWOULDBLOCK) {
 		// wait for the socket to be ready
 		// set error to returned error from poll
-		err = r.poll(ctx)
+		err = r.poll(hopCtx)
 		if err != nil {
 			_, canceled := err.(common.CanceledError)
 			if canceled {
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return nil, time.Time{}, 0, 0, ctxErr
+				}
 				log.Trace("timed out waiting for responses")
 				return net.IP{}, time.Time{}, 0, 0, nil
 			}

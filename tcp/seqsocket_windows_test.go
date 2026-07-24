@@ -7,54 +7,33 @@ package tcp
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/DataDog/datadog-traceroute/winconn"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_capHopTimeout(t *testing.T) {
-	t.Run("no deadline on ctx returns the base timeout unchanged", func(t *testing.T) {
-		got, err := capHopTimeout(context.Background(), 3*time.Second)
-		require.NoError(t, err)
-		assert.Equal(t, 3*time.Second, got)
-	})
+func TestSendAndReceiveSocketPassesContextAndTimeout(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	socket := winconn.NewMockConnWrapper(ctrl)
+	target := net.ParseIP("192.0.2.1")
+	timeout := 3 * time.Second
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	t.Run("deadline further out than the base timeout leaves it unchanged", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
-		defer cancel()
+	socket.EXPECT().SetTTL(7).Return(nil)
+	socket.EXPECT().GetHop(ctx, timeout, target, uint16(443)).
+		Return(target, time.Now(), uint8(0), uint8(0), nil)
 
-		got, err := capHopTimeout(ctx, 3*time.Second)
-		require.NoError(t, err)
-		assert.Equal(t, 3*time.Second, got)
-	})
+	traceroute := &TCPv4{
+		Target:   target,
+		DestPort: 443,
+	}
+	hop, err := traceroute.sendAndReceiveSocket(ctx, socket, 7, timeout)
 
-	t.Run("deadline sooner than the base timeout caps it to the remaining time", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
-
-		got, err := capHopTimeout(ctx, 3*time.Second)
-		require.NoError(t, err)
-		assert.LessOrEqual(t, got, 50*time.Millisecond)
-		assert.Greater(t, got, time.Duration(0))
-	})
-
-	t.Run("zero base timeout uses the context deadline", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-		defer cancel()
-
-		got, err := capHopTimeout(ctx, 0)
-		require.NoError(t, err)
-		assert.LessOrEqual(t, got, 50*time.Millisecond)
-		assert.Greater(t, got, time.Duration(0))
-	})
-
-	t.Run("already-expired deadline returns context.DeadlineExceeded", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), -time.Second)
-		defer cancel()
-
-		_, err := capHopTimeout(ctx, 3*time.Second)
-		assert.ErrorIs(t, err, context.DeadlineExceeded)
-	})
+	require.NoError(t, err)
+	require.True(t, hop.IsDest)
 }
