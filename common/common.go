@@ -101,6 +101,23 @@ func ValidateMaxTTL(name string, maxTTL int) error {
 	return nil
 }
 
+// ResolveProbeTimeout returns the explicitly configured per-probe timeout. When
+// none was configured and an overall timeout is available, it reserves 10% of
+// the per-hop budget for work outside probe waits. If there is no overall
+// timeout, it preserves the supplied legacy default.
+func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL int, configured bool) time.Duration {
+	if configured || totalTimeout <= 0 || maxTTL < DefaultMinTTL || maxTTL > MaxAllowedTTL {
+		return configuredTimeout
+	}
+
+	// Calculate totalTimeout * 9 / (maxTTL * 10) without overflowing when
+	// totalTimeout is close to time.Duration's upper bound.
+	divisor := time.Duration(maxTTL) * 10
+	quotient := totalTimeout / divisor
+	remainder := totalTimeout % divisor
+	return quotient*9 + remainder*9/divisor
+}
+
 // contextWithOptionalTimeout applies timeout when it is positive. A zero timeout means
 // no local deadline, while the parent context can still enforce TotalTimeout or caller
 // cancellation.

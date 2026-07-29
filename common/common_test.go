@@ -9,9 +9,68 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestResolveProbeTimeout(t *testing.T) {
+	tests := []struct {
+		name              string
+		configuredTimeout time.Duration
+		totalTimeout      time.Duration
+		maxTTL            int
+		configured        bool
+		expected          time.Duration
+	}{
+		{
+			name:              "derives timeout from total timeout and max TTL",
+			configuredTimeout: 3 * time.Second,
+			totalTimeout:      10 * time.Second,
+			maxTTL:            30,
+			expected:          300 * time.Millisecond,
+		},
+		{
+			name:              "uses custom max TTL when deriving timeout",
+			configuredTimeout: 3 * time.Second,
+			totalTimeout:      10 * time.Second,
+			maxTTL:            20,
+			expected:          450 * time.Millisecond,
+		},
+		{
+			name:              "preserves explicit timeout",
+			configuredTimeout: 500 * time.Millisecond,
+			totalTimeout:      10 * time.Second,
+			maxTTL:            30,
+			configured:        true,
+			expected:          500 * time.Millisecond,
+		},
+		{
+			name:         "preserves explicit zero timeout",
+			totalTimeout: 10 * time.Second,
+			maxTTL:       30,
+			configured:   true,
+			expected:     0,
+		},
+		{
+			name:              "uses legacy default without total timeout",
+			configuredTimeout: 3 * time.Second,
+			maxTTL:            30,
+			expected:          3 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, ResolveProbeTimeout(
+				tt.configuredTimeout,
+				tt.totalTimeout,
+				tt.maxTTL,
+				tt.configured,
+			))
+		})
+	}
+}
 
 func TestUnmappedAddrFromSliceZero(t *testing.T) {
 	// zero value

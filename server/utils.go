@@ -41,6 +41,12 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	if err != nil {
 		return traceroute.TracerouteParams{}, err
 	}
+	timeout := common.ResolveProbeTimeout(
+		time.Duration(timeoutMs)*time.Millisecond,
+		time.Duration(totalTimeoutMs)*time.Millisecond,
+		maxTTL,
+		query.Has("timeout"),
+	)
 	tcpMethod := getStringParam(query, "tcp-method", common.DefaultTcpMethod)
 	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
 
@@ -59,7 +65,7 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		MinTTL:                common.DefaultMinTTL,
 		MaxTTL:                maxTTL,
 		Delay:                 common.DefaultDelay,
-		Timeout:               time.Duration(timeoutMs) * time.Millisecond,
+		Timeout:               timeout,
 		TotalTimeout:          time.Duration(totalTimeoutMs) * time.Millisecond,
 		TCPMethod:             traceroute.TCPMethod(tcpMethod),
 		WantV6:                wantV6,

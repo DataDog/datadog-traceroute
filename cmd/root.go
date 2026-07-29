@@ -57,6 +57,13 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		totalTimeout := time.Duration(Args.totalTimeoutMs) * time.Millisecond
+		probeTimeout := common.ResolveProbeTimeout(
+			time.Duration(Args.timeout)*time.Millisecond,
+			totalTimeout,
+			Args.maxTTL,
+			cmd.Flags().Changed("timeout"),
+		)
 		params := traceroute.TracerouteParams{
 			Hostname:              args[0],
 			Port:                  Args.port,
@@ -64,8 +71,8 @@ var rootCmd = &cobra.Command{
 			MinTTL:                common.DefaultMinTTL,
 			MaxTTL:                Args.maxTTL,
 			Delay:                 common.DefaultDelay,
-			Timeout:               time.Duration(Args.timeout) * time.Millisecond,
-			TotalTimeout:          time.Duration(Args.totalTimeoutMs) * time.Millisecond,
+			Timeout:               probeTimeout,
+			TotalTimeout:          totalTimeout,
 			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
 			WantV6:                Args.wantV6,
 			ReverseDns:            Args.reverseDns,
@@ -112,7 +119,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
 	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms)")
+	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms); when omitted with a total timeout, derived from 90% of its per-hop budget")
 	rootCmd.Flags().IntVarP(&Args.totalTimeoutMs, "total-timeout-ms", "", common.DefaultTotalTimeoutMs, "Total timeout for the whole traceroute run (ms). 0 disables the overall deadline")
 	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")

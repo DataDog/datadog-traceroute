@@ -126,14 +126,25 @@ func TestParseTracerouteParams(t *testing.T) {
 		assert.Equal(t, time.Duration(0), params.TotalTimeout)
 	})
 
-	t.Run("total_timeout_ms alone preserves the default per-probe timeout", func(t *testing.T) {
+	t.Run("total_timeout_ms alone derives the per-probe timeout", func(t *testing.T) {
 		u, err := url.Parse("/traceroute?target=example.com&total_timeout_ms=10000")
 		require.NoError(t, err)
 
 		params, err := parseTracerouteParams(u)
 		require.NoError(t, err)
 
-		assert.Equal(t, time.Duration(common.DefaultNetworkPathTimeout)*time.Millisecond, params.Timeout)
+		assert.Equal(t, 300*time.Millisecond, params.Timeout)
+		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
+	})
+
+	t.Run("derived per-probe timeout uses the configured max TTL", func(t *testing.T) {
+		u, err := url.Parse("/traceroute?target=example.com&total_timeout_ms=10000&max-ttl=20")
+		require.NoError(t, err)
+
+		params, err := parseTracerouteParams(u)
+		require.NoError(t, err)
+
+		assert.Equal(t, 450*time.Millisecond, params.Timeout)
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
 	})
 
