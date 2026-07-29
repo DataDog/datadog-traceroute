@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/publicip"
 	"github.com/DataDog/datadog-traceroute/result"
+	"github.com/DataDog/datadog-traceroute/reversedns"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -673,21 +674,27 @@ func TestLogTerminalOutcome(t *testing.T) {
 			Runs: []result.TracerouteRun{{}},
 		},
 	}, nil)
+	logTerminalOutcome(params, 443, nil, &net.DNSError{
+		Err:       "network timeout",
+		IsTimeout: true,
+	})
 	logTerminalOutcome(params, 443, nil, context.Canceled)
 
 	require.Len(t, debugMessages, 1)
 	assert.Contains(t, debugMessages[0], `traceroute_run_completed hostname="example.com" protocol="udp" outcome=success`)
-	assert.Contains(t, debugMessages[0], "completed_runs=2 requested_runs=3 timed_out=false destination_port=443")
+	assert.Contains(t, debugMessages[0], "completed_runs=2 requested_runs=3 deadline_exceeded=false destination_port=443")
 	assert.Contains(t, debugMessages[0], `test_run_id="test-id"`)
 
-	require.Len(t, warnMessages, 1)
+	require.Len(t, warnMessages, 2)
 	assert.Contains(t, warnMessages[0], "outcome=timeout")
-	assert.Contains(t, warnMessages[0], "completed_runs=1 requested_runs=3 timed_out=true destination_port=443")
+	assert.Contains(t, warnMessages[0], "completed_runs=1 requested_runs=3 deadline_exceeded=true destination_port=443")
 	assert.Contains(t, warnMessages[0], `test_run_id="timeout-id"`)
+	assert.Contains(t, warnMessages[1], "outcome=timeout")
+	assert.Contains(t, warnMessages[1], "deadline_exceeded=false")
 
 	require.Len(t, errorMessages, 1)
 	assert.Contains(t, errorMessages[0], "outcome=error")
-	assert.Contains(t, errorMessages[0], "completed_runs=0 requested_runs=3 timed_out=false destination_port=443")
+	assert.Contains(t, errorMessages[0], "completed_runs=0 requested_runs=3 deadline_exceeded=false destination_port=443")
 	assert.NotContains(t, errorMessages[0], "test_run_id=")
 }
 
@@ -716,6 +723,79 @@ func TestRunTraceroute_MaxTTLIsValidatedBeforeDriverConversion(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, results)
+	})
+}
+
+func TestRunTraceroute_QueryCountsAreValidatedBeforeAllocation(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	called := false
+	runTracerouteOnceFn = func(context.Context, TracerouteParams, int) (*result.TracerouteRun, error) {
+		called = true
+		return &result.TracerouteRun{}, nil
+	}
+
+	tests := []struct {
+		name   string
+		params TracerouteParams
+	}{
+		{
+			name: "negative traceroute queries",
+			params: TracerouteParams{
+				TracerouteQueries: -1,
+			},
+		},
+		{
+			name: "excessive traceroute queries",
+			params: TracerouteParams{
+				TracerouteQueries: common.MaxTracerouteQueries + 1,
+			},
+		},
+		{
+			name: "negative E2E queries",
+			params: TracerouteParams{
+				E2eQueries: -1,
+			},
+		},
+		{
+			name: "excessive E2E queries",
+			params: TracerouteParams{
+				E2eQueries: common.MaxE2eQueries + 1,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called = false
+			tt.params.Hostname = "example.com"
+			tt.params.MaxTTL = common.DefaultMaxTTL
+
+			_, err := NewTraceroute().RunTraceroute(context.Background(), tt.params)
+
+			require.Error(t, err)
+			var targetErr *InvalidTargetError
+			assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+			assert.False(t, called, "query count must be rejected before starting or allocating probe runs")
+		})
+	}
+
+	t.Run("maximum values are accepted", func(t *testing.T) {
+		runTracerouteOnceFn = func(context.Context, TracerouteParams, int) (*result.TracerouteRun, error) {
+			return &result.TracerouteRun{}, nil
+		}
+
+		results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
+			Hostname:          "example.com",
+			MaxTTL:            common.DefaultMaxTTL,
+			TracerouteQueries: common.MaxTracerouteQueries,
+			E2eQueries:        common.MaxE2eQueries,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, results)
+		assert.Len(t, results.Traceroute.Runs, common.MaxTracerouteQueries)
+		assert.Len(t, results.E2eProbe.RTTs, common.MaxE2eQueries)
 	})
 }
 
@@ -885,6 +965,94 @@ func TestRunTraceroute_BothTimeoutsCoexistOnHappyPath(t *testing.T) {
 	assert.Len(t, results.Traceroute.Runs, 2)
 	assert.Len(t, results.E2eProbe.RTTs, 2)
 	assert.False(t, results.TimedOut)
+}
+
+func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	originalLookupAddrFn := reversedns.LookupAddrFn
+	defer func() { reversedns.LookupAddrFn = originalLookupAddrFn }()
+
+	runTracerouteOnceFn = func(context.Context, TracerouteParams, int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{
+			Destination: result.TracerouteDestination{
+				IPAddress: net.ParseIP("198.51.100.101"),
+			},
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("198.51.100.102"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	lookupStarted := make(chan struct{})
+	var startedOnce sync.Once
+	reversedns.LookupAddrFn = func(ctx context.Context, _ string) ([]string, error) {
+		startedOnce.Do(func() { close(lookupStarted) })
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
+		Hostname:          "example.com",
+		MaxTTL:            common.DefaultMaxTTL,
+		TracerouteQueries: 1,
+		E2eQueries:        1,
+		ReverseDns:        true,
+		TotalTimeout:      50 * time.Millisecond,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.True(t, results.TimedOut)
+	assert.Len(t, results.Traceroute.Runs, 1)
+	assert.Equal(t, result.E2eProbe{}, results.E2eProbe)
+	select {
+	case <-lookupStarted:
+	default:
+		t.Fatal("reverse-DNS enrichment was not exercised")
+	}
+}
+
+func TestRunTraceroute_CancellationDuringReverseDNSEnrichmentDiscardsResults(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	originalLookupAddrFn := reversedns.LookupAddrFn
+	defer func() { reversedns.LookupAddrFn = originalLookupAddrFn }()
+
+	runTracerouteOnceFn = func(context.Context, TracerouteParams, int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{
+			Destination: result.TracerouteDestination{
+				IPAddress: net.ParseIP("198.51.100.103"),
+			},
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("198.51.100.104"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	lookupStarted := make(chan struct{})
+	var startedOnce sync.Once
+	reversedns.LookupAddrFn = func(ctx context.Context, _ string) ([]string, error) {
+		startedOnce.Do(func() { close(lookupStarted) })
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-lookupStarted
+		cancel()
+	}()
+
+	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
+		Hostname:          "example.com",
+		MaxTTL:            common.DefaultMaxTTL,
+		TracerouteQueries: 1,
+		E2eQueries:        1,
+		ReverseDns:        true,
+	})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, results)
 }
 
 func TestRunTraceroute_E2ePacingStopsOnCancellation(t *testing.T) {

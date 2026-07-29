@@ -179,6 +179,38 @@ func TestParseTracerouteParams(t *testing.T) {
 		assert.Equal(t, common.MaxAllowedTTL, params.MaxTTL)
 	})
 
+	for _, tc := range []struct {
+		key string
+		max int
+	}{
+		{key: "traceroute-queries", max: common.MaxTracerouteQueries},
+		{key: "e2e-queries", max: common.MaxE2eQueries},
+	} {
+		t.Run(tc.key+" accepts its maximum", func(t *testing.T) {
+			u, err := url.Parse(fmt.Sprintf("/traceroute?target=example.com&%s=%d", tc.key, tc.max))
+			require.NoError(t, err)
+
+			params, err := parseTracerouteParams(u)
+			require.NoError(t, err)
+			if tc.key == "traceroute-queries" {
+				assert.Equal(t, tc.max, params.TracerouteQueries)
+			} else {
+				assert.Equal(t, tc.max, params.E2eQueries)
+			}
+		})
+
+		for _, value := range []string{"-1", fmt.Sprintf("%d", tc.max+1), "not-a-number", ""} {
+			t.Run(tc.key+" rejects "+value, func(t *testing.T) {
+				u, err := url.Parse("/traceroute?target=example.com&" + tc.key + "=" + value)
+				require.NoError(t, err)
+
+				_, err = parseTracerouteParams(u)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.key)
+			})
+		}
+	}
+
 	for _, maxTTL := range []string{"0", "-1", "256", "not-a-number", ""} {
 		t.Run("invalid max-ttl "+maxTTL+" is rejected", func(t *testing.T) {
 			u, err := url.Parse("/traceroute?target=example.com&max-ttl=" + maxTTL)

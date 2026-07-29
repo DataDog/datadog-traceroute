@@ -210,6 +210,29 @@ func TestParallelTracerouteIgnoresResponseAfterProbeTimeout(t *testing.T) {
 	require.Nil(t, results[0], "a response received after its probe's Timeout must be ignored")
 }
 
+func TestParallelTracerouteIgnoresResponseForUnsentTTL(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.TracerouteTimeout = 20 * time.Millisecond
+	params.SendDelay = 30 * time.Millisecond
+
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	var receiveCalls atomic.Int32
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		if receiveCalls.Add(1) == 1 {
+			return mockResult(2), nil
+		}
+		return pollData(nil, params.PollFrequency)
+	}
+
+	results, err := TracerouteParallel(context.Background(), m, params)
+
+	require.NoError(t, err)
+	require.Len(t, results, int(params.MaxTTL))
+	require.Nil(t, results[1], "a response for TTL 2 received before TTL 2 was sent must be ignored")
+}
+
 func TestParallelTracerouteMinTTL(t *testing.T) {
 	// same as TestParallelTraceroute but it checks that we don't send TTL=1 when MinTTL=2
 

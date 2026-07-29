@@ -348,7 +348,7 @@ func TestFakeNetworkHTTPServerTotalTimeout(t *testing.T) {
 		timeout  string
 	}{
 		{
-			name:     "UDP_total_timeout_uses_default_probe_timeout",
+			name:     "UDP_total_timeout_derives_probe_timeout",
 			protocol: "udp",
 		},
 		{

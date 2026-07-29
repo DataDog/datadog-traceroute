@@ -98,6 +98,8 @@ type sackResult struct {
 	Hops      []*common.ProbeResponse
 }
 
+var newSourceSink = packets.NewSourceSink
+
 func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	err := p.validate()
 	if err != nil {
@@ -119,7 +121,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	defer cancel()
 
 	// create the raw packet connection which watches for TCP/ICMP responses
-	handle, err := packets.NewSourceSink(p.Target.Addr(), p.UseWindowsDriver)
+	handle, err := newSourceSink(p.Target.Addr(), p.UseWindowsDriver)
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to make NewSourceSink: %w", err)
 	}

@@ -28,7 +28,15 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	// Parse optional parameters with defaults
 	protocol := getStringParam(query, "protocol", common.DefaultProtocol)
 	port := getIntParam(query, "port", common.DefaultPort)
-	tracerouteQueries := getIntParam(query, "traceroute-queries", common.DefaultTracerouteQueries)
+	tracerouteQueries, err := parseValidatedQueryCountParam(
+		query,
+		"traceroute-queries",
+		common.DefaultTracerouteQueries,
+		common.MaxTracerouteQueries,
+	)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
 	maxTTL, err := parseValidatedMaxTTLParam(query, "max-ttl", common.DefaultMaxTTL)
 	if err != nil {
 		return traceroute.TracerouteParams{}, err
@@ -48,7 +56,15 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		query.Has("timeout"),
 	)
 	tcpMethod := getStringParam(query, "tcp-method", common.DefaultTcpMethod)
-	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
+	e2eQueries, err := parseValidatedQueryCountParam(
+		query,
+		"e2e-queries",
+		common.DefaultNumE2eProbes,
+		common.MaxE2eQueries,
+	)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
 
 	// Parse boolean flags
 	wantV6 := getBoolParam(query, "ipv6", common.DefaultWantV6)
@@ -111,6 +127,21 @@ func parseValidatedMaxTTLParam(query map[string][]string, key string, defaultVal
 		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
 	}
 	if err := common.ValidateMaxTTL(key, val); err != nil {
+		return 0, err
+	}
+	return val, nil
+}
+
+func parseValidatedQueryCountParam(query map[string][]string, key string, defaultValue, max int) (int, error) {
+	values, ok := query[key]
+	if !ok || len(values) == 0 {
+		return defaultValue, nil
+	}
+	val, err := strconv.Atoi(values[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
+	}
+	if err := common.ValidateQueryCount(key, val, max); err != nil {
 		return 0, err
 	}
 	return val, nil

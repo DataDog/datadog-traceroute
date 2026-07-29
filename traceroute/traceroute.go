@@ -52,6 +52,12 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
+	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries, common.MaxTracerouteQueries); err != nil {
+		return nil, &InvalidTargetError{Err: err}
+	}
+	if err := common.ValidateQueryCount("E2E queries", params.E2eQueries, common.MaxE2eQueries); err != nil {
+		return nil, &InvalidTargetError{Err: err}
+	}
 
 	results, err = t.runTracerouteMulti(runCtx, params, destinationPort)
 	if err != nil {
@@ -111,8 +117,8 @@ func logTerminalOutcome(params TracerouteParams, destinationPort int, results *r
 		testRunID = results.TestRunID
 	}
 
-	timedOut := (results != nil && results.TimedOut) || errors.Is(runErr, context.DeadlineExceeded)
-	timeoutOutcome := timedOut
+	deadlineExceeded := (results != nil && results.TimedOut) || errors.Is(runErr, context.DeadlineExceeded)
+	timeoutOutcome := deadlineExceeded
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
 		timeoutOutcome = ClassifyError(runErr).Code == ErrCodeTimeout
 	}
@@ -124,13 +130,13 @@ func logTerminalOutcome(params TracerouteParams, destinationPort int, results *r
 	}
 
 	message := fmt.Sprintf(
-		"traceroute_run_completed hostname=%q protocol=%q outcome=%s completed_runs=%d requested_runs=%d timed_out=%t destination_port=%d",
+		"traceroute_run_completed hostname=%q protocol=%q outcome=%s completed_runs=%d requested_runs=%d deadline_exceeded=%t destination_port=%d",
 		params.Hostname,
 		params.Protocol,
 		outcome,
 		completedRuns,
 		params.TracerouteQueries,
-		timedOut,
+		deadlineExceeded,
 		destinationPort,
 	)
 	if testRunID != "" {
@@ -152,9 +158,6 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	var results result.Results
 
 	tracerouteQueryCount := params.TracerouteQueries
-	if tracerouteQueryCount < 0 {
-		tracerouteQueryCount = 0
-	}
 	tracerouteRuns := make([]*result.TracerouteRun, tracerouteQueryCount)
 	tracerouteRunErrors := make([]error, tracerouteQueryCount)
 
@@ -190,9 +193,6 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 
 	e2eQueryCount := params.E2eQueries
-	if e2eQueryCount < 0 {
-		e2eQueryCount = 0
-	}
 	e2eRTTs := make([]float64, e2eQueryCount)
 	launchedE2eQueries := 0
 	if e2eQueryCount > 0 {
