@@ -107,7 +107,7 @@ func TestTracerouteHandlerTimeoutWithoutCompletedRunReturnsGatewayTimeout(t *tes
 	assert.Equal(t, traceroute.ErrCodeTimeout, errResp.Code)
 }
 
-func TestTracerouteHandlerPartialTimeoutReturnsResults(t *testing.T) {
+func TestTracerouteHandlerOptInPartialTimeoutReturnsResults(t *testing.T) {
 	expected := &result.Results{
 		TimedOut: true,
 		Traceroute: result.Traceroute{
@@ -116,7 +116,7 @@ func TestTracerouteHandlerPartialTimeoutReturnsResults(t *testing.T) {
 	}
 	srv := NewServer()
 	srv.tr = stubTracerouteRunner{results: expected}
-	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=example.com&total_timeout_ms=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=example.com&total_timeout_ms=10&return-partial-results=true", nil)
 	w := httptest.NewRecorder()
 
 	srv.TracerouteHandler(w, req)

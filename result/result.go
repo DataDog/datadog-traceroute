@@ -19,6 +19,7 @@ type (
 		E2eProbe    E2eProbe    `json:"e2e_probe"`
 		// TimedOut indicates that the run context deadline expired. Traceroute.Runs
 		// contains only queries that completed successfully before that deadline.
+		// It is set only when the caller enables ReturnPartialResults.
 		TimedOut bool `json:"timed_out"`
 	}
 

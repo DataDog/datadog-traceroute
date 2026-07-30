@@ -40,10 +40,9 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 	}
 
 	results := make([]*ProbeResponse, int(p.MaxTTL)+1)
-	// The sender publishes each TTL's start time while the receiver reads it.
-	// Atomic pointers provide that synchronization while retaining time.Time's
-	// monotonic component for reliable elapsed-time comparisons.
-	probeSentAt := make([]atomic.Pointer[time.Time], int(p.MaxTTL)+1)
+	// The sender publishes which TTLs belong to this run before sending them,
+	// while the receiver uses the packet's capture-based RTT for deadline checks.
+	probeSent := make([]atomic.Bool, int(p.MaxTTL)+1)
 	writeProbe := func(probe *ProbeResponse) {
 		log.Tracef("found probe %+v", probe)
 		previous := results[probe.TTL]
@@ -85,11 +84,9 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return nil
 			}
 
-			// Record the start before SendProbe so even a driver that receives a response
-			// immediately cannot race ahead of the per-probe deadline bookkeeping.
-			sentAt := new(time.Time)
-			*sentAt = time.Now()
-			probeSentAt[i].Store(sentAt)
+			// Publish before SendProbe so even a driver that receives a response
+			// immediately cannot race ahead of the active-probe bookkeeping.
+			probeSent[i].Store(true)
 
 			err := t.SendProbe(uint8(i))
 			if err != nil {
@@ -128,13 +125,12 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return err
 			}
 
-			sentAt := probeSentAt[probe.TTL].Load()
-			if sentAt == nil {
+			if !probeSent[probe.TTL].Load() {
 				// A response for a TTL that has not been sent by this run cannot belong
 				// to one of its active probes.
 				continue
 			}
-			if p.TracerouteTimeout > 0 && time.Since(*sentAt) > p.TracerouteTimeout {
+			if p.TracerouteTimeout > 0 && probe.RTT > p.TracerouteTimeout {
 				log.Tracef("ignoring response for TTL %d received after per-probe timeout", probe.TTL)
 				continue
 			}

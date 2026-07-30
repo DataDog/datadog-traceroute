@@ -46,17 +46,22 @@ func TestResolveProbeTimeout(t *testing.T) {
 			expected:          500 * time.Millisecond,
 		},
 		{
-			name:         "preserves explicit zero timeout",
+			name:         "explicit zero timeout is treated as unset",
 			totalTimeout: 10 * time.Second,
 			maxTTL:       30,
 			configured:   true,
-			expected:     0,
+			expected:     300 * time.Millisecond,
 		},
 		{
 			name:              "uses legacy default without total timeout",
 			configuredTimeout: 3 * time.Second,
 			maxTTL:            30,
 			expected:          3 * time.Second,
+		},
+		{
+			name:     "uses default timeout when neither timeout is set",
+			maxTTL:   30,
+			expected: 3 * time.Second,
 		},
 	}
 

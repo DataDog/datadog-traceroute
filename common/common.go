@@ -112,13 +112,20 @@ func ValidateQueryCount(name string, count, max int) error {
 	return nil
 }
 
-// ResolveProbeTimeout returns the explicitly configured per-probe timeout. When
-// none was configured and an overall timeout is available, it reserves 10% of
-// the per-hop budget for work outside probe waits. If there is no overall
-// timeout, it preserves the supplied legacy default.
+// ResolveProbeTimeout returns a positive explicitly configured per-probe timeout.
+// A non-positive timeout is treated as unset. When no timeout was configured and
+// an overall timeout is available, it reserves 10% of the per-hop budget for work
+// outside probe waits. If there is no overall timeout, it preserves the supplied
+// legacy default or falls back to DefaultNetworkPathTimeout.
 func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL int, configured bool) time.Duration {
-	if configured || totalTimeout <= 0 || maxTTL < DefaultMinTTL || maxTTL > MaxAllowedTTL {
+	if configured && configuredTimeout > 0 {
 		return configuredTimeout
+	}
+	if totalTimeout <= 0 || maxTTL < DefaultMinTTL || maxTTL > MaxAllowedTTL {
+		if configuredTimeout > 0 {
+			return configuredTimeout
+		}
+		return time.Duration(DefaultNetworkPathTimeout) * time.Millisecond
 	}
 
 	// Calculate totalTimeout * 9 / (maxTTL * 10) without overflowing when

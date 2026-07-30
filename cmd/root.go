@@ -36,6 +36,7 @@ type args struct {
 	verbose               bool
 	useWindowsDriver      bool
 	skipPrivateHops       bool
+	returnPartialResults  bool
 }
 
 type tracerouteRunner interface {
@@ -90,6 +91,7 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 				Delay:                 common.DefaultDelay,
 				Timeout:               probeTimeout,
 				TotalTimeout:          totalTimeout,
+				ReturnPartialResults:  cfg.returnPartialResults,
 				TCPMethod:             traceroute.TCPMethod(cfg.tcpmethod),
 				WantV6:                cfg.wantV6,
 				ReverseDns:            cfg.reverseDns,
@@ -128,13 +130,14 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 	cmd.Flags().BoolVarP(&cfg.verbose, "verbose", "v", false, "verbose")
 	cmd.Flags().StringVarP(&cfg.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
 	cmd.Flags().BoolVarP(&cfg.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
-	cmd.Flags().IntVarP(&cfg.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms); when omitted with a total timeout, derived from 90% of its per-hop budget")
+	cmd.Flags().IntVarP(&cfg.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms); when omitted or zero with a total timeout, derived from 90% of its per-hop budget")
 	cmd.Flags().IntVarP(&cfg.totalTimeoutMs, "total-timeout-ms", "", common.DefaultTotalTimeoutMs, "Total timeout for the whole traceroute run (ms). 0 disables the overall deadline")
 	cmd.Flags().BoolVarP(&cfg.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	cmd.Flags().BoolVarP(&cfg.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
 	cmd.Flags().IntVarP(&cfg.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, fmt.Sprintf("Number of e2e probe queries (0-%d)", common.MaxE2eQueries))
 	cmd.Flags().BoolVarP(&cfg.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
 	cmd.Flags().BoolVarP(&cfg.skipPrivateHops, "skip-private-hops", "", common.DefaultSkipPrivateHops, "Skip private hops")
+	cmd.Flags().BoolVarP(&cfg.returnPartialResults, "return-partial-results", "", false, "Return completed traceroute runs when the total timeout expires")
 
 	return cmd
 }

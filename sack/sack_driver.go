@@ -291,7 +291,7 @@ func (s *sackDriver) ReadHandshake(ctx context.Context, localPort uint16) error 
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		} else if errors.Is(err, os.ErrDeadlineExceeded) {
-			return fmt.Errorf("sackDriver readHandshake timed out")
+			return fmt.Errorf("sackDriver readHandshake timed out: %w", context.DeadlineExceeded)
 			// deadline exceeded is normally retryable, so this comes second in order
 		} else if common.CheckProbeRetryable("ReadHandshake", err) {
 			continue

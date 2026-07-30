@@ -61,7 +61,21 @@ func TestReadHandshakeClampsReadDeadlineToContext(t *testing.T) {
 	err := newHandshakeTestDriver(source).ReadHandshake(ctx, 1234)
 
 	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Equal(t, ctxDeadline, source.deadline)
+}
+
+func TestReadHandshakeClassifiesInternalReadDeadlineAsTimeout(t *testing.T) {
+	source := &handshakeTestSource{
+		read: func([]byte) (int, error) {
+			return 0, os.ErrDeadlineExceeded
+		},
+	}
+
+	err := newHandshakeTestDriver(source).ReadHandshake(context.Background(), 1234)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestReadHandshakeReturnsContextDeadlineExceededWhenContextExpiresDuringRead(t *testing.T) {

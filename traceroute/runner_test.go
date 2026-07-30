@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -151,17 +152,17 @@ func Test_effectiveProbeTimeout(t *testing.T) {
 			expected: 10 * time.Millisecond,
 		},
 		{
-			name:     "neither Timeout nor TotalTimeout set returns zero",
+			name:     "neither Timeout nor TotalTimeout set uses the legacy default",
 			params:   TracerouteParams{MaxTTL: 30},
-			expected: 0,
+			expected: 3 * time.Second,
 		},
 		{
-			name:     "TotalTimeout does not create a per-probe timeout",
+			name:     "TotalTimeout derives a per-probe timeout",
 			params:   TracerouteParams{TotalTimeout: 10 * time.Second, MaxTTL: 30},
-			expected: 0,
+			expected: 300 * time.Millisecond,
 		},
 		{
-			name:     "small TotalTimeout does not alter zero per-probe timeout",
+			name:     "small TotalTimeout uses the exact duration formula",
 			params:   TracerouteParams{TotalTimeout: time.Nanosecond, MaxTTL: 30},
 			expected: 0,
 		},
@@ -171,6 +172,55 @@ func Test_effectiveProbeTimeout(t *testing.T) {
 			assert.Equal(t, tt.expected, effectiveProbeTimeout(tt.params))
 		})
 	}
+}
+
+type serialProgressDriver struct {
+	currentTTL atomic.Uint32
+}
+
+func (d *serialProgressDriver) GetDriverInfo() common.TracerouteDriverInfo {
+	return common.TracerouteDriverInfo{SupportsParallel: false}
+}
+
+func (d *serialProgressDriver) SendProbe(ttl uint8) error {
+	d.currentTTL.Store(uint32(ttl))
+	return nil
+}
+
+func (d *serialProgressDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse, error) {
+	if d.currentTTL.Load() == 1 {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		<-timer.C
+		return nil, &common.ReceiveProbeNoPktError{Err: errors.New("no packet")}
+	}
+	return &common.ProbeResponse{TTL: 2, IsDest: true}, nil
+}
+
+func TestTotalTimeoutOnlyDerivesProbeTimeoutForSerialProgress(t *testing.T) {
+	params := TracerouteParams{
+		TotalTimeout: 200 * time.Millisecond,
+		MinTTL:       1,
+		MaxTTL:       2,
+	}
+	probeTimeout := effectiveProbeTimeout(params)
+	require.Equal(t, 90*time.Millisecond, probeTimeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), params.TotalTimeout)
+	defer cancel()
+	results, err := common.TracerouteSerial(ctx, &serialProgressDriver{}, common.TracerouteSerialParams{
+		TracerouteParams: common.TracerouteParams{
+			MinTTL:            uint8(params.MinTTL),
+			MaxTTL:            uint8(params.MaxTTL),
+			TracerouteTimeout: probeTimeout,
+			PollFrequency:     5 * time.Millisecond,
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.NotNil(t, results[1], "TTL 2 must be probed after TTL 1 times out")
+	assert.True(t, results[1].IsDest)
 }
 
 type noResponseParallelDriver struct{}

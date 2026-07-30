@@ -80,7 +80,7 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	case errors.Is(runCtx.Err(), context.Canceled):
 		return nil, context.Canceled
 	case errors.Is(runCtx.Err(), context.DeadlineExceeded):
-		if len(results.Traceroute.Runs) == 0 {
+		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
 			return nil, context.DeadlineExceeded
 		}
 		results.E2eProbe = result.E2eProbe{}
@@ -99,7 +99,7 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	case errors.Is(runCtx.Err(), context.Canceled):
 		return nil, context.Canceled
 	case errors.Is(runCtx.Err(), context.DeadlineExceeded):
-		if len(results.Traceroute.Runs) == 0 {
+		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
 			return nil, context.DeadlineExceeded
 		}
 		results.E2eProbe = result.E2eProbe{}
@@ -268,6 +268,9 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 			}
 			return nil, context.DeadlineExceeded
 		}
+		if !params.ReturnPartialResults {
+			return nil, context.DeadlineExceeded
+		}
 		results.TimedOut = true
 		return &results, nil
 	}
@@ -286,15 +289,21 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 // capped at 1 second so a large query count or timeout doesn't stall the run for too
 // long between probes.
 //
-// When TotalTimeout is set, the delay is derived from the overall run budget, since
-// TotalTimeout represents the total time available for all E2eQueries. A simultaneously
+// When TotalTimeout is set, the delay spreads launches across the run budget after
+// reserving enough time for the final probe's per-probe timeout. A simultaneously
 // configured Timeout independently caps each individual probe.
 // Otherwise it falls back to the legacy estimate based on the per-call Timeout and
 // MaxTTL, kept for callers that only set the per-call Timeout.
 func e2eQueriesDelay(params TracerouteParams) time.Duration {
 	var delay time.Duration
 	if params.TotalTimeout > 0 {
-		delay = params.TotalTimeout / time.Duration(params.E2eQueries)
+		if params.E2eQueries <= 1 {
+			return 0
+		}
+		pacingBudget := params.TotalTimeout - effectiveProbeTimeout(params)
+		if pacingBudget > 0 {
+			delay = pacingBudget / time.Duration(params.E2eQueries-1)
+		}
 	} else {
 		delay = (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
 	}

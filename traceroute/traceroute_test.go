@@ -498,9 +498,10 @@ func Test_e2eQueriesDelay(t *testing.T) {
 		expected time.Duration
 	}{
 		{
-			name: "total timeout set: splits the run budget evenly across e2e queries",
+			name: "total timeout set: reserves the final probe timeout",
 			params: TracerouteParams{
 				TotalTimeout: 500 * time.Millisecond,
+				Timeout:      100 * time.Millisecond,
 				E2eQueries:   5,
 			},
 			expected: 100 * time.Millisecond,
@@ -509,6 +510,7 @@ func Test_e2eQueriesDelay(t *testing.T) {
 			name: "total timeout set: capped at 1 second",
 			params: TracerouteParams{
 				TotalTimeout: 100 * time.Second,
+				Timeout:      time.Second,
 				E2eQueries:   2,
 			},
 			expected: 1 * time.Second,
@@ -532,14 +534,32 @@ func Test_e2eQueriesDelay(t *testing.T) {
 			expected: 1 * time.Second,
 		},
 		{
-			name: "total timeout determines run-level pacing when both fields are set",
+			name: "probe timeout consumes the complete pacing budget",
 			params: TracerouteParams{
 				TotalTimeout: 200 * time.Millisecond,
 				MaxTTL:       30,
 				Timeout:      time.Hour, // would dominate the legacy formula if it were used
 				E2eQueries:   2,
 			},
-			expected: 100 * time.Millisecond,
+			expected: 0,
+		},
+		{
+			name: "one e2e query requires no pacing delay",
+			params: TracerouteParams{
+				TotalTimeout: 10 * time.Second,
+				Timeout:      300 * time.Millisecond,
+				E2eQueries:   1,
+			},
+			expected: 0,
+		},
+		{
+			name: "default values reserve the derived final probe timeout",
+			params: TracerouteParams{
+				TotalTimeout: 10 * time.Second,
+				MaxTTL:       30,
+				E2eQueries:   50,
+			},
+			expected: (10*time.Second - 300*time.Millisecond) / 49,
 		},
 	}
 
@@ -849,7 +869,7 @@ func TestRunTraceroute_RequestErrorWinsDeadlineRace(t *testing.T) {
 	assert.Equal(t, ErrCodeInvalidRequest, ClassifyError(err).Code)
 }
 
-func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRuns(t *testing.T) {
+func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRunsWhenEnabled(t *testing.T) {
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
 	var calls atomic.Int32
@@ -874,10 +894,11 @@ func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRuns(t *testing.T) {
 		ctx.expire()
 	}()
 	results, err := tr.RunTraceroute(ctx, TracerouteParams{
-		Hostname:          "example.com",
-		TracerouteQueries: 3,
-		MaxTTL:            common.DefaultMaxTTL,
-		Timeout:           0,
+		Hostname:             "example.com",
+		TracerouteQueries:    3,
+		MaxTTL:               common.DefaultMaxTTL,
+		Timeout:              0,
+		ReturnPartialResults: true,
 	})
 
 	require.NoError(t, err)
@@ -886,6 +907,39 @@ func TestRunTraceroute_CallerDeadlineReturnsOnlyCompletedRuns(t *testing.T) {
 	require.Len(t, results.Traceroute.Runs, 1)
 	require.Len(t, results.Traceroute.Runs[0].Hops, 1)
 	assert.True(t, results.Traceroute.Runs[0].Hops[0].IsDest)
+}
+
+func TestRunTraceroute_CallerDeadlineDiscardsCompletedRunsByDefault(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	var calls atomic.Int32
+	completed := make(chan struct{})
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		if calls.Add(1) == 1 {
+			close(completed)
+			return &result.TracerouteRun{
+				Hops: []*result.TracerouteHop{
+					{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+				},
+			}, nil
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	ctx := newControlledDeadlineContext()
+	go func() {
+		<-completed
+		ctx.expire()
+	}()
+	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 3,
+		MaxTTL:            common.DefaultMaxTTL,
+	})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Nil(t, results)
 }
 
 func TestRunTraceroute_DeadlineDiscardsIncompleteE2eProbeSet(t *testing.T) {
@@ -923,11 +977,12 @@ func TestRunTraceroute_DeadlineDiscardsIncompleteE2eProbeSet(t *testing.T) {
 	}()
 
 	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
-		Hostname:          "example.com",
-		MinTTL:            1,
-		MaxTTL:            common.DefaultMaxTTL,
-		TracerouteQueries: 1,
-		E2eQueries:        2,
+		Hostname:             "example.com",
+		MinTTL:               1,
+		MaxTTL:               common.DefaultMaxTTL,
+		TracerouteQueries:    1,
+		E2eQueries:           2,
+		ReturnPartialResults: true,
 	})
 
 	require.NoError(t, err)
@@ -992,12 +1047,13 @@ func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *t
 	}
 
 	results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
-		Hostname:          "example.com",
-		MaxTTL:            common.DefaultMaxTTL,
-		TracerouteQueries: 1,
-		E2eQueries:        1,
-		ReverseDns:        true,
-		TotalTimeout:      50 * time.Millisecond,
+		Hostname:             "example.com",
+		MaxTTL:               common.DefaultMaxTTL,
+		TracerouteQueries:    1,
+		E2eQueries:           1,
+		ReverseDns:           true,
+		TotalTimeout:         50 * time.Millisecond,
+		ReturnPartialResults: true,
 	})
 
 	require.NoError(t, err)

@@ -103,11 +103,16 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 
 const sackSendDelay = 10 * time.Millisecond
 
-// effectiveProbeTimeout returns the independently configured per-probe timeout. Zero
-// deliberately means no per-probe deadline; TotalTimeout, when set, is still enforced
-// by the shared RunTraceroute context.
+// effectiveProbeTimeout returns the configured per-probe timeout, or derives one
+// from TotalTimeout and MaxTTL when it is unset. Without a total timeout, it uses
+// the legacy default so a silent probe never waits indefinitely.
 func effectiveProbeTimeout(params TracerouteParams) time.Duration {
-	return params.Timeout
+	return common.ResolveProbeTimeout(
+		params.Timeout,
+		params.TotalTimeout,
+		params.MaxTTL,
+		params.Timeout > 0,
+	)
 }
 
 // runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.

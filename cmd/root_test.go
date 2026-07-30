@@ -51,6 +51,7 @@ func TestCLIFlagWiring(t *testing.T) {
 		expectedProbeTimeout time.Duration
 		expectedTotalTimeout time.Duration
 		expectedMaxTTL       int
+		expectedPartial      bool
 	}{
 		{
 			name:                 "defaults without total timeout",
@@ -80,11 +81,24 @@ func TestCLIFlagWiring(t *testing.T) {
 			expectedMaxTTL:       common.DefaultMaxTTL,
 		},
 		{
-			name:                 "explicit zero probe timeout is preserved",
+			name:                 "explicit zero probe timeout is treated as unset",
 			args:                 []string{"--total-timeout-ms", "10000", "--timeout", "0", "example.com"},
-			expectedProbeTimeout: 0,
+			expectedProbeTimeout: 300 * time.Millisecond,
 			expectedTotalTimeout: 10 * time.Second,
 			expectedMaxTTL:       common.DefaultMaxTTL,
+		},
+		{
+			name:                 "explicit zero probe timeout without total uses the legacy default",
+			args:                 []string{"--timeout", "0", "example.com"},
+			expectedProbeTimeout: 3 * time.Second,
+			expectedMaxTTL:       common.DefaultMaxTTL,
+		},
+		{
+			name:                 "partial results are explicitly enabled",
+			args:                 []string{"--return-partial-results", "example.com"},
+			expectedProbeTimeout: 3 * time.Second,
+			expectedMaxTTL:       common.DefaultMaxTTL,
+			expectedPartial:      true,
 		},
 	}
 
@@ -98,6 +112,7 @@ func TestCLIFlagWiring(t *testing.T) {
 			assert.Equal(t, tt.expectedProbeTimeout, runner.params.Timeout)
 			assert.Equal(t, tt.expectedTotalTimeout, runner.params.TotalTimeout)
 			assert.Equal(t, tt.expectedMaxTTL, runner.params.MaxTTL)
+			assert.Equal(t, tt.expectedPartial, runner.params.ReturnPartialResults)
 		})
 	}
 }

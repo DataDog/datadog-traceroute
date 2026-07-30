@@ -72,7 +72,8 @@ func TestParseTracerouteParams(t *testing.T) {
 			"&reverse-dns=true" +
 			"&source-public-ip=true" +
 			"&windows-driver=true" +
-			"&skip-private-hops=true"
+			"&skip-private-hops=true" +
+			"&return-partial-results=true"
 
 		u, err := url.Parse("/traceroute?" + queryString)
 		require.NoError(t, err)
@@ -90,6 +91,7 @@ func TestParseTracerouteParams(t *testing.T) {
 			Delay:                     common.DefaultDelay, // Not customizable via query params
 			Timeout:                   10000 * time.Millisecond,
 			TotalTimeout:              30000 * time.Millisecond,
+			ReturnPartialResults:      true,
 			TCPMethod:                 traceroute.TCPConfigSACK,
 			WantV6:                    true,
 			TCPSynParisTracerouteMode: false, // Not customizable via query params
@@ -159,15 +161,26 @@ func TestParseTracerouteParams(t *testing.T) {
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
 	})
 
-	t.Run("explicit zero timeout disables the per-probe deadline", func(t *testing.T) {
+	t.Run("explicit zero timeout is treated as unset", func(t *testing.T) {
 		u, err := url.Parse("/traceroute?target=example.com&timeout=0&total_timeout_ms=10000")
 		require.NoError(t, err)
 
 		params, err := parseTracerouteParams(u)
 		require.NoError(t, err)
 
-		assert.Equal(t, time.Duration(0), params.Timeout)
+		assert.Equal(t, 300*time.Millisecond, params.Timeout)
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
+	})
+
+	t.Run("explicit zero timeout without total uses the legacy default", func(t *testing.T) {
+		u, err := url.Parse("/traceroute?target=example.com&timeout=0")
+		require.NoError(t, err)
+
+		params, err := parseTracerouteParams(u)
+		require.NoError(t, err)
+
+		assert.Equal(t, 3*time.Second, params.Timeout)
+		assert.Zero(t, params.TotalTimeout)
 	})
 
 	t.Run("maximum representable max-ttl is accepted", func(t *testing.T) {

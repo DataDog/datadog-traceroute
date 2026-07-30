@@ -98,8 +98,9 @@ sudo ./datadog-traceroute --ipv6 google.com
 
 Output is JSON.
 
-When a total timeout expires after at least one traceroute query completes, the result
-contains only completed traceroute runs, discards the incomplete end-to-end probe set,
+By default, an expired total timeout returns `context.DeadlineExceeded` and no results.
+With `--return-partial-results`, a timeout after at least one traceroute query completes
+returns only completed traceroute runs, discards the incomplete end-to-end probe set,
 and sets `timed_out` to `true`. Each call emits one stable
 `traceroute_run_completed` terminal log with the hostname, protocol, outcome,
 completed/requested run counts, deadline indication, destination port, and—when
@@ -115,8 +116,9 @@ other failures at error.
 | `--traceroute-queries` | `-q` | `3` | Number of traceroute queries (0–10) |
 | `--e2e-queries` | `-Q` | `50` | Number of end-to-end probe queries (0–100) |
 | `--max-ttl` | `-m` | `30` | Maximum TTL (1-255) |
-| `--timeout` | | `3000` | Per-probe timeout in milliseconds. `0` disables the per-probe deadline. Must be non-negative |
+| `--timeout` | | `3000` | Per-probe timeout in milliseconds. With a total timeout, an omitted or zero value is derived as `0.9 * total timeout / max TTL`; without one, it uses the 3000 ms default. Must be non-negative |
 | `--total-timeout-ms` | | `0` | Total timeout for the entire traceroute call, in milliseconds. `0` disables the overall deadline. Independent from `--timeout`: when both are set, each probe is capped by `--timeout` and the complete call is capped by `--total-timeout-ms`. Must be non-negative |
+| `--return-partial-results` | | `false` | Return completed traceroute runs with `timed_out: true` when the total timeout expires |
 | `--tcp-method` | | `syn` | TCP method (`syn`, `sack`, `prefer_sack`) |
 | `--ipv6` | | `false` | Use IPv6 |
 | `--reverse-dns` | | `false` | Enrich IPs with reverse DNS names |
