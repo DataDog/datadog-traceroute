@@ -96,6 +96,15 @@ func (p TracerouteParams) validate() error {
 	if p.MinTTL < 1 {
 		return fmt.Errorf("min TTL must be at least 1")
 	}
+	// Zero intentionally disables the local deadline/delay, but negative values
+	// are invalid. In particular, treating a negative composed parallel timeout
+	// as disabled could otherwise leave a silent run unbounded.
+	if p.TracerouteTimeout < 0 {
+		return fmt.Errorf("traceroute timeout must not be negative")
+	}
+	if p.SendDelay < 0 {
+		return fmt.Errorf("send delay must not be negative")
+	}
 	return nil
 }
 
