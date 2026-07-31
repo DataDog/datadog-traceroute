@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/netip"
 	"sync/atomic"
@@ -618,6 +619,47 @@ func TestParallelTracerouteDeadlineObservedWithinOnePollInterval(t *testing.T) {
 		"an in-progress blocking poll is allowed to finish after TotalTimeout")
 	assert.Less(t, elapsed, totalTimeout+params.PollFrequency+50*time.Millisecond,
 		"deadline observation must remain bounded by one poll interval")
+}
+
+func TestParallelTracerouteMaxTimeoutSaturates(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = DefaultMaxTTL
+	params.TracerouteTimeout = time.Duration(math.MaxInt64/time.Millisecond) * time.Millisecond
+	params.SendDelay = 50 * time.Millisecond
+
+	maxTimeout := params.MaxTimeout()
+	assert.Equal(t, time.Duration(math.MaxInt64), maxTimeout)
+	assert.Positive(t, maxTimeout, "composed timeout must not wrap and disable its deadline")
+
+	ctx, cancel := contextWithOptionalTimeout(context.Background(), maxTimeout)
+	defer cancel()
+	_, hasDeadline := ctx.Deadline()
+	assert.True(t, hasDeadline, "the saturated timeout must still create a finite deadline")
+}
+
+func TestParallelTracerouteSingleProbeReturnsOnDestination(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 30
+	params.MaxTTL = 30
+	params.TracerouteTimeout = time.Second
+	params.PollFrequency = 5 * time.Millisecond
+	params.SendDelay = 50 * time.Millisecond
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return &ProbeResponse{TTL: 30, IsDest: true}, nil
+	}
+
+	start := time.Now()
+	results, err := TracerouteParallel(context.Background(), m, params)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0])
+	assert.True(t, results[0].IsDest)
+	assert.Less(t, elapsed, params.TracerouteTimeout,
+		"a completed one-packet E2E query must not wait for its timeout")
 }
 
 func TestParallelSendFirst(t *testing.T) {

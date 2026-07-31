@@ -8,6 +8,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,9 +23,18 @@ type TracerouteParallelParams struct {
 	TracerouteParams
 }
 
-// MaxTimeout combines the timeout+probe delays into a total timeout for the traceroute
+// MaxTimeout combines the timeout and probe delays into a total timeout for the
+// traceroute. Saturating preserves a finite deadline when a valid public timeout near
+// time.Duration's limit would otherwise wrap negative and be interpreted as disabled.
 func (p TracerouteParallelParams) MaxTimeout() time.Duration {
-	delaySum := p.SendDelay * time.Duration(p.ProbeCount())
+	probeCount := time.Duration(p.ProbeCount())
+	if p.SendDelay > 0 && probeCount > time.Duration(math.MaxInt64)/p.SendDelay {
+		return time.Duration(math.MaxInt64)
+	}
+	delaySum := p.SendDelay * probeCount
+	if delaySum > 0 && p.TracerouteTimeout > time.Duration(math.MaxInt64)-delaySum {
+		return time.Duration(math.MaxInt64)
+	}
 	return p.TracerouteTimeout + delaySum
 }
 
@@ -139,6 +149,12 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 			// no need to send more probes if we found the destination
 			if probe.IsDest {
 				writerCancel()
+				// A one-probe run has no lower-TTL responses left to collect. This is
+				// the E2E query shape, so return its successful response immediately
+				// instead of waiting for the per-probe context to expire.
+				if p.ProbeCount() == 1 {
+					return nil
+				}
 			}
 		}
 	})
