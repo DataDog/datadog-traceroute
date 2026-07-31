@@ -268,31 +268,47 @@ func (s *sackDriver) FakeHandshake() {
 }
 
 // ReadHandshake polls for a synack from the target and populates the localInitSeq and
-// localInitAck fields. It also checks that the target supports SACK. The packet-source
-// deadline is bounded by both the handshake timeout and the caller's context deadline.
+// localInitAck fields. It also checks that the target supports SACK.
 func (s *sackDriver) ReadHandshake(ctx context.Context, localPort uint16) error {
+	return s.readHandshake(ctx, localPort, sackHandshakeTimeout)
+}
+
+func (s *sackDriver) readHandshake(ctx context.Context, localPort uint16, handshakeTimeout time.Duration) error {
 	s.localPort = localPort
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	readDeadline := time.Now().Add(sackHandshakeTimeout)
-	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(readDeadline) {
-		readDeadline = ctxDeadline
-	}
-	err := s.source.SetReadDeadline(readDeadline)
-	if err != nil {
-		return fmt.Errorf("sackDriver failed to SetReadDeadline: %w", err)
+	handshakeDeadline := time.Now().Add(handshakeTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(handshakeDeadline) {
+		handshakeDeadline = ctxDeadline
 	}
 	for !s.IsHandshakeFinished() {
+		readDeadline := handshakeDeadline
+		// Some packet-source implementations cannot interrupt an active read when a
+		// deadline-free context is canceled. Polling at the same 100 ms granularity as
+		// normal traceroute receives bounds cancellation delay to one poll without
+		// platform-specific close/deadline races. Consequently cancellation can be
+		// observed up to DefaultProbePollFrequency after it occurs.
+		pollDeadline := time.Now().Add(common.DefaultProbePollFrequency)
+		if pollDeadline.Before(readDeadline) {
+			readDeadline = pollDeadline
+		}
+		if err := s.source.SetReadDeadline(readDeadline); err != nil {
+			return fmt.Errorf("sackDriver failed to SetReadDeadline: %w", err)
+		}
+
 		// we should have already connected by now so it should be over quickly
-		_, err = packets.ReadAndParse(s.source, s.buffer, s.parser)
+		_, err := packets.ReadAndParse(s.source, s.buffer, s.parser)
 
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		} else if errors.Is(err, os.ErrDeadlineExceeded) {
-			return fmt.Errorf("sackDriver readHandshake timed out: %w", context.DeadlineExceeded)
-			// deadline exceeded is normally retryable, so this comes second in order
+			// A poll deadline is retryable until the complete handshake budget expires.
+			if !time.Now().Before(handshakeDeadline) {
+				return fmt.Errorf("sackDriver readHandshake timed out: %w", context.DeadlineExceeded)
+			}
+			continue
 		} else if common.CheckProbeRetryable("ReadHandshake", err) {
 			continue
 		} else if err != nil {
