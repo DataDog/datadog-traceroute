@@ -85,7 +85,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 					MinTTL:            uint8(params.MinTTL),
 					MaxTTL:            uint8(params.MaxTTL),
 					TracerouteTimeout: probeTimeout,
-					PollFrequency:     100 * time.Millisecond,
+					PollFrequency:     common.DefaultProbePollFrequency,
 					SendDelay:         time.Duration(params.Delay) * time.Millisecond,
 				},
 			},
@@ -122,6 +122,11 @@ func effectiveProbeTimeout(params TracerouteParams) time.Duration {
 func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
 	params.MinTTL = params.MaxTTL
 
+	// Bound the entire E2E query, including DNS resolution and socket setup, so every
+	// packet gets one complete and consistent per-probe response window.
+	probeCtx, cancel := context.WithTimeout(ctx, effectiveProbeTimeout(params))
+	defer cancel()
+
 	// Don't use SACK for e2e probes because some servers don't properly reply with SACK responses,
 	// even if they respond with the SACK permitted option during the handshake, which can result in
 	// e2e probe failures.
@@ -129,7 +134,7 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 		params.TCPMethod = TCPConfigSYN
 	}
 
-	trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
+	trRun, err := runTracerouteOnceFn(probeCtx, params, destinationPort)
 	if err != nil {
 		return 0, err
 	}
@@ -150,7 +155,7 @@ func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8
 			MinTTL:            minTTL,
 			MaxTTL:            maxTTL,
 			TracerouteTimeout: timeout,
-			PollFrequency:     100 * time.Millisecond,
+			PollFrequency:     common.DefaultProbePollFrequency,
 			SendDelay:         sackSendDelay,
 		},
 	}

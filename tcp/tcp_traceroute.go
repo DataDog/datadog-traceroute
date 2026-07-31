@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
@@ -79,7 +78,7 @@ func (t *TCPv4) TracerouteContext(ctx context.Context) (*result.TracerouteRun, e
 			MinTTL:            t.MinTTL,
 			MaxTTL:            t.MaxTTL,
 			TracerouteTimeout: t.Timeout,
-			PollFrequency:     100 * time.Millisecond,
+			PollFrequency:     common.DefaultProbePollFrequency,
 			SendDelay:         t.Delay,
 		},
 	}

@@ -114,6 +114,19 @@ func TestTCPFallback(t *testing.T) {
 		require.Nil(t, results)
 	})
 
+	t.Run("prefer SACK preserves deadline classification", func(t *testing.T) {
+		doSyn := neverCalled(t)
+		doSack := func() (*result.TracerouteRun, error) {
+			return nil, fmt.Errorf("SACK deadline: %w", context.DeadlineExceeded)
+		}
+		doSynSocket := neverCalled(t)
+
+		results, err := performTCPFallback(TCPConfigPreferSACK, doSyn, doSack, doSynSocket)
+
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.Nil(t, results)
+	})
+
 	t.Run("force SYN socket", func(t *testing.T) {
 		doSyn := neverCalled(t)
 		doSack := neverCalled(t)
@@ -174,6 +187,33 @@ func Test_effectiveProbeTimeout(t *testing.T) {
 	}
 }
 
+func TestRunE2eProbeOnceBoundsEntireQueryWithProbeTimeout(t *testing.T) {
+	originalRunTracerouteOnceFn := runTracerouteOnceFn
+	defer func() { runTracerouteOnceFn = originalRunTracerouteOnceFn }()
+
+	const probeTimeout = 2 * time.Second
+	var probeCtx context.Context
+	var deadline time.Time
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		probeCtx = ctx
+		var ok bool
+		deadline, ok = ctx.Deadline()
+		require.True(t, ok)
+		return &result.TracerouteRun{}, nil
+	}
+
+	startedAt := time.Now()
+	_, err := runE2eProbeOnce(context.Background(), TracerouteParams{
+		MaxTTL:  common.DefaultMaxTTL,
+		Timeout: probeTimeout,
+	}, common.DefaultPort)
+
+	require.NoError(t, err)
+	assert.WithinDuration(t, startedAt.Add(probeTimeout), deadline, 100*time.Millisecond)
+	require.NotNil(t, probeCtx)
+	assert.ErrorIs(t, probeCtx.Err(), context.Canceled)
+}
+
 type serialProgressDriver struct {
 	currentTTL atomic.Uint32
 }
@@ -223,6 +263,40 @@ func TestTotalTimeoutOnlyDerivesProbeTimeoutForSerialProgress(t *testing.T) {
 	assert.True(t, results[1].IsDest)
 }
 
+func TestExplicitProbeTimeoutAdvancesSerialRunBeforeTotalTimeout(t *testing.T) {
+	// The staged Agent rollout sends both values. The shorter per-probe timeout must
+	// advance past a silent hop without consuming the independent whole-run budget.
+	params := TracerouteParams{
+		TotalTimeout: 200 * time.Millisecond,
+		Timeout:      40 * time.Millisecond,
+		MinTTL:       1,
+		MaxTTL:       2,
+	}
+	probeTimeout := effectiveProbeTimeout(params)
+	require.Equal(t, params.Timeout, probeTimeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), params.TotalTimeout)
+	defer cancel()
+	start := time.Now()
+	results, err := common.TracerouteSerial(ctx, &serialProgressDriver{}, common.TracerouteSerialParams{
+		TracerouteParams: common.TracerouteParams{
+			MinTTL:            uint8(params.MinTTL),
+			MaxTTL:            uint8(params.MaxTTL),
+			TracerouteTimeout: probeTimeout,
+			PollFrequency:     5 * time.Millisecond,
+		},
+	})
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.NotNil(t, results[1], "TTL 2 must be probed after TTL 1 reaches its explicit timeout")
+	assert.True(t, results[1].IsDest)
+	assert.GreaterOrEqual(t, elapsed, params.Timeout)
+	assert.Less(t, elapsed, params.TotalTimeout,
+		"the per-probe timeout should advance the serial run before TotalTimeout")
+}
+
 type noResponseParallelDriver struct{}
 
 func (noResponseParallelDriver) GetDriverInfo() common.TracerouteDriverInfo {
@@ -241,6 +315,8 @@ func (noResponseParallelDriver) ReceiveProbe(timeout time.Duration) (*common.Pro
 }
 
 func TestTotalTimeoutContextBoundsParallelRunnerIndependentlyFromProbeTimeout(t *testing.T) {
+	// This is the other half of the staged dual-timeout contract: an explicit probe
+	// timeout remains intact, while the shared TotalTimeout can still end the run first.
 	params := TracerouteParams{
 		TotalTimeout: 300 * time.Millisecond,
 		Timeout:      2 * time.Second,

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -591,6 +592,32 @@ func TestParallelTracerouteZeroTimeoutUsesParentContext(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.GreaterOrEqual(t, elapsed, 30*time.Millisecond,
 		"zero Timeout must not create an immediate shared deadline")
+}
+
+func TestParallelTracerouteDeadlineObservedWithinOnePollInterval(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 0
+	params.PollFrequency = DefaultProbePollFrequency
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	const totalTimeout = 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), totalTimeout)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.GreaterOrEqual(t, elapsed, params.PollFrequency,
+		"an in-progress blocking poll is allowed to finish after TotalTimeout")
+	assert.Less(t, elapsed, totalTimeout+params.PollFrequency+50*time.Millisecond,
+		"deadline observation must remain bounded by one poll interval")
 }
 
 func TestParallelSendFirst(t *testing.T) {

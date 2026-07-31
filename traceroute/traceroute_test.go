@@ -498,13 +498,13 @@ func Test_e2eQueriesDelay(t *testing.T) {
 		expected time.Duration
 	}{
 		{
-			name: "total timeout set: reserves the final probe timeout",
+			name: "total timeout set: reserves overhead and the final probe timeout",
 			params: TracerouteParams{
 				TotalTimeout: 500 * time.Millisecond,
 				Timeout:      100 * time.Millisecond,
 				E2eQueries:   5,
 			},
-			expected: 100 * time.Millisecond,
+			expected: 87500 * time.Microsecond,
 		},
 		{
 			name: "total timeout set: capped at 1 second",
@@ -534,6 +534,14 @@ func Test_e2eQueriesDelay(t *testing.T) {
 			expected: 1 * time.Second,
 		},
 		{
+			name: "no timeout set: legacy pacing uses the effective default timeout",
+			params: TracerouteParams{
+				MaxTTL:     30,
+				E2eQueries: 100,
+			},
+			expected: 900 * time.Millisecond,
+		},
+		{
 			name: "probe timeout consumes the complete pacing budget",
 			params: TracerouteParams{
 				TotalTimeout: 200 * time.Millisecond,
@@ -559,7 +567,7 @@ func Test_e2eQueriesDelay(t *testing.T) {
 				MaxTTL:       30,
 				E2eQueries:   50,
 			},
-			expected: (10*time.Second - 300*time.Millisecond) / 49,
+			expected: (9*time.Second - 300*time.Millisecond) / 49,
 		},
 	}
 
@@ -808,6 +816,7 @@ func TestRunTraceroute_QueryCountsAreValidatedBeforeAllocation(t *testing.T) {
 		results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
 			Hostname:          "example.com",
 			MaxTTL:            common.DefaultMaxTTL,
+			Timeout:           time.Nanosecond,
 			TracerouteQueries: common.MaxTracerouteQueries,
 			E2eQueries:        common.MaxE2eQueries,
 		})
@@ -1020,6 +1029,50 @@ func TestRunTraceroute_BothTimeoutsCoexistOnHappyPath(t *testing.T) {
 	assert.Len(t, results.Traceroute.Runs, 2)
 	assert.Len(t, results.E2eProbe.RTTs, 2)
 	assert.False(t, results.TimedOut)
+}
+
+func TestRunTraceroute_AgentShapedFinalE2eTimeoutKeepsCompletionMargin(t *testing.T) {
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	// Model the Agent's production-shaped defaults: normal traceroute concurrency,
+	// MaxTTL 30, and the default nonzero E2E count. Only the final E2E response is
+	// silent. It must consume its full derived probe window inside the 90% probe
+	// budget, leaving the final 10% for test-level completion work.
+	var e2eCalls atomic.Int32
+	runTracerouteOnceFn = func(ctx context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		if params.MinTTL == params.MaxTTL {
+			if e2eCalls.Add(1) == int32(common.DefaultNumE2eProbes) {
+				<-ctx.Done()
+				return nil, ctx.Err()
+			}
+		}
+		return &result.TracerouteRun{
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("198.51.100.2"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	const totalTimeout = 2 * time.Second
+	start := time.Now()
+	results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
+		Hostname:          "example.com",
+		MinTTL:            common.DefaultMinTTL,
+		MaxTTL:            common.DefaultMaxTTL,
+		TracerouteQueries: common.DefaultTracerouteQueries,
+		E2eQueries:        common.DefaultNumE2eProbes,
+		TotalTimeout:      totalTimeout,
+	})
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.False(t, results.TimedOut)
+	assert.Len(t, results.Traceroute.Runs, common.DefaultTracerouteQueries)
+	assert.Len(t, results.E2eProbe.RTTs, common.DefaultNumE2eProbes)
+	assert.Equal(t, int32(common.DefaultNumE2eProbes), e2eCalls.Load())
+	assert.Less(t, elapsed, totalTimeout,
+		"the silent final E2E probe must finish before the shared TotalTimeout")
 }
 
 func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *testing.T) {

@@ -26,6 +26,13 @@ const (
 	DefaultNetworkPathTimeout = 3000
 	DefaultTotalTimeoutMs     = 0 // 0 means no overall run timeout is enforced
 
+	// DefaultProbePollFrequency is the precision with which polling drivers observe
+	// cancellation and TotalTimeout. ReceiveProbe is a blocking API, so a call already
+	// in progress can return up to one poll interval (100 ms) after the context deadline.
+	// We intentionally accept that bounded error instead of adding per-driver deadline
+	// clamping and coordination complexity to make the overall deadline exact.
+	DefaultProbePollFrequency = 100 * time.Millisecond
+
 	// MaxTimeoutMs is the largest millisecond value that can be converted to a time.Duration
 	// (int64 nanoseconds) without overflowing. It's a pure overflow guard, not a business
 	// limit: existing CLI/HTTP callers must keep working with whatever timeout they already

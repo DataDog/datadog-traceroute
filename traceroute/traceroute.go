@@ -289,9 +289,10 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 // capped at 1 second so a large query count or timeout doesn't stall the run for too
 // long between probes.
 //
-// When TotalTimeout is set, the delay spreads launches across the run budget after
-// reserving enough time for the final probe's per-probe timeout. A simultaneously
-// configured Timeout independently caps each individual probe.
+// When TotalTimeout is set, the delay spreads launches across 90% of the run budget
+// after reserving enough time for the final probe's per-probe timeout. The remaining
+// 10% is reserved for test-level work outside the E2E probe response windows. A
+// simultaneously configured Timeout independently caps each individual probe.
 // Otherwise it falls back to the legacy estimate based on the per-call Timeout and
 // MaxTTL, kept for callers that only set the per-call Timeout.
 func e2eQueriesDelay(params TracerouteParams) time.Duration {
@@ -300,12 +301,15 @@ func e2eQueriesDelay(params TracerouteParams) time.Duration {
 		if params.E2eQueries <= 1 {
 			return 0
 		}
-		pacingBudget := params.TotalTimeout - effectiveProbeTimeout(params)
+		// Calculate TotalTimeout * 9 / 10 without overflowing for durations near
+		// time.Duration's upper bound.
+		testProbeBudget := params.TotalTimeout/10*9 + (params.TotalTimeout%10)*9/10
+		pacingBudget := testProbeBudget - effectiveProbeTimeout(params)
 		if pacingBudget > 0 {
 			delay = pacingBudget / time.Duration(params.E2eQueries-1)
 		}
 	} else {
-		delay = (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
+		delay = (time.Duration(params.MaxTTL) * effectiveProbeTimeout(params)) / time.Duration(params.E2eQueries)
 	}
 	if delay > 1*time.Second {
 		delay = 1 * time.Second

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -234,6 +235,10 @@ func TestFakeNetworkCLITotalTimeout(t *testing.T) {
 			timeout:  intPtr(0),
 		},
 		{
+			name:     "ICMP_total_timeout_derives_probe_timeout",
+			protocol: "icmp",
+		},
+		{
 			name:     "TCP_probe_timeout_longer_than_total_timeout",
 			protocol: "tcp",
 			timeout:  intPtr(10_000),
@@ -270,6 +275,45 @@ func TestFakeNetworkCLITotalTimeout(t *testing.T) {
 			assert.Less(t, elapsed, 2*time.Second, "the total timeout must cap the real driver path")
 		})
 	}
+}
+
+func TestFakeNetworkCLIAgentShapedTotalTimeout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the controlled fake network is configured only in Linux CI")
+	}
+
+	// Exercise the real CLI and UDP driver with the Agent-shaped defaults. The
+	// deterministic silent-final behavior is tested at the library boundary because
+	// selecting only the last concurrently scheduled packet in this network fixture
+	// would require order-dependent firewall rules and make this E2E test flaky.
+	const totalTimeout = 10 * time.Second
+	args := []string{
+		"--proto", "udp",
+		"--max-ttl", strconv.Itoa(common.DefaultMaxTTL),
+		"--traceroute-queries", strconv.Itoa(common.DefaultTracerouteQueries),
+		"--e2e-queries", strconv.Itoa(common.DefaultNumE2eProbes),
+		"--total-timeout-ms", strconv.FormatInt(totalTimeout.Milliseconds(), 10),
+		fakeNetworkTarget,
+	}
+
+	binaryPath := getCLIBinaryPath(t)
+	cmd := exec.Command("sudo", append([]string{binaryPath}, args...)...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	start := time.Now()
+	err := cmd.Run()
+	elapsed := time.Since(start)
+
+	require.NoError(t, err, "Agent-shaped run failed: %s", stderr.String())
+	var results result.Results
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &results))
+	assert.False(t, results.TimedOut)
+	assert.Len(t, results.Traceroute.Runs, common.DefaultTracerouteQueries)
+	assert.Equal(t, common.DefaultNumE2eProbes, results.E2eProbe.PacketsSent)
+	assert.Less(t, elapsed, totalTimeout+common.DefaultProbePollFrequency+2*time.Second,
+		"the process should finish within TotalTimeout plus polling and startup tolerance")
 }
 
 func intPtr(value int) *int {

@@ -8,7 +8,6 @@ package udp
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
@@ -63,7 +62,7 @@ func (u *UDPv4) TracerouteContext(ctx context.Context) (*result.TracerouteRun, e
 			MinTTL:            u.MinTTL,
 			MaxTTL:            u.MaxTTL,
 			TracerouteTimeout: u.Timeout,
-			PollFrequency:     100 * time.Millisecond,
+			PollFrequency:     common.DefaultProbePollFrequency,
 			SendDelay:         u.Delay,
 		},
 	}

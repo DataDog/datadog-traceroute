@@ -94,6 +94,9 @@ func newSACKTimeoutTestParams(t *testing.T) (Params, func()) {
 }
 
 func TestRunSackTracerouteContextBoundsBlockedHandshake(t *testing.T) {
+	// The Linux fake-network endpoint does not reliably support SACK, so keep the
+	// TotalTimeout contract deterministic here by blocking the real handshake path
+	// and verifying that its caller context bounds the complete SACK runner.
 	originalNewSourceSink := newSourceSink
 	defer func() { newSourceSink = originalNewSourceSink }()
 

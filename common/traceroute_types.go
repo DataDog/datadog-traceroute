@@ -82,7 +82,8 @@ type TracerouteParams struct {
 	// SendDelay between them, but responses received after their probe's deadline
 	// are ignored.
 	TracerouteTimeout time.Duration
-	// PollFrequency is how often to poll for a response
+	// PollFrequency is how often to poll for a response. Because ReceiveProbe blocks for
+	// this duration, a context deadline may be observed up to one PollFrequency late.
 	PollFrequency time.Duration
 	// SendDelay is the delay between sending probes (typically small)
 	SendDelay time.Duration
