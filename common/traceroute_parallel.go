@@ -50,8 +50,8 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 	}
 
 	results := make([]*ProbeResponse, int(p.MaxTTL)+1)
-	// The sender publishes which TTLs belong to this run before sending them,
-	// while the receiver uses the packet's capture-based RTT for deadline checks.
+	// The sender publishes which TTLs belong to this run before sending them so the
+	// receiver can reject stale responses for probes this run has not sent.
 	probeSent := make([]atomic.Bool, int(p.MaxTTL)+1)
 	writeProbe := func(probe *ProbeResponse) {
 		log.Tracef("found probe %+v", probe)
@@ -140,11 +140,6 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				// to one of its active probes.
 				continue
 			}
-			if p.TracerouteTimeout > 0 && probe.RTT > p.TracerouteTimeout {
-				log.Tracef("ignoring response for TTL %d received after per-probe timeout", probe.TTL)
-				continue
-			}
-
 			writeProbe(probe)
 			// no need to send more probes if we found the destination
 			if probe.IsDest {
