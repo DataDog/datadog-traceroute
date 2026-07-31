@@ -11,9 +11,9 @@ type TracerouteParams struct {
 	MinTTL   int
 	MaxTTL   int
 	Delay    int
-	// Timeout caps each individual probe. A non-positive value is treated as
-	// unset: it is derived from TotalTimeout and MaxTTL when TotalTimeout is
-	// positive, or falls back to the legacy default otherwise.
+	// Timeout caps each individual probe. Zero is treated as unset: it is derived
+	// from TotalTimeout and MaxTTL when TotalTimeout is positive, or falls back to
+	// the legacy default otherwise. Negative values are invalid.
 	Timeout time.Duration
 	// TotalTimeout bounds the entire RunTraceroute call, including DNS resolution,
 	// all TracerouteQueries and E2eQueries, and enrichment. It is independent from
