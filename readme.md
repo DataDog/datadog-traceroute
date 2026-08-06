@@ -127,6 +127,25 @@ other failures at error.
 | `--windows-driver` | | `false` | Use Windows driver (Windows only) |
 | `--verbose` | `-v` | `false` | Verbose logging |
 
+### Timeouts
+
+`--timeout` and `--total-timeout-ms` are independent knobs. `--max-ttl` only comes
+into play when deriving a per-probe timeout from the total timeout.
+
+| `--total-timeout-ms` | `--timeout` | Effective per-probe timeout | Overall call deadline |
+|---|---|---|---|
+| `0` (unset) | `0` (unset) | `3000ms` (legacy default) | none |
+| `0` (unset) | `N > 0` | `N` | none |
+| `T > 0` | `0` (unset) | `0.9 * T / --max-ttl` | `T` |
+| `T > 0` | `N > 0` | `N` (not affected by `T` or `--max-ttl`) | `T` |
+
+When both are set, `--timeout` only bounds how long each individual probe waits for
+a response; `--total-timeout-ms` independently bounds the complete call (DNS
+resolution, all traceroute queries, all end-to-end queries, and enrichment) and can
+end it early even if an in-flight probe hasn't hit `--timeout` yet. Because polling
+drivers check for cancellation between blocking reads, the actual deadline may be
+observed up to ~100ms late. Negative values for either flag are rejected.
+
 ### Subcommands
 
 | Command | Description |
