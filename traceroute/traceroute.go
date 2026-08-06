@@ -52,6 +52,18 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
+	// Even at the smallest per-probe timeout ResolveProbeTimeout can derive, a serial
+	// run still needs at least one probe wait plus one SendDelay per TTL. If that floor
+	// alone exceeds TotalTimeout, the run cannot complete a single traceroute query
+	// within budget regardless of the derived or configured per-probe timeout.
+	if params.TotalTimeout > 0 {
+		minRequired := time.Duration(params.MaxTTL) * (common.MinProbeTimeout + time.Duration(params.Delay)*time.Millisecond)
+		if minRequired > params.TotalTimeout {
+			return nil, &InvalidTargetError{Err: fmt.Errorf(
+				"total timeout %s is too short to complete %d TTLs at the minimum per-probe timeout %s and %dms delay (requires at least %s)",
+				params.TotalTimeout, params.MaxTTL, common.MinProbeTimeout, params.Delay, minRequired)}
+		}
+	}
 	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries, common.MaxTracerouteQueries); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}

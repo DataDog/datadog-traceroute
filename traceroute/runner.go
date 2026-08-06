@@ -111,6 +111,7 @@ func effectiveProbeTimeout(params TracerouteParams) time.Duration {
 		params.Timeout,
 		params.TotalTimeout,
 		params.MaxTTL,
+		time.Duration(params.Delay)*time.Millisecond,
 		params.Timeout > 0,
 	)
 }

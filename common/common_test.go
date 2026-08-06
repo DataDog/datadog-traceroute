@@ -20,6 +20,7 @@ func TestResolveProbeTimeout(t *testing.T) {
 		configuredTimeout time.Duration
 		totalTimeout      time.Duration
 		maxTTL            int
+		sendDelay         time.Duration
 		configured        bool
 		expected          time.Duration
 	}{
@@ -63,6 +64,26 @@ func TestResolveProbeTimeout(t *testing.T) {
 			maxTTL:   30,
 			expected: 3 * time.Second,
 		},
+		{
+			name:         "derived timeout is floored at MinProbeTimeout",
+			totalTimeout: time.Nanosecond,
+			maxTTL:       30,
+			expected:     MinProbeTimeout,
+		},
+		{
+			name:         "send delay is subtracted from the derived per-hop budget",
+			totalTimeout: 10 * time.Second,
+			maxTTL:       30,
+			sendDelay:    100 * time.Millisecond,
+			expected:     200 * time.Millisecond,
+		},
+		{
+			name:         "send delay larger than the per-hop budget is floored at MinProbeTimeout",
+			totalTimeout: 10 * time.Second,
+			maxTTL:       30,
+			sendDelay:    time.Second,
+			expected:     MinProbeTimeout,
+		},
 	}
 
 	for _, tt := range tests {
@@ -71,6 +92,7 @@ func TestResolveProbeTimeout(t *testing.T) {
 				tt.configuredTimeout,
 				tt.totalTimeout,
 				tt.maxTTL,
+				tt.sendDelay,
 				tt.configured,
 			))
 		})

@@ -33,6 +33,12 @@ const (
 	// clamping and coordination complexity to make the overall deadline exact.
 	DefaultProbePollFrequency = 100 * time.Millisecond
 
+	// MinProbeTimeout is the smallest per-probe timeout ResolveProbeTimeout will
+	// derive from TotalTimeout. Without a floor, a large MaxTTL divided into a
+	// modest TotalTimeout can derive a probe window too short to ever receive a
+	// response, silently guaranteeing every probe times out.
+	MinProbeTimeout = 50 * time.Millisecond
+
 	// MaxTimeoutMs is the largest millisecond value that can be converted to a time.Duration
 	// (int64 nanoseconds) without overflowing. It's a pure overflow guard, not a business
 	// limit: existing CLI/HTTP callers must keep working with whatever timeout they already
@@ -122,9 +128,12 @@ func ValidateQueryCount(name string, count, max int) error {
 // ResolveProbeTimeout returns a positive explicitly configured per-probe timeout.
 // A non-positive timeout is treated as unset. When no timeout was configured and
 // an overall timeout is available, it reserves 10% of the per-hop budget for work
-// outside probe waits. If there is no overall timeout, it preserves the supplied
-// legacy default or falls back to DefaultNetworkPathTimeout.
-func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL int, configured bool) time.Duration {
+// outside probe waits, then further reserves sendDelay since every probe also pays
+// that pacing cost on top of its wait. The result is floored at MinProbeTimeout so
+// a large MaxTTL or sendDelay can't derive an unusably short window. If there is no
+// overall timeout, it preserves the supplied legacy default or falls back to
+// DefaultNetworkPathTimeout.
+func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL int, sendDelay time.Duration, configured bool) time.Duration {
 	if configured && configuredTimeout > 0 {
 		return configuredTimeout
 	}
@@ -140,7 +149,11 @@ func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL i
 	divisor := time.Duration(maxTTL) * 10
 	quotient := totalTimeout / divisor
 	remainder := totalTimeout % divisor
-	return quotient*9 + remainder*9/divisor
+	derived := quotient*9 + remainder*9/divisor - sendDelay
+	if derived < MinProbeTimeout {
+		return MinProbeTimeout
+	}
+	return derived
 }
 
 // contextWithOptionalTimeout applies timeout when it is positive. A zero timeout means

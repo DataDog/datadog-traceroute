@@ -595,7 +595,7 @@ func TestRunTraceroute_ContextDeadline(t *testing.T) {
 		},
 		{
 			name:         "positive total timeout bounds the context passed to each probe",
-			totalTimeout: time.Second,
+			totalTimeout: 2 * time.Second,
 			wantDeadline: true,
 			wantTimeout:  0,
 		},
@@ -651,6 +651,53 @@ func TestRunTraceroute_NegativeTotalTimeoutIsRejected(t *testing.T) {
 	var targetErr *InvalidTargetError
 	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
 	assert.False(t, called, "should reject before running any probes")
+}
+
+func TestRunTraceroute_InfeasibleTotalTimeoutIsRejected(t *testing.T) {
+	// Even at MinProbeTimeout and zero Delay, MaxTTL=30 needs at least 1.5s
+	// (30 * 50ms) to complete a single serial run. A shorter TotalTimeout can
+	// never be met regardless of the derived or configured per-probe timeout,
+	// so RunTraceroute must reject it before running any probes.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	called := false
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		called = true
+		return &result.TracerouteRun{}, nil
+	}
+
+	tr := NewTraceroute()
+	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 1,
+		MaxTTL:            common.DefaultMaxTTL,
+		TotalTimeout:      time.Second,
+	})
+
+	require.Error(t, err)
+	var targetErr *InvalidTargetError
+	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+	assert.False(t, called, "should reject before running any probes")
+}
+
+func TestRunTraceroute_FeasibleTotalTimeoutAccountsForDelay(t *testing.T) {
+	// MaxTTL=10 at MinProbeTimeout (50ms) plus a 20ms delay per TTL needs 700ms;
+	// a TotalTimeout just above that must be accepted.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{}, nil
+	}
+
+	tr := NewTraceroute()
+	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 1,
+		MaxTTL:            10,
+		Delay:             20,
+		TotalTimeout:      701 * time.Millisecond,
+	})
+
+	require.NoError(t, err)
 }
 
 func TestRunTraceroute_NegativeProbeTimeoutIsRejected(t *testing.T) {
@@ -840,8 +887,9 @@ func TestRunTraceroute_TotalTimeoutCancelsSlowProbes(t *testing.T) {
 	params := TracerouteParams{
 		Hostname:          "example.com",
 		TracerouteQueries: 3,
-		MaxTTL:            common.DefaultMaxTTL,
-		TotalTimeout:      50 * time.Millisecond,
+		// A small MaxTTL keeps the minimum-feasible-timeout check satisfied at 50ms.
+		MaxTTL:       1,
+		TotalTimeout: 50 * time.Millisecond,
 		// Deliberately much larger than TotalTimeout to prove the overall run
 		// deadline is what stops the probes, not the per-hop Timeout.
 		Timeout: time.Hour,
@@ -1101,7 +1149,7 @@ func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *t
 
 	results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
 		Hostname:             "example.com",
-		MaxTTL:               common.DefaultMaxTTL,
+		MaxTTL:               1, // keeps the minimum-feasible-timeout check satisfied at 50ms
 		TracerouteQueries:    1,
 		E2eQueries:           1,
 		ReverseDns:           true,

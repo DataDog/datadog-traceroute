@@ -136,7 +136,7 @@ into play when deriving a per-probe timeout from the total timeout.
 |---|---|---|---|
 | `0` (unset) | `0` (unset) | `3000ms` (legacy default) | none |
 | `0` (unset) | `N > 0` | `N` | none |
-| `T > 0` | `0` (unset) | `0.9 * T / --max-ttl` | `T` |
+| `T > 0` | `0` (unset) | `max(0.9 * T / --max-ttl - delay, 50ms)` | `T` |
 | `T > 0` | `N > 0` | `N` (not affected by `T` or `--max-ttl`) | `T` |
 
 When both are set, `--timeout` only bounds how long each individual probe waits for
@@ -145,6 +145,12 @@ resolution, all traceroute queries, all end-to-end queries, and enrichment) and 
 end it early even if an in-flight probe hasn't hit `--timeout` yet. Because polling
 drivers check for cancellation between blocking reads, the actual deadline may be
 observed up to ~100ms late. Negative values for either flag are rejected.
+
+The derived per-probe timeout reserves the per-TTL send delay out of the per-hop
+budget, then never derives below `50ms` (`MinProbeTimeout`), so a large `--max-ttl`
+can't silently squeeze every probe into an unusably short window. If `--max-ttl *
+(50ms + delay)` alone exceeds `--total-timeout-ms`, the run cannot possibly complete
+within budget and is rejected with an error before any probes are sent.
 
 ### Subcommands
 

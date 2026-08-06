@@ -175,9 +175,9 @@ func Test_effectiveProbeTimeout(t *testing.T) {
 			expected: 300 * time.Millisecond,
 		},
 		{
-			name:     "small TotalTimeout uses the exact duration formula",
+			name:     "small TotalTimeout is floored at the minimum per-probe timeout",
 			params:   TracerouteParams{TotalTimeout: time.Nanosecond, MaxTTL: 30},
-			expected: 0,
+			expected: common.MinProbeTimeout,
 		},
 	}
 	for _, tt := range tests {
