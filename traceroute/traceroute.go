@@ -229,14 +229,13 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 			launchedE2eQueries = i + 1
 			go func(probeIndex int) {
 				defer wg.Done()
-				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+				e2eRtt, err, interruptedByParent := runE2eProbeOnce(ctx, params, destinationPort)
 				if err != nil {
-					// runE2eProbeOnce bounds itself with its own per-probe child context, so
-					// a DeadlineExceeded from that child on ordinary packet loss looks
-					// identical to one from the run's own ctx. Only the latter means this
-					// probe never got to complete its measurement; check the parent ctx
-					// directly rather than inspecting the error to tell them apart.
-					if ctx.Err() != nil {
+					// A ctx-caused error means this probe never got to complete its
+					// measurement, unlike a genuine network error or the probe's own
+					// per-probe timeout, either of which is a legitimate packet-loss
+					// reading. Only the former makes the E2E set incomplete.
+					if interruptedByParent {
 						e2eInterruptedByCtx.Store(true)
 					}
 					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)

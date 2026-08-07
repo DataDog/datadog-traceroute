@@ -133,12 +133,29 @@ func probeCount(minTTL, maxTTL int) int {
 // It reuses runTracerouteOnce() with modified TTL parameters where MinTTL is set to the same value
 // as MaxTTL, essentially sending a single probe to the destination instead of incrementally probing
 // each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
-func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
+//
+// interruptedByParent reports whether ctx (as opposed to this call's own per-probe window, or an
+// ordinary network error) is what kept the probe from completing. It's determined from the
+// configured deadlines before waiting on anything, rather than by comparing this call's error
+// against a live read of ctx.Err() afterward, since ctx keeps running concurrently and a read
+// taken after the fact can land on either side of a race with ctx's own expiry.
+func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (rtt float64, err error, interruptedByParent bool) {
 	// Compute the per-probe timeout from the real MinTTL/MaxTTL range before overriding
 	// MinTTL below: probeCount must reflect the full traceroute's hop count so the E2E
 	// probe gets the same per-probe window the hop probes use, not a single-probe budget.
 	probeTimeout := effectiveProbeTimeout(params)
 	params.MinTTL = params.MaxTTL
+
+	// context.WithTimeout collapses into a plain cancellation wrapper around ctx, with no
+	// timer of its own, whenever ctx's own deadline is already due no later than ours (see
+	// context.WithDeadline). In that case any DeadlineExceeded this call observes can only
+	// have come from ctx. Otherwise our timer is independent and, being no later than ctx's
+	// own deadline, is guaranteed to fire first, so a DeadlineExceeded here is ours alone.
+	ownDeadlineFiresFirst := true
+	localDeadline := time.Now().Add(probeTimeout)
+	if parentDeadline, ok := ctx.Deadline(); ok && parentDeadline.Before(localDeadline) {
+		ownDeadlineFiresFirst = false
+	}
 
 	// Bound the entire E2E query, including DNS resolution and socket setup, so every
 	// packet gets one complete and consistent per-probe response window.
@@ -154,13 +171,18 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 
 	trRun, err := runTracerouteOnceFn(probeCtx, params, destinationPort)
 	if err != nil {
-		return 0, err
+		// context.Canceled can only reach here via ctx: probeCtx's own cancel() (deferred
+		// above) hasn't run yet, and a timer created by WithTimeout only ever produces
+		// DeadlineExceeded on its own.
+		interruptedByParent = errors.Is(err, context.Canceled) ||
+			(errors.Is(err, context.DeadlineExceeded) && !ownDeadlineFiresFirst)
+		return 0, err, interruptedByParent
 	}
 	destHop := trRun.GetDestinationHop()
 	if destHop == nil {
-		return 0, nil
+		return 0, nil, false
 	}
-	return destHop.RTT, nil
+	return destHop.RTT, nil, false
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration, useWindowsDriver bool) (sack.Params, error) {

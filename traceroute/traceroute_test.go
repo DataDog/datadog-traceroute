@@ -25,20 +25,38 @@ import (
 
 type controlledDeadlineContext struct {
 	context.Context
-	done    chan struct{}
-	expired atomic.Bool
-	once    sync.Once
+	deadline time.Time
+	done     chan struct{}
+	expired  atomic.Bool
+	once     sync.Once
 }
 
+// newControlledDeadlineContext simulates a caller context whose own deadline is
+// far off, so a probe-local timeout always fires first: use it for scenarios where
+// expire() represents an unrelated, later cause (e.g. TotalTimeout, elsewhere in the
+// run) rather than the deadline that raced the probe being classified.
 func newControlledDeadlineContext() *controlledDeadlineContext {
 	return &controlledDeadlineContext{
-		Context: context.Background(),
-		done:    make(chan struct{}),
+		Context:  context.Background(),
+		deadline: time.Now().Add(time.Hour),
+		done:     make(chan struct{}),
+	}
+}
+
+// newImminentDeadlineContext simulates a caller context whose own deadline is
+// already due, so it's correctly identified as the cause of a probe's
+// context.DeadlineExceeded regardless of exactly when expire() is called relative
+// to the probe starting.
+func newImminentDeadlineContext() *controlledDeadlineContext {
+	return &controlledDeadlineContext{
+		Context:  context.Background(),
+		deadline: time.Now(),
+		done:     make(chan struct{}),
 	}
 }
 
 func (c *controlledDeadlineContext) Deadline() (time.Time, bool) {
-	return time.Now().Add(time.Hour), true
+	return c.deadline, true
 }
 
 func (c *controlledDeadlineContext) Done() <-chan struct{} {
@@ -1046,7 +1064,10 @@ func TestRunTraceroute_DeadlineDiscardsIncompleteE2eProbeSet(t *testing.T) {
 		return nil, ctx.Err()
 	}
 
-	ctx := newControlledDeadlineContext()
+	// The second E2E probe's own context.DeadlineExceeded must be attributed to ctx,
+	// not to its own (much longer, default) per-probe window: an imminent ctx deadline
+	// makes that attribution correct regardless of exactly when expire() runs below.
+	ctx := newImminentDeadlineContext()
 	go func() {
 		<-tracerouteCompleted
 		<-firstE2eCompleted
@@ -1109,18 +1130,17 @@ func TestRunTraceroute_OrdinaryPacketLossDoesNotMarkE2eSetIncomplete(t *testing.
 	// simulated) for an unrelated reason after the packet-loss reading is already in.
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 
-	probeTimedOut := make(chan struct{})
+	runCtx := newControlledDeadlineContext()
 	runTracerouteOnceFn = func(ctx context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
 		<-ctx.Done() // the probe's own short child deadline, not the run's ctx
-		close(probeTimedOut)
+		// Expire the run's own ctx synchronously, before returning, so it can never
+		// race with runE2eProbeOnce's classification of this error: that classification
+		// is already decided from the deadlines computed before this call ever waited,
+		// so calling expire() here only controls when the *rest* of RunTraceroute
+		// (post-probe deadline checks) observes the run's ctx as done.
+		runCtx.expire()
 		return nil, ctx.Err()
 	}
-
-	runCtx := newControlledDeadlineContext()
-	go func() {
-		<-probeTimedOut
-		runCtx.expire() // the run's own ctx ends only afterward, for an unrelated reason
-	}()
 
 	results, err := NewTraceroute().RunTraceroute(runCtx, TracerouteParams{
 		Hostname:             "example.com",
