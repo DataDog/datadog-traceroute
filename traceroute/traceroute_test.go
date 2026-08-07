@@ -653,16 +653,16 @@ func TestRunTraceroute_NegativeTotalTimeoutIsRejected(t *testing.T) {
 	assert.False(t, called, "should reject before running any probes")
 }
 
-func TestRunTraceroute_InfeasibleTotalTimeoutIsRejected(t *testing.T) {
-	// Even at MinProbeTimeout and zero Delay, MaxTTL=30 needs at least 1.5s
-	// (30 * 50ms) to complete a single serial run. A shorter TotalTimeout can
-	// never be met regardless of the derived or configured per-probe timeout,
-	// so RunTraceroute must reject it before running any probes.
+func TestRunTraceroute_ShortTotalTimeoutIsNotPreemptivelyRejected(t *testing.T) {
+	// A TotalTimeout too small for MaxTTL * MinProbeTimeout under a naive serial
+	// budget must NOT be rejected upfront: real drivers probe TTLs in parallel
+	// (see common.TracerouteParallelParams.MaxTimeout), an E2E-only request
+	// (TracerouteQueries=0) never even sends traceroute probes, and an explicit
+	// Timeout below MinProbeTimeout is honored as-is. A serial-assuming feasibility
+	// check would reject all of these even though they can complete within budget;
+	// letting the run's own deadline handling decide is correct here instead.
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
-
-	called := false
 	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
-		called = true
 		return &result.TracerouteRun{}, nil
 	}
 
@@ -672,29 +672,6 @@ func TestRunTraceroute_InfeasibleTotalTimeoutIsRejected(t *testing.T) {
 		TracerouteQueries: 1,
 		MaxTTL:            common.DefaultMaxTTL,
 		TotalTimeout:      time.Second,
-	})
-
-	require.Error(t, err)
-	var targetErr *InvalidTargetError
-	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
-	assert.False(t, called, "should reject before running any probes")
-}
-
-func TestRunTraceroute_FeasibleTotalTimeoutAccountsForDelay(t *testing.T) {
-	// MaxTTL=10 at MinProbeTimeout (50ms) plus a 20ms delay per TTL needs 700ms;
-	// a TotalTimeout just above that must be accepted.
-	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
-	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
-		return &result.TracerouteRun{}, nil
-	}
-
-	tr := NewTraceroute()
-	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
-		Hostname:          "example.com",
-		TracerouteQueries: 1,
-		MaxTTL:            10,
-		Delay:             20,
-		TotalTimeout:      701 * time.Millisecond,
 	})
 
 	require.NoError(t, err)
@@ -724,26 +701,6 @@ func TestRunTraceroute_NegativeDelayIsRejected(t *testing.T) {
 	require.Error(t, err)
 	var targetErr *InvalidTargetError
 	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
-}
-
-func TestRunTraceroute_InfeasibleTotalTimeoutUsesNarrowTTLRangeNotMaxTTL(t *testing.T) {
-	// MinTTL=28,MaxTTL=30 probes only 3 TTLs, needing 150ms at MinProbeTimeout with no
-	// delay. Budgeting off MaxTTL alone (30 TTLs, 1.5s) would wrongly reject this.
-	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
-	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
-		return &result.TracerouteRun{}, nil
-	}
-
-	tr := NewTraceroute()
-	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
-		Hostname:          "example.com",
-		TracerouteQueries: 1,
-		MinTTL:            28,
-		MaxTTL:            30,
-		TotalTimeout:      151 * time.Millisecond,
-	})
-
-	require.NoError(t, err)
 }
 
 func TestLogTerminalOutcome(t *testing.T) {
@@ -1141,6 +1098,43 @@ func TestRunTraceroute_BothTimeoutsCoexistOnHappyPath(t *testing.T) {
 	assert.Len(t, results.Traceroute.Runs, 2)
 	assert.Len(t, results.E2eProbe.RTTs, 2)
 	assert.False(t, results.TimedOut)
+}
+
+func TestRunTraceroute_OrdinaryPacketLossDoesNotMarkE2eSetIncomplete(t *testing.T) {
+	// runE2eProbeOnce bounds itself with its own short-lived child context (derived from
+	// params.Timeout), separate from the run's own ctx. A response that never arrives
+	// within that per-probe window is ordinary packet loss, not an interruption of the
+	// E2E set: e2eComplete must stay true as long as every probe launched and the run's
+	// own ctx never ended, even if the run's ctx ends later (e.g. TotalTimeout, here
+	// simulated) for an unrelated reason after the packet-loss reading is already in.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	probeTimedOut := make(chan struct{})
+	runTracerouteOnceFn = func(ctx context.Context, params TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		<-ctx.Done() // the probe's own short child deadline, not the run's ctx
+		close(probeTimedOut)
+		return nil, ctx.Err()
+	}
+
+	runCtx := newControlledDeadlineContext()
+	go func() {
+		<-probeTimedOut
+		runCtx.expire() // the run's own ctx ends only afterward, for an unrelated reason
+	}()
+
+	results, err := NewTraceroute().RunTraceroute(runCtx, TracerouteParams{
+		Hostname:             "example.com",
+		MaxTTL:               common.DefaultMaxTTL,
+		TracerouteQueries:    0,
+		E2eQueries:           1,
+		Timeout:              10 * time.Millisecond,
+		ReturnPartialResults: true,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.True(t, results.TimedOut)
+	require.Len(t, results.E2eProbe.RTTs, 1, "the completed (if lossy) E2E reading must be kept, not discarded as incomplete")
 }
 
 func TestRunTraceroute_AgentShapedFinalE2eTimeoutKeepsCompletionMargin(t *testing.T) {

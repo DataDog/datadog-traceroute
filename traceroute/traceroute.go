@@ -56,19 +56,6 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
-	// Even at the smallest per-probe timeout ResolveProbeTimeout can derive, a serial
-	// run still needs at least one probe wait plus one SendDelay per TTL. If that floor
-	// alone exceeds TotalTimeout, the run cannot complete a single traceroute query
-	// within budget regardless of the derived or configured per-probe timeout.
-	if params.TotalTimeout > 0 {
-		ttlsProbed := probeCount(params.MinTTL, params.MaxTTL)
-		minRequired := time.Duration(ttlsProbed) * (common.MinProbeTimeout + time.Duration(params.Delay)*time.Millisecond)
-		if minRequired > params.TotalTimeout {
-			return nil, &InvalidTargetError{Err: fmt.Errorf(
-				"total timeout %s is too short to complete %d TTLs at the minimum per-probe timeout %s and %dms delay (requires at least %s)",
-				params.TotalTimeout, ttlsProbed, common.MinProbeTimeout, params.Delay, minRequired)}
-		}
-	}
 	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries, common.MaxTracerouteQueries); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
@@ -244,10 +231,12 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 				defer wg.Done()
 				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
 				if err != nil {
-					// A ctx-caused error means this probe never got to complete its
-					// measurement, unlike a genuine network error, which is a legitimate
-					// packet-loss reading. Only the former makes the E2E set incomplete.
-					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					// runE2eProbeOnce bounds itself with its own per-probe child context, so
+					// a DeadlineExceeded from that child on ordinary packet loss looks
+					// identical to one from the run's own ctx. Only the latter means this
+					// probe never got to complete its measurement; check the parent ctx
+					// directly rather than inspecting the error to tell them apart.
+					if ctx.Err() != nil {
 						e2eInterruptedByCtx.Store(true)
 					}
 					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
