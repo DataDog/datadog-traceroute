@@ -713,6 +713,39 @@ func TestRunTraceroute_NegativeProbeTimeoutIsRejected(t *testing.T) {
 	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
 }
 
+func TestRunTraceroute_NegativeDelayIsRejected(t *testing.T) {
+	tr := NewTraceroute()
+	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+		Hostname: "example.com",
+		MaxTTL:   common.DefaultMaxTTL,
+		Delay:    -1,
+	})
+
+	require.Error(t, err)
+	var targetErr *InvalidTargetError
+	assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+}
+
+func TestRunTraceroute_InfeasibleTotalTimeoutUsesNarrowTTLRangeNotMaxTTL(t *testing.T) {
+	// MinTTL=28,MaxTTL=30 probes only 3 TTLs, needing 150ms at MinProbeTimeout with no
+	// delay. Budgeting off MaxTTL alone (30 TTLs, 1.5s) would wrongly reject this.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+	runTracerouteOnceFn = func(ctx context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		return &result.TracerouteRun{}, nil
+	}
+
+	tr := NewTraceroute()
+	_, err := tr.RunTraceroute(context.Background(), TracerouteParams{
+		Hostname:          "example.com",
+		TracerouteQueries: 1,
+		MinTTL:            28,
+		MaxTTL:            30,
+		TotalTimeout:      151 * time.Millisecond,
+	})
+
+	require.NoError(t, err)
+}
+
 func TestLogTerminalOutcome(t *testing.T) {
 	var debugMessages, warnMessages, errorMessages []string
 	log.SetLogger(log.Logger{
@@ -997,6 +1030,37 @@ func TestRunTraceroute_CallerDeadlineDiscardsCompletedRunsByDefault(t *testing.T
 
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Nil(t, results)
+}
+
+func TestRunTraceroute_CallerDeadlineKeepsCompletedE2eOnlyResults(t *testing.T) {
+	// TracerouteQueries=0 means results.Traceroute.Runs is empty by construction, so
+	// completeness of an E2E-only run can't be judged by run count the way the other
+	// ReturnPartialResults tests do; it must be judged by e2eComplete instead.
+	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
+
+	ctx := newControlledDeadlineContext()
+	runTracerouteOnceFn = func(_ context.Context, _ TracerouteParams, _ int) (*result.TracerouteRun, error) {
+		ctx.expire()
+		return &result.TracerouteRun{
+			Hops: []*result.TracerouteHop{
+				{IPAddress: net.ParseIP("1.2.3.4"), RTT: 10, IsDest: true},
+			},
+		}, nil
+	}
+
+	results, err := NewTraceroute().RunTraceroute(ctx, TracerouteParams{
+		Hostname:             "example.com",
+		TracerouteQueries:    0,
+		E2eQueries:           1,
+		MaxTTL:               common.DefaultMaxTTL,
+		ReturnPartialResults: true,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	assert.True(t, results.TimedOut)
+	assert.Empty(t, results.Traceroute.Runs)
+	require.Len(t, results.E2eProbe.RTTs, 1)
 }
 
 func TestRunTraceroute_DeadlineDiscardsIncompleteE2eProbeSet(t *testing.T) {

@@ -106,6 +106,14 @@ func TestValidateQueryCount(t *testing.T) {
 	require.Error(t, ValidateQueryCount("queries", 11, 10))
 }
 
+func TestValidatePort(t *testing.T) {
+	require.NoError(t, ValidatePort("port", 0))
+	require.NoError(t, ValidatePort("port", 33434))
+	require.NoError(t, ValidatePort("port", 65535))
+	require.Error(t, ValidatePort("port", -1))
+	require.Error(t, ValidatePort("port", 65536))
+}
+
 func TestUnmappedAddrFromSliceZero(t *testing.T) {
 	// zero value
 	addr, ok := UnmappedAddrFromSlice(nil)

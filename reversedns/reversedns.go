@@ -74,7 +74,10 @@ func GetReverseDns(ipAddr string) ([]string, error) {
 
 // GetReverseDnsContext returns the hostname for the given IP address as a string.
 // The lookup is bounded by both ctx and a fixed per-lookup safety timeout,
-// whichever elapses first.
+// whichever elapses first. Note this bound relies on the stdlib resolver honoring
+// ctx promptly: on platforms where Go falls back to the cgo resolver, cancellation
+// of an in-flight getaddrinfo/res_search call is not always immediate, so ctx and
+// TotalTimeout are a best-effort bound here rather than a hard guarantee.
 func GetReverseDnsContext(ctx context.Context, ipAddr string) ([]string, error) {
 	resultDns, err := cache.GetWithExpiration("reverse-dns-"+ipAddr, func() ([]string, error) {
 		lookupCtx, cancel := context.WithTimeout(ctx, reverseDnsDefaultTimeout)

@@ -28,6 +28,9 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	// Parse optional parameters with defaults
 	protocol := getStringParam(query, "protocol", common.DefaultProtocol)
 	port := getIntParam(query, "port", common.DefaultPort)
+	if err := common.ValidatePort("port", port); err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
 	tracerouteQueries, err := parseValidatedQueryCountParam(
 		query,
 		"traceroute-queries",

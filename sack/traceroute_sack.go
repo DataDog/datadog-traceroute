@@ -112,10 +112,17 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	}
 	udpConn.Close()
 	var cancel context.CancelFunc
-	if p.HandshakeTimeout > 0 || p.ParallelParams.TracerouteTimeout > 0 {
+	_, parentHasDeadline := ctx.Deadline()
+	switch {
+	case p.HandshakeTimeout > 0 || p.ParallelParams.TracerouteTimeout > 0:
 		deadline := time.Now().Add(p.MaxTimeout())
 		ctx, cancel = context.WithDeadline(ctx, deadline)
-	} else {
+	case !parentHasDeadline:
+		// Neither local timeout is set and the parent context has no deadline of its
+		// own either: dialSackTCP's net.Dialer has Timeout=0 in that case, which means
+		// unbounded. Apply a last-resort safety net so a blackholed SYN can't hang forever.
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(common.DefaultNetworkPathTimeout)*time.Millisecond)
+	default:
 		ctx, cancel = context.WithCancel(ctx)
 	}
 	defer cancel()

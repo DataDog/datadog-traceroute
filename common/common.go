@@ -125,28 +125,42 @@ func ValidateQueryCount(name string, count, max int) error {
 	return nil
 }
 
+// ValidatePort rejects destination port values outside the valid TCP/UDP port range.
+// port == 0 is allowed through since callers treat it as "use the default port".
+func ValidatePort(name string, port int) error {
+	if port < 0 || port > 65535 {
+		return fmt.Errorf("%s must be between 0 and 65535, got %d", name, port)
+	}
+	return nil
+}
+
 // ResolveProbeTimeout returns a positive explicitly configured per-probe timeout.
 // A non-positive timeout is treated as unset. When no timeout was configured and
 // an overall timeout is available, it reserves 10% of the per-hop budget for work
 // outside probe waits, then further reserves sendDelay since every probe also pays
 // that pacing cost on top of its wait. The result is floored at MinProbeTimeout so
-// a large MaxTTL or sendDelay can't derive an unusably short window. If there is no
-// overall timeout, it preserves the supplied legacy default or falls back to
+// a large probeCount or sendDelay can't derive an unusably short window. If there is
+// no overall timeout, it preserves the supplied legacy default or falls back to
 // DefaultNetworkPathTimeout.
-func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL int, sendDelay time.Duration, configured bool) time.Duration {
+//
+// probeCount is the number of TTLs actually probed (MaxTTL - MinTTL + 1), not MaxTTL
+// itself: a narrow TTL range (e.g. MinTTL=250, MaxTTL=255) sends far fewer probes than
+// MaxTTL would suggest, and budgeting per MaxTTL alone would derive an unnecessarily
+// short per-probe window.
+func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, probeCount int, sendDelay time.Duration, configured bool) time.Duration {
 	if configured && configuredTimeout > 0 {
 		return configuredTimeout
 	}
-	if totalTimeout <= 0 || maxTTL < DefaultMinTTL || maxTTL > MaxAllowedTTL {
+	if totalTimeout <= 0 || probeCount < 1 || probeCount > MaxAllowedTTL {
 		if configuredTimeout > 0 {
 			return configuredTimeout
 		}
 		return time.Duration(DefaultNetworkPathTimeout) * time.Millisecond
 	}
 
-	// Calculate totalTimeout * 9 / (maxTTL * 10) without overflowing when
+	// Calculate totalTimeout * 9 / (probeCount * 10) without overflowing when
 	// totalTimeout is close to time.Duration's upper bound.
-	divisor := time.Duration(maxTTL) * 10
+	divisor := time.Duration(probeCount) * 10
 	quotient := totalTimeout / divisor
 	remainder := totalTimeout % divisor
 	derived := quotient*9 + remainder*9/divisor - sendDelay
@@ -157,11 +171,15 @@ func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, maxTTL i
 }
 
 // contextWithOptionalTimeout applies timeout when it is positive. A zero timeout means
-// no local deadline, while the parent context can still enforce TotalTimeout or caller
-// cancellation.
+// no local deadline, deferring to the parent context's TotalTimeout or cancellation.
+// If the parent context has no deadline of its own either, that would leave the call
+// completely unbounded, so a legacy default is applied as a last-resort safety net.
 func contextWithOptionalTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if timeout > 0 {
 		return context.WithTimeout(ctx, timeout)
+	}
+	if _, ok := ctx.Deadline(); !ok {
+		return context.WithTimeout(ctx, time.Duration(DefaultNetworkPathTimeout)*time.Millisecond)
 	}
 	return context.WithCancel(ctx)
 }

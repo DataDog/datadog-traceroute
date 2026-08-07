@@ -59,6 +59,9 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 				log.SetLogLevel(log.LevelTrace)
 			}
 
+			if err := common.ValidatePort("--port", cfg.port); err != nil {
+				return err
+			}
 			if err := common.ValidateMaxTTL("--max-ttl", cfg.maxTTL); err != nil {
 				return err
 			}

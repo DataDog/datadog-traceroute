@@ -104,16 +104,29 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 const sackSendDelay = 10 * time.Millisecond
 
 // effectiveProbeTimeout returns the configured per-probe timeout, or derives one
-// from TotalTimeout and MaxTTL when it is unset. Without a total timeout, it uses
-// the legacy default so a silent probe never waits indefinitely.
+// from TotalTimeout and the TTL range when it is unset. Without a total timeout, it
+// uses the legacy default so a silent probe never waits indefinitely.
 func effectiveProbeTimeout(params TracerouteParams) time.Duration {
 	return common.ResolveProbeTimeout(
 		params.Timeout,
 		params.TotalTimeout,
-		params.MaxTTL,
+		probeCount(params.MinTTL, params.MaxTTL),
 		time.Duration(params.Delay)*time.Millisecond,
 		params.Timeout > 0,
 	)
+}
+
+// probeCount returns the number of TTLs that will actually be probed. minTTL is
+// clamped to the smallest legal TTL when unset (0) so an omitted MinTTL is treated
+// as starting from the first hop rather than shrinking the probe count.
+func probeCount(minTTL, maxTTL int) int {
+	if minTTL < common.DefaultMinTTL {
+		minTTL = common.DefaultMinTTL
+	}
+	if minTTL > maxTTL {
+		return 1
+	}
+	return maxTTL - minTTL + 1
 }
 
 // runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.
@@ -121,11 +134,15 @@ func effectiveProbeTimeout(params TracerouteParams) time.Duration {
 // as MaxTTL, essentially sending a single probe to the destination instead of incrementally probing
 // each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
 func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
+	// Compute the per-probe timeout from the real MinTTL/MaxTTL range before overriding
+	// MinTTL below: probeCount must reflect the full traceroute's hop count so the E2E
+	// probe gets the same per-probe window the hop probes use, not a single-probe budget.
+	probeTimeout := effectiveProbeTimeout(params)
 	params.MinTTL = params.MaxTTL
 
 	// Bound the entire E2E query, including DNS resolution and socket setup, so every
 	// packet gets one complete and consistent per-probe response window.
-	probeCtx, cancel := context.WithTimeout(ctx, effectiveProbeTimeout(params))
+	probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 
 	// Don't use SACK for e2e probes because some servers don't properly reply with SACK responses,

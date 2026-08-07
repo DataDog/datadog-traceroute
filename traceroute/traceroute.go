@@ -50,6 +50,9 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if params.Timeout < 0 {
 		return nil, &InvalidTargetError{Err: fmt.Errorf("probe timeout must not be negative, got %s", params.Timeout)}
 	}
+	if params.Delay < 0 {
+		return nil, &InvalidTargetError{Err: fmt.Errorf("delay must not be negative, got %d", params.Delay)}
+	}
 	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
@@ -58,11 +61,12 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	// alone exceeds TotalTimeout, the run cannot complete a single traceroute query
 	// within budget regardless of the derived or configured per-probe timeout.
 	if params.TotalTimeout > 0 {
-		minRequired := time.Duration(params.MaxTTL) * (common.MinProbeTimeout + time.Duration(params.Delay)*time.Millisecond)
+		ttlsProbed := probeCount(params.MinTTL, params.MaxTTL)
+		minRequired := time.Duration(ttlsProbed) * (common.MinProbeTimeout + time.Duration(params.Delay)*time.Millisecond)
 		if minRequired > params.TotalTimeout {
 			return nil, &InvalidTargetError{Err: fmt.Errorf(
 				"total timeout %s is too short to complete %d TTLs at the minimum per-probe timeout %s and %dms delay (requires at least %s)",
-				params.TotalTimeout, params.MaxTTL, common.MinProbeTimeout, params.Delay, minRequired)}
+				params.TotalTimeout, ttlsProbed, common.MinProbeTimeout, params.Delay, minRequired)}
 		}
 	}
 	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries, common.MaxTracerouteQueries); err != nil {
@@ -90,17 +94,8 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	// A deadline may expire during enrichment after traceroute queries have completed.
 	// Keep only whole completed traceroute runs, and discard E2E measurements unless
 	// the full requested E2E set already completed before the deadline.
-	switch {
-	case errors.Is(runCtx.Err(), context.Canceled):
-		return nil, context.Canceled
-	case errors.Is(runCtx.Err(), context.DeadlineExceeded):
-		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
-			return nil, context.DeadlineExceeded
-		}
-		if !e2eComplete {
-			results.E2eProbe = result.E2eProbe{}
-		}
-		results.TimedOut = true
+	if keep, err := applyDeadlineOutcome(runCtx, params, results, e2eComplete); !keep {
+		return nil, err
 	}
 
 	results.Normalize()
@@ -111,20 +106,37 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	// Normalization and filtering are part of RunTraceroute too. Re-check the context
 	// after that synchronous work so a deadline or cancellation observed there follows
 	// the same output contract as one observed during probing or enrichment.
+	if keep, err := applyDeadlineOutcome(runCtx, params, results, e2eComplete); !keep {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// applyDeadlineOutcome finalizes results against runCtx's terminal state. It returns
+// keep=false when the caller must discard results entirely (explicit cancellation, or
+// a deadline that fired before anything usable completed). Otherwise it marks results
+// as partial (TimedOut, with E2eProbe cleared unless the full E2E set completed) and
+// returns keep=true so the caller can continue using results.
+//
+// "Usable" means either a whole traceroute run completed, or no traceroute queries were
+// requested at all (E2E-only) and the full E2E set completed — TracerouteQueries=0 makes
+// results.Traceroute.Runs empty by construction, so that case can't be judged by run count.
+func applyDeadlineOutcome(runCtx context.Context, params TracerouteParams, results *result.Results, e2eComplete bool) (keep bool, err error) {
 	switch {
 	case errors.Is(runCtx.Err(), context.Canceled):
-		return nil, context.Canceled
+		return false, context.Canceled
 	case errors.Is(runCtx.Err(), context.DeadlineExceeded):
-		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
-			return nil, context.DeadlineExceeded
+		hasUsableResults := len(results.Traceroute.Runs) > 0 || (params.TracerouteQueries == 0 && e2eComplete)
+		if !params.ReturnPartialResults || !hasUsableResults {
+			return false, context.DeadlineExceeded
 		}
 		if !e2eComplete {
 			results.E2eProbe = result.E2eProbe{}
 		}
 		results.TimedOut = true
 	}
-
-	return results, nil
+	return true, nil
 }
 
 func logTerminalOutcome(params TracerouteParams, destinationPort int, results *result.Results, runErr error) {
@@ -290,7 +302,8 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 		if !e2eComplete {
 			results.E2eProbe = result.E2eProbe{}
 		}
-		if len(results.Traceroute.Runs) == 0 {
+		hasUsableResults := len(results.Traceroute.Runs) > 0 || (params.TracerouteQueries == 0 && e2eComplete)
+		if !hasUsableResults {
 			// Preserve a more specific error that completed before the deadline.
 			// Deadline-derived probe errors still classify as timeouts.
 			if allTracerouteRunsFailedErr != nil {
