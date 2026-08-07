@@ -351,7 +351,7 @@ func Test_runTracerouteMulti(t *testing.T) {
 				traceroute.publicIPFetcher = mockFetcher
 			}
 
-			results, err := traceroute.runTracerouteMulti(context.Background(), tt.params, 42)
+			results, _, err := traceroute.runTracerouteMulti(context.Background(), tt.params, 42)
 			for _, errMsg := range tt.expectedError {
 				assert.ErrorContains(t, err, errMsg)
 			}
@@ -409,7 +409,7 @@ func Test_runTracerouteMulti_partialFailure(t *testing.T) {
 	defer log.SetLogger(log.Logger{})
 
 	tr := NewTraceroute()
-	results, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
+	results, _, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
 
 	// Should succeed despite some failures
 	require.NoError(t, err)
@@ -434,7 +434,7 @@ func Test_runTracerouteMulti_allFailSameError(t *testing.T) {
 	runTracerouteOnceFn = runTracerouteOnceFnSameError
 
 	tr := NewTraceroute()
-	_, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
+	_, _, err := tr.runTracerouteMulti(context.Background(), TracerouteParams{TracerouteQueries: 3}, 42)
 
 	require.Error(t, err)
 	// Should appear only once despite 3 runs failing with the same message
@@ -1123,7 +1123,7 @@ func TestRunTraceroute_AgentShapedFinalE2eTimeoutKeepsCompletionMargin(t *testin
 		"the silent final E2E probe must finish before the shared TotalTimeout")
 }
 
-func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *testing.T) {
+func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentPreservesCompleteE2eSet(t *testing.T) {
 	defer func() { runTracerouteOnceFn = runTracerouteOnce }()
 	originalLookupAddrFn := reversedns.LookupAddrFn
 	defer func() { reversedns.LookupAddrFn = originalLookupAddrFn }()
@@ -1161,7 +1161,9 @@ func TestRunTraceroute_DeadlineDuringReverseDNSEnrichmentReturnsPartialRuns(t *t
 	require.NotNil(t, results)
 	assert.True(t, results.TimedOut)
 	assert.Len(t, results.Traceroute.Runs, 1)
-	assert.Equal(t, result.E2eProbe{}, results.E2eProbe)
+	// The single requested E2E probe finished before the deadline; only the later
+	// reverse-DNS enrichment step was interrupted, so E2E data must be preserved.
+	assert.Equal(t, []float64{10}, results.E2eProbe.RTTs)
 	select {
 	case <-lookupStarted:
 	default:
@@ -1278,7 +1280,7 @@ func TestRunTraceroute_PublicIPCollectionStartsConcurrentlyWithE2ePacing(t *test
 		CollectSourcePublicIP: true,
 	}
 
-	_, err := tr.runTracerouteMulti(context.Background(), params, 42)
+	_, _, err := tr.runTracerouteMulti(context.Background(), params, 42)
 
 	require.NoError(t, err)
 	assert.Less(t, getIPCalledAt, 500*time.Millisecond, "public IP collection should start concurrently with e2e pacing, not only after it finishes")

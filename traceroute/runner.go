@@ -69,7 +69,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return tr.TracerouteSequentialSocketContext(ctx)
 		}
 
-		trRun, err = performTCPFallback(params.TCPMethod, doSyn, doSack, doSynSocket)
+		trRun, err = performTCPFallback(ctx, params.TCPMethod, doSyn, doSack, doSynSocket)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +243,7 @@ func hasPort(s string) bool {
 
 type tracerouteImpl func() (*result.TracerouteRun, error)
 
-func performTCPFallback(tcpMethod TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.TracerouteRun, error) {
+func performTCPFallback(ctx context.Context, tcpMethod TCPMethod, doSyn, doSack, doSynSocket tracerouteImpl) (*result.TracerouteRun, error) {
 	if tcpMethod == "" {
 		tcpMethod = "syn"
 	}
@@ -258,6 +258,13 @@ func performTCPFallback(tcpMethod TCPMethod, doSyn, doSack, doSynSocket tracerou
 		results, err := doSack()
 		var sackNotSupportedErr *sack.NotSupportedError
 		if errors.As(err, &sackNotSupportedErr) {
+			// SACK can fail with NotSupportedError because the run context expired or was
+			// canceled mid-handshake, not because the target lacks SACK support. Falling
+			// back to a fresh SYN traceroute in that case would open new packet resources
+			// under an already-expired context instead of returning the ctx error.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, ctxErr
+			}
 			return doSyn()
 		}
 		if err != nil {

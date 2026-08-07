@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
@@ -71,7 +72,8 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		return nil, &InvalidTargetError{Err: err}
 	}
 
-	results, err = t.runTracerouteMulti(runCtx, params, destinationPort)
+	var e2eComplete bool
+	results, e2eComplete, err = t.runTracerouteMulti(runCtx, params, destinationPort)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +88,8 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	}
 
 	// A deadline may expire during enrichment after traceroute queries have completed.
-	// Keep only whole completed traceroute runs and discard all E2E measurements because
-	// the E2E probe set did not complete.
+	// Keep only whole completed traceroute runs, and discard E2E measurements unless
+	// the full requested E2E set already completed before the deadline.
 	switch {
 	case errors.Is(runCtx.Err(), context.Canceled):
 		return nil, context.Canceled
@@ -95,7 +97,9 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
 			return nil, context.DeadlineExceeded
 		}
-		results.E2eProbe = result.E2eProbe{}
+		if !e2eComplete {
+			results.E2eProbe = result.E2eProbe{}
+		}
 		results.TimedOut = true
 	}
 
@@ -114,7 +118,9 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		if !params.ReturnPartialResults || len(results.Traceroute.Runs) == 0 {
 			return nil, context.DeadlineExceeded
 		}
-		results.E2eProbe = result.E2eProbe{}
+		if !e2eComplete {
+			results.E2eProbe = result.E2eProbe{}
+		}
 		results.TimedOut = true
 	}
 
@@ -165,7 +171,7 @@ func logTerminalOutcome(params TracerouteParams, destinationPort int, results *r
 	}
 }
 
-func (t Traceroute) runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
+func (t Traceroute) runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, bool, error) {
 	var wg sync.WaitGroup
 	var results result.Results
 
@@ -207,6 +213,7 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	e2eQueryCount := params.E2eQueries
 	e2eRTTs := make([]float64, e2eQueryCount)
 	launchedE2eQueries := 0
+	var e2eInterruptedByCtx atomic.Bool
 	if e2eQueryCount > 0 {
 		delay := e2eQueriesDelay(params)
 		log.Tracef("e2e query delay: %d msec", delay.Milliseconds())
@@ -225,6 +232,12 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 				defer wg.Done()
 				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
 				if err != nil {
+					// A ctx-caused error means this probe never got to complete its
+					// measurement, unlike a genuine network error, which is a legitimate
+					// packet-loss reading. Only the former makes the E2E set incomplete.
+					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+						e2eInterruptedByCtx.Store(true)
+					}
 					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
 					return
 				}
@@ -258,6 +271,10 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	}
 	results.Source.PublicIP = sourcePublicIP
 
+	// The E2E set is complete only if every requested probe was launched and none of
+	// them were cut short by the run context, as opposed to failing on their own merits.
+	e2eComplete := launchedE2eQueries == e2eQueryCount && !e2eInterruptedByCtx.Load()
+
 	var allTracerouteRunsFailedErr error
 	if params.TracerouteQueries > 0 && len(results.Traceroute.Runs) == 0 && len(tracerouteErrors) > 0 {
 		allTracerouteRunsFailedErr = errors.Join(deduplicateErrors(tracerouteErrors)...)
@@ -266,35 +283,36 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
 		// Explicit cancellation is not a timeout and must never expose partial output.
-		return nil, context.Canceled
+		return nil, false, context.Canceled
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		// E2E results are meaningful only when the complete requested probe set finished.
-		// A deadline can interrupt that set, so discard it even when some measurements
-		// happened to complete.
-		results.E2eProbe = result.E2eProbe{}
+		// A deadline can interrupt that set, so discard it unless it's complete.
+		if !e2eComplete {
+			results.E2eProbe = result.E2eProbe{}
+		}
 		if len(results.Traceroute.Runs) == 0 {
 			// Preserve a more specific error that completed before the deadline.
 			// Deadline-derived probe errors still classify as timeouts.
 			if allTracerouteRunsFailedErr != nil {
-				return nil, allTracerouteRunsFailedErr
+				return nil, false, allTracerouteRunsFailedErr
 			}
-			return nil, context.DeadlineExceeded
+			return nil, false, context.DeadlineExceeded
 		}
 		if !params.ReturnPartialResults {
-			return nil, context.DeadlineExceeded
+			return nil, false, context.DeadlineExceeded
 		}
 		results.TimedOut = true
-		return &results, nil
+		return &results, e2eComplete, nil
 	}
 
 	// Only fail if all traceroute runs failed
 	if allTracerouteRunsFailedErr != nil {
-		return nil, allTracerouteRunsFailedErr
+		return nil, false, allTracerouteRunsFailedErr
 	}
 	if len(tracerouteErrors) > 0 {
 		log.Warnf("Some traceroute runs failed (%d/%d): %v", len(tracerouteErrors), params.TracerouteQueries, errors.Join(tracerouteErrors...))
 	}
-	return &results, nil
+	return &results, e2eComplete, nil
 }
 
 // e2eQueriesDelay computes the delay to wait between successive e2e probe queries,

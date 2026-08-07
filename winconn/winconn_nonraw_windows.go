@@ -279,6 +279,16 @@ func (r *Conn) GetHop(ctx context.Context, timeout time.Duration, destIP net.IP,
 			log.Errorf("failed to poll: %s", err.Error())
 			return net.IP{}, time.Time{}, 0, 0, fmt.Errorf("failed to poll: %w", err)
 		}
+		// The socket can become writable in the same interval hopCtx's deadline expires;
+		// poll then returns success even though the result arrived after the deadline.
+		// Recheck here so that race can't slip a late hop past the caller's timeout.
+		if hopCtx.Err() != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, time.Time{}, 0, 0, ctxErr
+			}
+			log.Trace("timed out waiting for responses")
+			return net.IP{}, time.Time{}, 0, 0, nil
+		}
 		// get the new socket error
 		// this will be handled from other below if statments
 		// if the error is nil, it means the connection was made
