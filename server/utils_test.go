@@ -72,8 +72,7 @@ func TestParseTracerouteParams(t *testing.T) {
 			"&reverse-dns=true" +
 			"&source-public-ip=true" +
 			"&windows-driver=true" +
-			"&skip-private-hops=true" +
-			"&return-partial-results=true"
+			"&skip-private-hops=true"
 
 		u, err := url.Parse("/traceroute?" + queryString)
 		require.NoError(t, err)
@@ -91,7 +90,6 @@ func TestParseTracerouteParams(t *testing.T) {
 			Delay:                     common.DefaultDelay, // Not customizable via query params
 			Timeout:                   10000 * time.Millisecond,
 			TotalTimeout:              30000 * time.Millisecond,
-			ReturnPartialResults:      true,
 			TCPMethod:                 traceroute.TCPConfigSACK,
 			WantV6:                    true,
 			TCPSynParisTracerouteMode: false, // Not customizable via query params

@@ -128,21 +128,11 @@ func probeCount(minTTL, maxTTL int) int {
 	return maxTTL - minTTL + 1
 }
 
-// errE2eProbeTimeout is the cause attached to runE2eProbeOnce's own per-probe
-// deadline (see context.WithTimeoutCause), so context.Cause can later identify
-// whether that deadline or ctx actually ended the probe.
-var errE2eProbeTimeout = errors.New("e2e probe-local timeout exceeded")
-
 // runE2eProbeOnce performs an end-to-end probe to the destination without probing intermediate hops.
 // It reuses runTracerouteOnce() with modified TTL parameters where MinTTL is set to the same value
 // as MaxTTL, essentially sending a single probe to the destination instead of incrementally probing
 // each hop along the path, measuring RTT to the destination using the existing traceroute infrastructure.
-//
-// interruptedByParent reports whether ctx (as opposed to this call's own per-probe window, or an
-// ordinary network error) is what kept the probe from completing. context.Cause identifies whichever
-// deadline actually won the race and ended probeCtx, rather than this predicting in advance which one
-// would fire first.
-func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (rtt float64, err error, interruptedByParent bool) {
+func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPort int) (float64, error) {
 	// Compute the per-probe timeout from the real MinTTL/MaxTTL range before overriding
 	// MinTTL below: probeCount must reflect the full traceroute's hop count so the E2E
 	// probe gets the same per-probe window the hop probes use, not a single-probe budget.
@@ -151,7 +141,7 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 
 	// Bound the entire E2E query, including DNS resolution and socket setup, so every
 	// packet gets one complete and consistent per-probe response window.
-	probeCtx, cancel := context.WithTimeoutCause(ctx, probeTimeout, errE2eProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 
 	// Don't use SACK for e2e probes because some servers don't properly reply with SACK responses,
@@ -163,15 +153,13 @@ func runE2eProbeOnce(ctx context.Context, params TracerouteParams, destinationPo
 
 	trRun, err := runTracerouteOnceFn(probeCtx, params, destinationPort)
 	if err != nil {
-		interruptedByParent = (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) &&
-			!errors.Is(context.Cause(probeCtx), errE2eProbeTimeout)
-		return 0, err, interruptedByParent
+		return 0, err
 	}
 	destHop := trRun.GetDestinationHop()
 	if destHop == nil {
-		return 0, nil, false
+		return 0, nil
 	}
-	return destHop.RTT, nil, false
+	return destHop.RTT, nil
 }
 
 func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8, timeout time.Duration, useWindowsDriver bool) (sack.Params, error) {

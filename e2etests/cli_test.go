@@ -309,7 +309,6 @@ func TestFakeNetworkCLIAgentShapedTotalTimeout(t *testing.T) {
 	require.NoError(t, err, "Agent-shaped run failed: %s", stderr.String())
 	var results result.Results
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &results))
-	assert.False(t, results.TimedOut)
 	assert.Len(t, results.Traceroute.Runs, common.DefaultTracerouteQueries)
 	assert.Equal(t, common.DefaultNumE2eProbes, results.E2eProbe.PacketsSent)
 	assert.Less(t, elapsed, totalTimeout+common.DefaultProbePollFrequency+2*time.Second,

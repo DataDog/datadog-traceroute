@@ -75,7 +75,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	collectSourcePublicIP := getBoolParam(query, "source-public-ip", common.DefaultCollectSourcePublicIP)
 	useWindowsDriver := getBoolParam(query, "windows-driver", common.DefaultUseWindowsDriver)
 	skipPrivateHops := getBoolParam(query, "skip-private-hops", common.DefaultSkipPrivateHops)
-	returnPartialResults := getBoolParam(query, "return-partial-results", false)
 
 	// Construct traceroute parameters
 	params := traceroute.TracerouteParams{
@@ -87,7 +86,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		Delay:                 common.DefaultDelay,
 		Timeout:               timeout,
 		TotalTimeout:          time.Duration(totalTimeoutMs) * time.Millisecond,
-		ReturnPartialResults:  returnPartialResults,
 		TCPMethod:             traceroute.TCPMethod(tcpMethod),
 		WantV6:                wantV6,
 		ReverseDns:            reverseDns,

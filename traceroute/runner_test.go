@@ -220,7 +220,7 @@ func TestRunE2eProbeOnceBoundsEntireQueryWithProbeTimeout(t *testing.T) {
 	}
 
 	startedAt := time.Now()
-	_, err, _ := runE2eProbeOnce(context.Background(), TracerouteParams{
+	_, err := runE2eProbeOnce(context.Background(), TracerouteParams{
 		MaxTTL:  common.DefaultMaxTTL,
 		Timeout: probeTimeout,
 	}, common.DefaultPort)

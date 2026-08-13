@@ -107,28 +107,6 @@ func TestTracerouteHandlerTimeoutWithoutCompletedRunReturnsGatewayTimeout(t *tes
 	assert.Equal(t, traceroute.ErrCodeTimeout, errResp.Code)
 }
 
-func TestTracerouteHandlerOptInPartialTimeoutReturnsResults(t *testing.T) {
-	expected := &result.Results{
-		TimedOut: true,
-		Traceroute: result.Traceroute{
-			Runs: []result.TracerouteRun{{RunID: "completed-run"}},
-		},
-	}
-	srv := NewServer()
-	srv.tr = stubTracerouteRunner{results: expected}
-	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=example.com&total_timeout_ms=10&return-partial-results=true", nil)
-	w := httptest.NewRecorder()
-
-	srv.TracerouteHandler(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	var actual result.Results
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&actual))
-	assert.True(t, actual.TimedOut)
-	require.Len(t, actual.Traceroute.Runs, 1)
-	assert.Equal(t, "completed-run", actual.Traceroute.Runs[0].RunID)
-}
-
 func TestHealthHandler(t *testing.T) {
 	srv := NewServer()
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)

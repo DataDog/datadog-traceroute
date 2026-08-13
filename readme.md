@@ -98,10 +98,7 @@ sudo ./datadog-traceroute --ipv6 google.com
 
 Output is JSON.
 
-By default, an expired total timeout returns `context.DeadlineExceeded` and no results.
-With `--return-partial-results`, a timeout after at least one traceroute query completes
-returns only completed traceroute runs, discards the incomplete end-to-end probe set,
-and sets `timed_out` to `true`. Each call emits one stable
+An expired total timeout returns `context.DeadlineExceeded` and no results. Each call emits one stable
 `traceroute_run_completed` terminal log with the hostname, protocol, outcome,
 completed/requested run counts, deadline indication, destination port, and—when
 results exist—the test run ID. Success is logged at debug, timeout at warning, and
@@ -118,7 +115,6 @@ other failures at error.
 | `--max-ttl` | `-m` | `30` | Maximum TTL (1-255) |
 | `--timeout` | | `3000` | Per-probe timeout in milliseconds. With a total timeout, an omitted or zero value is derived as `0.9 * total timeout / (TTLs probed)`, where TTLs probed is `max TTL - min TTL + 1`; without one, it uses the 3000 ms default. Must be non-negative |
 | `--total-timeout-ms` | | `0` | Total timeout for the entire traceroute call, in milliseconds. `0` disables the overall deadline. Independent from `--timeout`: when both are set, each probe is capped by `--timeout` and the complete call is capped by `--total-timeout-ms`. Must be non-negative |
-| `--return-partial-results` | | `false` | Return completed traceroute runs with `timed_out: true` when the total timeout expires |
 | `--tcp-method` | | `syn` | TCP method (`syn`, `sack`, `prefer_sack`) |
 | `--ipv6` | | `false` | Use IPv6 |
 | `--reverse-dns` | | `false` | Enrich IPs with reverse DNS names |
@@ -155,9 +151,8 @@ are rejected.
 The derived per-probe timeout never derives below `50ms` (`MinProbeTimeout`), so a
 large TTL range can't silently squeeze every probe into an unusably short window.
 There is no upfront rejection of an infeasible `--total-timeout-ms`: a value too
-small for the requested work simply expires the deadline during the run, which by
-default discards results (`context.DeadlineExceeded`) or, with
-`--return-partial-results`, returns whatever completed with `timed_out: true`.
+small for the requested work simply expires the deadline during the run and discards
+results with `context.DeadlineExceeded`.
 
 ### Subcommands
 

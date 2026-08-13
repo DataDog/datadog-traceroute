@@ -22,11 +22,7 @@ type TracerouteParams struct {
 	// complete call. Zero means no overall deadline is enforced. Polling drivers check
 	// cancellation between blocking reads, so the call may return up to the default
 	// 100 ms poll interval after this deadline; that bounded precision is intentional.
-	TotalTimeout time.Duration
-	// ReturnPartialResults allows RunTraceroute to return completed traceroute
-	// runs with Results.TimedOut set when TotalTimeout expires. The default false
-	// returns context.DeadlineExceeded and no results.
-	ReturnPartialResults      bool
+	TotalTimeout              time.Duration
 	TCPMethod                 TCPMethod
 	WantV6                    bool
 	TCPSynParisTracerouteMode bool

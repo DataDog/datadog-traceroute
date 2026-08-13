@@ -36,7 +36,6 @@ type args struct {
 	verbose               bool
 	useWindowsDriver      bool
 	skipPrivateHops       bool
-	returnPartialResults  bool
 }
 
 type tracerouteRunner interface {
@@ -94,7 +93,6 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 				Delay:                 common.DefaultDelay,
 				Timeout:               probeTimeout,
 				TotalTimeout:          totalTimeout,
-				ReturnPartialResults:  cfg.returnPartialResults,
 				TCPMethod:             traceroute.TCPMethod(cfg.tcpmethod),
 				WantV6:                cfg.wantV6,
 				ReverseDns:            cfg.reverseDns,
@@ -140,7 +138,6 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 	cmd.Flags().IntVarP(&cfg.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, fmt.Sprintf("Number of e2e probe queries (0-%d)", common.MaxE2eQueries))
 	cmd.Flags().BoolVarP(&cfg.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
 	cmd.Flags().BoolVarP(&cfg.skipPrivateHops, "skip-private-hops", "", common.DefaultSkipPrivateHops, "Skip private hops")
-	cmd.Flags().BoolVarP(&cfg.returnPartialResults, "return-partial-results", "", false, "Return completed traceroute runs when the total timeout expires")
 
 	return cmd
 }
