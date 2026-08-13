@@ -280,6 +280,56 @@ func TestTotalTimeoutOnlyDerivesProbeTimeoutForSerialProgress(t *testing.T) {
 	assert.True(t, results[1].IsDest)
 }
 
+type delayedSerialResponseDriver struct {
+	startedAt time.Time
+	delay     time.Duration
+}
+
+func (d *delayedSerialResponseDriver) GetDriverInfo() common.TracerouteDriverInfo {
+	return common.TracerouteDriverInfo{SupportsParallel: false}
+}
+
+func (d *delayedSerialResponseDriver) SendProbe(uint8) error {
+	d.startedAt = time.Now()
+	return nil
+}
+
+func (d *delayedSerialResponseDriver) ReceiveProbe(timeout time.Duration) (*common.ProbeResponse, error) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	<-timer.C
+	if time.Since(d.startedAt) < d.delay {
+		return nil, &common.ReceiveProbeNoPktError{Err: errors.New("no packet")}
+	}
+	return &common.ProbeResponse{TTL: 1, IsDest: true}, nil
+}
+
+func TestAgentShapedTotalTimeoutPreservesSerialProbeWindow(t *testing.T) {
+	params := TracerouteParams{
+		TotalTimeout: 10 * time.Second,
+		MinTTL:       1,
+		MaxTTL:       30,
+		Delay:        common.DefaultDelay,
+	}
+	probeTimeout := effectiveProbeTimeout(params)
+	require.Equal(t, 300*time.Millisecond, probeTimeout)
+
+	results, err := common.TracerouteSerial(context.Background(), &delayedSerialResponseDriver{
+		delay: 275 * time.Millisecond,
+	}, common.TracerouteSerialParams{TracerouteParams: common.TracerouteParams{
+		MinTTL:            1,
+		MaxTTL:            30,
+		TracerouteTimeout: probeTimeout,
+		PollFrequency:     5 * time.Millisecond,
+		SendDelay:         time.Duration(params.Delay) * time.Millisecond,
+	}})
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0], "a response after the removed 250ms cutoff must be retained")
+	assert.True(t, results[0].IsDest)
+}
+
 func TestExplicitProbeTimeoutAdvancesSerialRunBeforeTotalTimeout(t *testing.T) {
 	// The staged Agent rollout sends both values. The shorter per-probe timeout must
 	// advance past a silent hop without consuming the independent whole-run budget.

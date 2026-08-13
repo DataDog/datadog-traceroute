@@ -83,7 +83,6 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 				time.Duration(cfg.timeout)*time.Millisecond,
 				totalTimeout,
 				cfg.maxTTL,
-				time.Duration(common.DefaultDelay)*time.Millisecond,
 				cmd.Flags().Changed("timeout"),
 			)
 			params := traceroute.TracerouteParams{

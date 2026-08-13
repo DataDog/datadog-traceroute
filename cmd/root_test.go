@@ -62,14 +62,14 @@ func TestCLIFlagWiring(t *testing.T) {
 		{
 			name:                 "omitted probe timeout is derived from total timeout",
 			args:                 []string{"--total-timeout-ms", "10000", "example.com"},
-			expectedProbeTimeout: 250 * time.Millisecond,
+			expectedProbeTimeout: 300 * time.Millisecond,
 			expectedTotalTimeout: 10 * time.Second,
 			expectedMaxTTL:       common.DefaultMaxTTL,
 		},
 		{
 			name:                 "derived timeout uses configured max TTL",
 			args:                 []string{"--total-timeout-ms", "10000", "--max-ttl", "20", "example.com"},
-			expectedProbeTimeout: 400 * time.Millisecond,
+			expectedProbeTimeout: 450 * time.Millisecond,
 			expectedTotalTimeout: 10 * time.Second,
 			expectedMaxTTL:       20,
 		},
@@ -83,7 +83,7 @@ func TestCLIFlagWiring(t *testing.T) {
 		{
 			name:                 "explicit zero probe timeout is treated as unset",
 			args:                 []string{"--total-timeout-ms", "10000", "--timeout", "0", "example.com"},
-			expectedProbeTimeout: 250 * time.Millisecond,
+			expectedProbeTimeout: 300 * time.Millisecond,
 			expectedTotalTimeout: 10 * time.Second,
 			expectedMaxTTL:       common.DefaultMaxTTL,
 		},

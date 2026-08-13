@@ -20,7 +20,6 @@ func TestResolveProbeTimeout(t *testing.T) {
 		configuredTimeout time.Duration
 		totalTimeout      time.Duration
 		maxTTL            int
-		sendDelay         time.Duration
 		configured        bool
 		expected          time.Duration
 	}{
@@ -70,20 +69,6 @@ func TestResolveProbeTimeout(t *testing.T) {
 			maxTTL:       30,
 			expected:     MinProbeTimeout,
 		},
-		{
-			name:         "send delay is subtracted from the derived per-hop budget",
-			totalTimeout: 10 * time.Second,
-			maxTTL:       30,
-			sendDelay:    100 * time.Millisecond,
-			expected:     200 * time.Millisecond,
-		},
-		{
-			name:         "send delay larger than the per-hop budget is floored at MinProbeTimeout",
-			totalTimeout: 10 * time.Second,
-			maxTTL:       30,
-			sendDelay:    time.Second,
-			expected:     MinProbeTimeout,
-		},
 	}
 
 	for _, tt := range tests {
@@ -92,9 +77,23 @@ func TestResolveProbeTimeout(t *testing.T) {
 				tt.configuredTimeout,
 				tt.totalTimeout,
 				tt.maxTTL,
-				tt.sendDelay,
 				tt.configured,
 			))
+		})
+	}
+}
+
+func TestResolveProbeTimeoutMatchesAgentMigrationBudgets(t *testing.T) {
+	for _, tt := range []struct {
+		totalTimeout time.Duration
+		expected     time.Duration
+	}{
+		{totalTimeout: 30 * time.Second, expected: 900 * time.Millisecond},
+		{totalTimeout: 60 * time.Second, expected: 1800 * time.Millisecond},
+		{totalTimeout: 120 * time.Second, expected: 3600 * time.Millisecond},
+	} {
+		t.Run(tt.totalTimeout.String(), func(t *testing.T) {
+			require.Equal(t, tt.expected, ResolveProbeTimeout(0, tt.totalTimeout, DefaultMaxTTL, false))
 		})
 	}
 }

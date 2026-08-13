@@ -137,17 +137,15 @@ func ValidatePort(name string, port int) error {
 // ResolveProbeTimeout returns a positive explicitly configured per-probe timeout.
 // A non-positive timeout is treated as unset. When no timeout was configured and
 // an overall timeout is available, it reserves 10% of the per-hop budget for work
-// outside probe waits, then further reserves sendDelay since every probe also pays
-// that pacing cost on top of its wait. The result is floored at MinProbeTimeout so
-// a large probeCount or sendDelay can't derive an unusably short window. If there is
-// no overall timeout, it preserves the supplied legacy default or falls back to
-// DefaultNetworkPathTimeout.
+// outside probe waits. The result is floored at MinProbeTimeout so a large probeCount
+// can't derive an unusably short window. If there is no overall timeout, it preserves
+// the supplied legacy default or falls back to DefaultNetworkPathTimeout.
 //
 // probeCount is the number of TTLs actually probed (MaxTTL - MinTTL + 1), not MaxTTL
 // itself: a narrow TTL range (e.g. MinTTL=250, MaxTTL=255) sends far fewer probes than
 // MaxTTL would suggest, and budgeting per MaxTTL alone would derive an unnecessarily
 // short per-probe window.
-func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, probeCount int, sendDelay time.Duration, configured bool) time.Duration {
+func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, probeCount int, configured bool) time.Duration {
 	if configured && configuredTimeout > 0 {
 		return configuredTimeout
 	}
@@ -163,7 +161,7 @@ func ResolveProbeTimeout(configuredTimeout, totalTimeout time.Duration, probeCou
 	divisor := time.Duration(probeCount) * 10
 	quotient := totalTimeout / divisor
 	remainder := totalTimeout % divisor
-	derived := quotient*9 + remainder*9/divisor - sendDelay
+	derived := quotient*9 + remainder*9/divisor
 	if derived < MinProbeTimeout {
 		return MinProbeTimeout
 	}

@@ -138,7 +138,7 @@ higher `MinTTL` derive from the narrower `MaxTTL - MinTTL + 1` range instead).
 |---|---|---|---|
 | `0` (unset) | `0` (unset) | `3000ms` (legacy default) | none |
 | `0` (unset) | `N > 0` | `N` | none |
-| `T > 0` | `0` (unset) | `max(0.9 * T / (TTLs probed) - delay, 50ms)` | `T` |
+| `T > 0` | `0` (unset) | `max(0.9 * T / (TTLs probed), 50ms)` | `T` |
 | `T > 0` | `N > 0` | `N` (not affected by `T`, `--max-ttl`, or TTLs probed) | `T` |
 
 When both are set, `--timeout` bounds how long each individual probe's own window
@@ -152,13 +152,12 @@ yet. Because polling drivers check for cancellation between blocking reads, the
 actual deadline may be observed up to ~100ms late. Negative values for either flag
 are rejected.
 
-The derived per-probe timeout reserves the per-TTL send delay out of the per-hop
-budget, then never derives below `50ms` (`MinProbeTimeout`), so a large TTL range
-can't silently squeeze every probe into an unusably short window. There is no
-upfront rejection of an infeasible `--total-timeout-ms`: a value too small for the
-requested work simply expires the deadline during the run, which by default
-discards results (`context.DeadlineExceeded`) or, with `--return-partial-results`,
-returns whatever completed with `timed_out: true`.
+The derived per-probe timeout never derives below `50ms` (`MinProbeTimeout`), so a
+large TTL range can't silently squeeze every probe into an unusably short window.
+There is no upfront rejection of an infeasible `--total-timeout-ms`: a value too
+small for the requested work simply expires the deadline during the run, which by
+default discards results (`context.DeadlineExceeded`) or, with
+`--return-partial-results`, returns whatever completed with `timed_out: true`.
 
 ### Subcommands
 

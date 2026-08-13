@@ -56,7 +56,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		time.Duration(timeoutMs)*time.Millisecond,
 		time.Duration(totalTimeoutMs)*time.Millisecond,
 		maxTTL,
-		time.Duration(common.DefaultDelay)*time.Millisecond,
 		query.Has("timeout"),
 	)
 	tcpMethod := getStringParam(query, "tcp-method", common.DefaultTcpMethod)

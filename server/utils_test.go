@@ -135,7 +135,7 @@ func TestParseTracerouteParams(t *testing.T) {
 		params, err := parseTracerouteParams(u)
 		require.NoError(t, err)
 
-		assert.Equal(t, 250*time.Millisecond, params.Timeout)
+		assert.Equal(t, 300*time.Millisecond, params.Timeout)
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
 	})
 
@@ -146,7 +146,7 @@ func TestParseTracerouteParams(t *testing.T) {
 		params, err := parseTracerouteParams(u)
 		require.NoError(t, err)
 
-		assert.Equal(t, 400*time.Millisecond, params.Timeout)
+		assert.Equal(t, 450*time.Millisecond, params.Timeout)
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
 	})
 
@@ -168,7 +168,7 @@ func TestParseTracerouteParams(t *testing.T) {
 		params, err := parseTracerouteParams(u)
 		require.NoError(t, err)
 
-		assert.Equal(t, 250*time.Millisecond, params.Timeout)
+		assert.Equal(t, 300*time.Millisecond, params.Timeout)
 		assert.Equal(t, 10000*time.Millisecond, params.TotalTimeout)
 	})
 
