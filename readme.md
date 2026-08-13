@@ -110,8 +110,8 @@ other failures at error.
 |------|-------|---------|-------------|
 | `--proto` | `-P` | `udp` | Protocol (`udp`, `tcp`, `icmp`) |
 | `--port` | `-p` | `33434` | Destination port |
-| `--traceroute-queries` | `-q` | `3` | Number of traceroute queries (0–10) |
-| `--e2e-queries` | `-Q` | `50` | Number of end-to-end probe queries (0–100) |
+| `--traceroute-queries` | `-q` | `3` | Number of traceroute queries; must not be negative |
+| `--e2e-queries` | `-Q` | `50` | Number of end-to-end probe queries; must not be negative |
 | `--max-ttl` | `-m` | `30` | Maximum TTL (1-255) |
 | `--timeout` | | `3000` | Per-probe timeout in milliseconds. With a total timeout, an omitted or zero value is derived as `0.9 * total timeout / (TTLs probed)`, where TTLs probed is `max TTL - min TTL + 1`; without one, it uses the 3000 ms default. Must be non-negative |
 | `--total-timeout-ms` | | `0` | Total timeout for the entire traceroute call, in milliseconds. `0` disables the overall deadline. Independent from `--timeout`: when both are set, each probe is capped by `--timeout` and the complete call is capped by `--total-timeout-ms`. Must be non-negative |

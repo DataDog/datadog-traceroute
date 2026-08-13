@@ -149,21 +149,8 @@ func TestCLIValidationErrors(t *testing.T) {
 			errContains: "--traceroute-queries",
 		},
 		{
-			name: "excessive traceroute query count",
-			args: []string{
-				"--traceroute-queries",
-				strconv.Itoa(common.MaxTracerouteQueries + 1),
-				"example.com",
-			},
-			errContains: "--traceroute-queries",
-		},
-		{
-			name: "excessive E2E query count",
-			args: []string{
-				"--e2e-queries",
-				strconv.Itoa(common.MaxE2eQueries + 1),
-				"example.com",
-			},
+			name:        "negative E2E query count",
+			args:        []string{"--e2e-queries", "-1", "example.com"},
 			errContains: "--e2e-queries",
 		},
 	}
@@ -177,4 +164,17 @@ func TestCLIValidationErrors(t *testing.T) {
 			assert.Zero(t, runner.calls, "invalid CLI input must be rejected before invoking the traceroute runner")
 		})
 	}
+}
+
+func TestCLIQueryCountsAboveFormerLimitsAreAccepted(t *testing.T) {
+	runner, err := executeTestCommand(t,
+		"--traceroute-queries", "11",
+		"--e2e-queries", "101",
+		"example.com",
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, runner.calls)
+	assert.Equal(t, 11, runner.params.TracerouteQueries)
+	assert.Equal(t, 101, runner.params.E2eQueries)
 }

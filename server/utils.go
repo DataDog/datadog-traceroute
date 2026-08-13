@@ -35,7 +35,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		query,
 		"traceroute-queries",
 		common.DefaultTracerouteQueries,
-		common.MaxTracerouteQueries,
 	)
 	if err != nil {
 		return traceroute.TracerouteParams{}, err
@@ -63,7 +62,6 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		query,
 		"e2e-queries",
 		common.DefaultNumE2eProbes,
-		common.MaxE2eQueries,
 	)
 	if err != nil {
 		return traceroute.TracerouteParams{}, err
@@ -135,7 +133,7 @@ func parseValidatedMaxTTLParam(query map[string][]string, key string, defaultVal
 	return val, nil
 }
 
-func parseValidatedQueryCountParam(query map[string][]string, key string, defaultValue, max int) (int, error) {
+func parseValidatedQueryCountParam(query map[string][]string, key string, defaultValue int) (int, error) {
 	values, ok := query[key]
 	if !ok || len(values) == 0 {
 		return defaultValue, nil
@@ -144,7 +142,7 @@ func parseValidatedQueryCountParam(query map[string][]string, key string, defaul
 	if err != nil {
 		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
 	}
-	if err := common.ValidateQueryCount(key, val, max); err != nil {
+	if err := common.ValidateQueryCount(key, val); err != nil {
 		return 0, err
 	}
 	return val, nil

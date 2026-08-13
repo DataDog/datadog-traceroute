@@ -70,10 +70,10 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 			if err := common.ValidateTimeoutMs("--total-timeout-ms", cfg.totalTimeoutMs, common.MaxTimeoutMs); err != nil {
 				return err
 			}
-			if err := common.ValidateQueryCount("--traceroute-queries", cfg.tracerouteQueries, common.MaxTracerouteQueries); err != nil {
+			if err := common.ValidateQueryCount("--traceroute-queries", cfg.tracerouteQueries); err != nil {
 				return err
 			}
-			if err := common.ValidateQueryCount("--e2e-queries", cfg.e2eQueries, common.MaxE2eQueries); err != nil {
+			if err := common.ValidateQueryCount("--e2e-queries", cfg.e2eQueries); err != nil {
 				return err
 			}
 
@@ -126,7 +126,7 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 
 	cmd.Flags().StringVarP(&cfg.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
 	cmd.Flags().IntVarP(&cfg.port, "port", "p", common.DefaultPort, "Destination port")
-	cmd.Flags().IntVarP(&cfg.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, fmt.Sprintf("Number of traceroute queries (0-%d)", common.MaxTracerouteQueries))
+	cmd.Flags().IntVarP(&cfg.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries (must not be negative)")
 	cmd.Flags().IntVarP(&cfg.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, fmt.Sprintf("Maximum TTL (%d-%d)", common.DefaultMinTTL, common.MaxAllowedTTL))
 	cmd.Flags().BoolVarP(&cfg.verbose, "verbose", "v", false, "verbose")
 	cmd.Flags().StringVarP(&cfg.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
@@ -135,7 +135,7 @@ func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
 	cmd.Flags().IntVarP(&cfg.totalTimeoutMs, "total-timeout-ms", "", common.DefaultTotalTimeoutMs, "Total timeout for the whole traceroute run (ms). 0 disables the overall deadline")
 	cmd.Flags().BoolVarP(&cfg.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
 	cmd.Flags().BoolVarP(&cfg.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
-	cmd.Flags().IntVarP(&cfg.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, fmt.Sprintf("Number of e2e probe queries (0-%d)", common.MaxE2eQueries))
+	cmd.Flags().IntVarP(&cfg.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probe queries (must not be negative)")
 	cmd.Flags().BoolVarP(&cfg.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
 	cmd.Flags().BoolVarP(&cfg.skipPrivateHops, "skip-private-hops", "", common.DefaultSkipPrivateHops, "Skip private hops")
 

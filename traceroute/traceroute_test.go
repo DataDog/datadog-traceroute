@@ -808,21 +808,9 @@ func TestRunTraceroute_QueryCountsAreValidatedBeforeAllocation(t *testing.T) {
 			},
 		},
 		{
-			name: "excessive traceroute queries",
-			params: TracerouteParams{
-				TracerouteQueries: common.MaxTracerouteQueries + 1,
-			},
-		},
-		{
 			name: "negative E2E queries",
 			params: TracerouteParams{
 				E2eQueries: -1,
-			},
-		},
-		{
-			name: "excessive E2E queries",
-			params: TracerouteParams{
-				E2eQueries: common.MaxE2eQueries + 1,
 			},
 		},
 	}
@@ -842,23 +830,25 @@ func TestRunTraceroute_QueryCountsAreValidatedBeforeAllocation(t *testing.T) {
 		})
 	}
 
-	t.Run("maximum values are accepted", func(t *testing.T) {
+	t.Run("values above the former limits are accepted", func(t *testing.T) {
 		runTracerouteOnceFn = func(context.Context, TracerouteParams, int) (*result.TracerouteRun, error) {
 			return &result.TracerouteRun{}, nil
 		}
+		const tracerouteQueries = 11
+		const e2eQueries = 101
 
 		results, err := NewTraceroute().RunTraceroute(context.Background(), TracerouteParams{
 			Hostname:          "example.com",
 			MaxTTL:            common.DefaultMaxTTL,
 			Timeout:           time.Nanosecond,
-			TracerouteQueries: common.MaxTracerouteQueries,
-			E2eQueries:        common.MaxE2eQueries,
+			TracerouteQueries: tracerouteQueries,
+			E2eQueries:        e2eQueries,
 		})
 
 		require.NoError(t, err)
 		require.NotNil(t, results)
-		assert.Len(t, results.Traceroute.Runs, common.MaxTracerouteQueries)
-		assert.Len(t, results.E2eProbe.RTTs, common.MaxE2eQueries)
+		assert.Len(t, results.Traceroute.Runs, tracerouteQueries)
+		assert.Len(t, results.E2eProbe.RTTs, e2eQueries)
 	})
 }
 

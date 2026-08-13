@@ -191,26 +191,26 @@ func TestParseTracerouteParams(t *testing.T) {
 	})
 
 	for _, tc := range []struct {
-		key string
-		max int
+		key   string
+		value int
 	}{
-		{key: "traceroute-queries", max: common.MaxTracerouteQueries},
-		{key: "e2e-queries", max: common.MaxE2eQueries},
+		{key: "traceroute-queries", value: 11},
+		{key: "e2e-queries", value: 101},
 	} {
-		t.Run(tc.key+" accepts its maximum", func(t *testing.T) {
-			u, err := url.Parse(fmt.Sprintf("/traceroute?target=example.com&%s=%d", tc.key, tc.max))
+		t.Run(tc.key+" accepts values above the former limit", func(t *testing.T) {
+			u, err := url.Parse(fmt.Sprintf("/traceroute?target=example.com&%s=%d", tc.key, tc.value))
 			require.NoError(t, err)
 
 			params, err := parseTracerouteParams(u)
 			require.NoError(t, err)
 			if tc.key == "traceroute-queries" {
-				assert.Equal(t, tc.max, params.TracerouteQueries)
+				assert.Equal(t, tc.value, params.TracerouteQueries)
 			} else {
-				assert.Equal(t, tc.max, params.E2eQueries)
+				assert.Equal(t, tc.value, params.E2eQueries)
 			}
 		})
 
-		for _, value := range []string{"-1", fmt.Sprintf("%d", tc.max+1), "not-a-number", ""} {
+		for _, value := range []string{"-1", "not-a-number", ""} {
 			t.Run(tc.key+" rejects "+value, func(t *testing.T) {
 				u, err := url.Parse("/traceroute?target=example.com&" + tc.key + "=" + value)
 				require.NoError(t, err)

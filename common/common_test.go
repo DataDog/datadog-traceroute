@@ -99,10 +99,9 @@ func TestResolveProbeTimeoutMatchesAgentMigrationBudgets(t *testing.T) {
 }
 
 func TestValidateQueryCount(t *testing.T) {
-	require.NoError(t, ValidateQueryCount("queries", 0, 10))
-	require.NoError(t, ValidateQueryCount("queries", 10, 10))
-	require.Error(t, ValidateQueryCount("queries", -1, 10))
-	require.Error(t, ValidateQueryCount("queries", 11, 10))
+	require.NoError(t, ValidateQueryCount("queries", 0))
+	require.NoError(t, ValidateQueryCount("queries", 101))
+	require.Error(t, ValidateQueryCount("queries", -1))
 }
 
 func TestValidatePort(t *testing.T) {

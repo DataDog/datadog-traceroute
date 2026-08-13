@@ -48,8 +48,6 @@ const (
 	DefaultPort                  = 33434
 	DefaultTracerouteQueries     = 3
 	DefaultNumE2eProbes          = 50
-	MaxTracerouteQueries         = 10
-	MaxE2eQueries                = 100
 	DefaultMinTTL                = 1
 	DefaultMaxTTL                = 30
 	MaxAllowedTTL                = 255 // TTL is represented as uint8 by all traceroute drivers
@@ -116,11 +114,11 @@ func ValidateMaxTTL(name string, maxTTL int) error {
 	return nil
 }
 
-// ValidateQueryCount rejects query counts that could cause excessive allocation
-// and goroutine creation before a run deadline has a chance to take effect.
-func ValidateQueryCount(name string, count, max int) error {
-	if count < 0 || count > max {
-		return fmt.Errorf("%s must be between 0 and %d, got %d", name, max, count)
+// ValidateQueryCount rejects negative query counts before they are used to size
+// result slices. Zero is valid and disables that query type.
+func ValidateQueryCount(name string, count int) error {
+	if count < 0 {
+		return fmt.Errorf("%s must not be negative, got %d", name, count)
 	}
 	return nil
 }

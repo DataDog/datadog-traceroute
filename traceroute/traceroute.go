@@ -55,10 +55,10 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
-	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries, common.MaxTracerouteQueries); err != nil {
+	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
-	if err := common.ValidateQueryCount("E2E queries", params.E2eQueries, common.MaxE2eQueries); err != nil {
+	if err := common.ValidateQueryCount("E2E queries", params.E2eQueries); err != nil {
 		return nil, &InvalidTargetError{Err: err}
 	}
 
