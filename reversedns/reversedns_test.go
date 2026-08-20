@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-traceroute/cache"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,7 @@ func TestGetReverseDns(t *testing.T) {
 			}
 			defer func() { LookupAddrFn = net.DefaultResolver.LookupAddr }()
 
-			actualRdns, err := GetReverseDns(tt.ipAddress)
+			actualRdns, err := GetReverseDnsContext(context.Background(), tt.ipAddress)
 			if tt.expectedErr != "" {
 				require.EqualError(t, err, tt.expectedErr)
 			}
@@ -98,11 +99,55 @@ func TestGetReverseDnsForIP(t *testing.T) {
 			}
 			defer func() { LookupAddrFn = net.DefaultResolver.LookupAddr }()
 
-			actualRdns, err := GetReverseDnsForIP(tt.ipAddress)
+			actualRdns, err := GetReverseDnsForIPContext(context.Background(), tt.ipAddress)
 			if tt.expectedErr != "" {
 				require.EqualError(t, err, tt.expectedErr)
 			}
 			assert.Equal(t, tt.expectedRDnsNames, actualRdns)
 		})
 	}
+}
+
+func TestGetReverseDns_RespectsCallerContext(t *testing.T) {
+	cache.Cache.Flush()
+
+	LookupAddrFn = func(ctx context.Context, _ string) ([]string, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	defer func() { LookupAddrFn = net.DefaultResolver.LookupAddr }()
+
+	// The caller's context has a much shorter deadline than reverseDnsDefaultTimeout,
+	// so it should be what actually bounds the lookup.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := GetReverseDnsContext(ctx, "1.2.3.4")
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, elapsed, reverseDnsDefaultTimeout, "should be bounded by the caller's shorter deadline, not the internal default")
+}
+
+func TestGetReverseDnsForIPs_PropagatesContext(t *testing.T) {
+	cache.Cache.Flush()
+
+	LookupAddrFn = func(ctx context.Context, _ string) ([]string, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	defer func() { LookupAddrFn = net.DefaultResolver.LookupAddr }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	result, err := GetReverseDnsForIPsContext(ctx, []net.IP{net.ParseIP("1.2.3.4"), net.ParseIP("1.2.3.5")})
+	elapsed := time.Since(start)
+
+	require.NoError(t, err) // per-IP failures are swallowed, not returned
+	assert.Empty(t, result)
+	assert.Less(t, elapsed, reverseDnsDefaultTimeout, "should be bounded by the caller's shorter deadline, not the internal default")
 }

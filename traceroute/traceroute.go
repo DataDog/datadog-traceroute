@@ -3,6 +3,7 @@ package traceroute
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,21 +18,51 @@ type Traceroute struct {
 }
 
 func NewTraceroute() *Traceroute {
-	fetcher := publicip.NewPublicIPFetcher()
 	return &Traceroute{
-		publicIPFetcher: fetcher,
+		publicIPFetcher: publicip.NewPublicIPFetcher(),
 	}
 }
 
-func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (*result.Results, error) {
+func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) (results *result.Results, err error) {
 	log.Infof("Running traceroute with params: %+v", params)
 
+	runCtx := ctx
 	destinationPort := params.Port
 	if destinationPort == 0 {
 		destinationPort = common.DefaultPort
 	}
+	defer func() {
+		logTerminalOutcome(params, destinationPort, results, err)
+	}()
 
-	results, err := t.runTracerouteMulti(ctx, params, destinationPort)
+	// Validate at the library boundary: callers that build TracerouteParams directly
+	// (e.g. datadog-agent) bypass the CLI/HTTP validation, so a negative value here
+	// must be rejected rather than silently disabling the deadline like zero does.
+	if params.TotalTimeout < 0 {
+		return nil, &InvalidTargetError{Err: fmt.Errorf("total timeout must not be negative, got %s", params.TotalTimeout)}
+	}
+	if params.TotalTimeout > 0 {
+		var cancel context.CancelFunc
+		runCtx, cancel = context.WithTimeout(ctx, params.TotalTimeout)
+		defer cancel()
+	}
+	if params.Timeout < 0 {
+		return nil, &InvalidTargetError{Err: fmt.Errorf("probe timeout must not be negative, got %s", params.Timeout)}
+	}
+	if params.Delay < 0 {
+		return nil, &InvalidTargetError{Err: fmt.Errorf("delay must not be negative, got %d", params.Delay)}
+	}
+	if err := common.ValidateMaxTTL("max TTL", params.MaxTTL); err != nil {
+		return nil, &InvalidTargetError{Err: err}
+	}
+	if err := common.ValidateQueryCount("traceroute queries", params.TracerouteQueries); err != nil {
+		return nil, &InvalidTargetError{Err: err}
+	}
+	if err := common.ValidateQueryCount("E2E queries", params.E2eQueries); err != nil {
+		return nil, &InvalidTargetError{Err: err}
+	}
+
+	results, err = t.runTracerouteMulti(runCtx, params, destinationPort)
 	if err != nil {
 		return nil, err
 	}
@@ -42,70 +73,99 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		Port:     destinationPort,
 	}
 	if params.ReverseDns {
-		results.EnrichWithReverseDns()
+		results.EnrichWithReverseDnsContext(runCtx)
 	}
+
+	// A deadline may expire during enrichment after probing has completed. Timeout
+	// results are always discarded so callers cannot mistake partial data for success.
+	if err := runCtx.Err(); err != nil {
+		return nil, err
+	}
+
 	results.Normalize()
 	if params.SkipPrivateHops {
 		results.RemovePrivateHops()
 	}
 
+	// Normalization and filtering are part of RunTraceroute too. Re-check the context
+	// after that synchronous work so a deadline or cancellation observed there follows
+	// the same output contract as one observed during probing or enrichment.
+	if err := runCtx.Err(); err != nil {
+		return nil, err
+	}
+
 	return results, nil
+}
+
+func logTerminalOutcome(params TracerouteParams, destinationPort int, results *result.Results, runErr error) {
+	completedRuns := 0
+	testRunID := ""
+	if results != nil {
+		completedRuns = len(results.Traceroute.Runs)
+		testRunID = results.TestRunID
+	}
+
+	deadlineExceeded := errors.Is(runErr, context.DeadlineExceeded)
+	timeoutOutcome := deadlineExceeded
+	if runErr != nil && !errors.Is(runErr, context.Canceled) {
+		timeoutOutcome = ClassifyError(runErr).Code == ErrCodeTimeout
+	}
+	outcome := "error"
+	if timeoutOutcome {
+		outcome = "timeout"
+	} else if runErr == nil {
+		outcome = "success"
+	}
+
+	message := fmt.Sprintf(
+		"traceroute_run_completed hostname=%q protocol=%q outcome=%s completed_runs=%d requested_runs=%d deadline_exceeded=%t destination_port=%d",
+		params.Hostname,
+		params.Protocol,
+		outcome,
+		completedRuns,
+		params.TracerouteQueries,
+		deadlineExceeded,
+		destinationPort,
+	)
+	if testRunID != "" {
+		message += fmt.Sprintf(" test_run_id=%q", testRunID)
+	}
+
+	switch outcome {
+	case "success":
+		log.Debugf("%s", message)
+	case "timeout":
+		_ = log.Warnf("%s", message)
+	default:
+		_ = log.Errorf("%s", message)
+	}
 }
 
 func (t Traceroute) runTracerouteMulti(ctx context.Context, params TracerouteParams, destinationPort int) (*result.Results, error) {
 	var wg sync.WaitGroup
 	var results result.Results
-	var tracerouteErrors []error
-	resultsAndErrorsMu := &sync.Mutex{}
+
+	tracerouteQueryCount := params.TracerouteQueries
+	tracerouteRuns := make([]*result.TracerouteRun, tracerouteQueryCount)
+	tracerouteRunErrors := make([]error, tracerouteQueryCount)
 
 	// regular traceroutes
-	for i := 0; i < params.TracerouteQueries; i++ {
+	for i := 0; i < tracerouteQueryCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(runIndex int) {
 			defer wg.Done()
 			trRun, err := runTracerouteOnceFn(ctx, params, destinationPort)
-			resultsAndErrorsMu.Lock()
-			if err != nil {
-				tracerouteErrors = append(tracerouteErrors, err)
-			} else {
-				results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
+			if err == nil && trRun == nil {
+				err = fmt.Errorf("traceroute run %d returned nil without an error", runIndex)
 			}
-			resultsAndErrorsMu.Unlock()
-		}()
+			tracerouteRuns[runIndex] = trRun
+			tracerouteRunErrors[runIndex] = err
+		}(i)
 	}
 
-	if params.E2eQueries > 0 {
-		// e2eQueriesDelay is currently calculated based on "MaxTTL * Timeout / e2e queries"
-		// but should be replaced by "Timeout / e2e queries" once we change the meaning of Timeout param to be global vs per call.
-		// Related Jira ticket: CNM-4763 datadog-traceroute library should provide global timeout option instead of per call
-		e2eQueriesDelay := (time.Duration(params.MaxTTL) * params.Timeout) / time.Duration(params.E2eQueries)
-		if e2eQueriesDelay > 1*time.Second {
-			e2eQueriesDelay = 1 * time.Second
-		}
-		log.Tracef("e2e query delay: %d msec", e2eQueriesDelay.Milliseconds())
-
-		// e2e probes
-		for i := 0; i < params.E2eQueries; i++ {
-			log.Tracef("send e2e probe #%d", i+1)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
-				resultsAndErrorsMu.Lock()
-				if err != nil {
-					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
-					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, 0.0)
-				} else {
-					results.E2eProbe.RTTs = append(results.E2eProbe.RTTs, e2eRtt)
-				}
-				resultsAndErrorsMu.Unlock()
-			}()
-			if i < (params.E2eQueries - 1) { // don't add delay for last query
-				time.Sleep(e2eQueriesDelay)
-			}
-		}
-	}
-
+	// Launched up front (rather than after e2e pacing) so it runs concurrently with the
+	// e2e probe loop below instead of only starting once that loop's pacing has elapsed.
+	var sourcePublicIP string
 	if params.CollectSourcePublicIP {
 		log.Trace("collect public ip")
 		wg.Add(1)
@@ -116,23 +176,121 @@ func (t Traceroute) runTracerouteMulti(ctx context.Context, params TraceroutePar
 				log.Debugf("Error getting IP: %s", err)
 				return
 			}
-
-			resultsAndErrorsMu.Lock()
-			defer resultsAndErrorsMu.Unlock()
-			results.Source.PublicIP = ip.String()
+			sourcePublicIP = ip.String()
 		}()
+	}
+
+	e2eQueryCount := params.E2eQueries
+	e2eRTTs := make([]float64, e2eQueryCount)
+	launchedE2eQueries := 0
+	if e2eQueryCount > 0 {
+		delay := e2eQueriesDelay(params)
+		log.Tracef("e2e query delay: %d msec", delay.Milliseconds())
+
+		// e2e probes
+		for i := 0; i < e2eQueryCount; i++ {
+			// stop launching new probes once the caller/run context is done
+			if ctx.Err() != nil {
+				break
+			}
+
+			log.Tracef("send e2e probe #%d", i+1)
+			wg.Add(1)
+			launchedE2eQueries = i + 1
+			go func(probeIndex int) {
+				defer wg.Done()
+				e2eRtt, err := runE2eProbeOnce(ctx, params, destinationPort)
+				if err != nil {
+					log.Debugf("E2E probe error (recorded as 0 RTT): %s", err)
+					return
+				}
+				e2eRTTs[probeIndex] = e2eRtt
+			}(i)
+			if i < (e2eQueryCount - 1) { // don't add delay for last query
+				timer := time.NewTimer(delay)
+				select {
+				case <-timer.C:
+				case <-ctx.Done():
+					timer.Stop()
+				}
+			}
+		}
 	}
 
 	wg.Wait()
 
-	// Only fail if all traceroute runs failed
+	var tracerouteErrors []error
+	for i, trRun := range tracerouteRuns {
+		if err := tracerouteRunErrors[i]; err != nil {
+			tracerouteErrors = append(tracerouteErrors, err)
+			continue
+		}
+		if trRun != nil {
+			results.Traceroute.Runs = append(results.Traceroute.Runs, *trRun)
+		}
+	}
+	if launchedE2eQueries > 0 {
+		results.E2eProbe.RTTs = e2eRTTs[:launchedE2eQueries]
+	}
+	results.Source.PublicIP = sourcePublicIP
+
+	var allTracerouteRunsFailedErr error
 	if params.TracerouteQueries > 0 && len(results.Traceroute.Runs) == 0 && len(tracerouteErrors) > 0 {
-		return nil, errors.Join(deduplicateErrors(tracerouteErrors)...)
+		allTracerouteRunsFailedErr = errors.Join(deduplicateErrors(tracerouteErrors)...)
+	}
+
+	switch {
+	case errors.Is(ctx.Err(), context.Canceled):
+		return nil, context.Canceled
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		// Preserve a more specific error that completed before a racing deadline.
+		// Deadline-derived probe errors still classify as timeouts.
+		if allTracerouteRunsFailedErr != nil {
+			return nil, allTracerouteRunsFailedErr
+		}
+		return nil, context.DeadlineExceeded
+	}
+
+	// Only fail if all traceroute runs failed
+	if allTracerouteRunsFailedErr != nil {
+		return nil, allTracerouteRunsFailedErr
 	}
 	if len(tracerouteErrors) > 0 {
 		log.Warnf("Some traceroute runs failed (%d/%d): %v", len(tracerouteErrors), params.TracerouteQueries, errors.Join(tracerouteErrors...))
 	}
 	return &results, nil
+}
+
+// e2eQueriesDelay computes the delay to wait between successive e2e probe queries,
+// capped at 1 second so a large query count or timeout doesn't stall the run for too
+// long between probes.
+//
+// When TotalTimeout is set, the delay spreads launches across 90% of the run budget
+// after reserving enough time for the final probe's per-probe timeout. The remaining
+// 10% is reserved for test-level work outside the E2E probe response windows. A
+// simultaneously configured Timeout independently caps each individual probe.
+// Otherwise it falls back to the legacy estimate based on the per-call Timeout and
+// MaxTTL, kept for callers that only set the per-call Timeout.
+func e2eQueriesDelay(params TracerouteParams) time.Duration {
+	var delay time.Duration
+	if params.TotalTimeout > 0 {
+		if params.E2eQueries <= 1 {
+			return 0
+		}
+		// Calculate TotalTimeout * 9 / 10 without overflowing for durations near
+		// time.Duration's upper bound.
+		testProbeBudget := params.TotalTimeout/10*9 + (params.TotalTimeout%10)*9/10
+		pacingBudget := testProbeBudget - effectiveProbeTimeout(params)
+		if pacingBudget > 0 {
+			delay = pacingBudget / time.Duration(params.E2eQueries-1)
+		}
+	} else {
+		delay = (time.Duration(params.MaxTTL) * effectiveProbeTimeout(params)) / time.Duration(params.E2eQueries)
+	}
+	if delay > 1*time.Second {
+		delay = 1 * time.Second
+	}
+	return delay
 }
 
 // deduplicateErrors returns a subset of errs with unique .Error() messages,
