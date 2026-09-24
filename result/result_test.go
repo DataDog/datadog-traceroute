@@ -280,7 +280,7 @@ func TestResults_EnrichWithReverseDns(t *testing.T) {
 			}
 			defer func() { reversedns.LookupAddrFn = net.DefaultResolver.LookupAddr }()
 
-			tt.Results.EnrichWithReverseDns()
+			tt.Results.EnrichWithReverseDnsContext(context.Background())
 			assert.Equal(t, tt.ExpectedResults, tt.Results)
 		})
 	}

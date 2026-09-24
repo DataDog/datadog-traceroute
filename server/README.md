@@ -23,6 +23,10 @@ curl 'http://localhost:8080/traceroute?target=example.com&protocol=tcp&port=443&
 
 # UDP traceroute with custom settings
 curl 'http://localhost:8080/traceroute?target=8.8.8.8&protocol=udp&max-ttl=20&traceroute-queries=5'
+
+# Bound the complete call to 10 seconds; with the default max TTL of 30,
+# the omitted per-probe timeout is derived as 0.9 * (10s / 30) = 300ms
+curl 'http://localhost:8080/traceroute?target=8.8.8.8&total_timeout_ms=10000'
 ```
 
 #### Response
@@ -47,3 +51,5 @@ Returns JSON with the traceroute results. Example:
   }
 }
 ```
+
+An expired total timeout returns HTTP `504` with a `TIMEOUT` error and no traceroute results.

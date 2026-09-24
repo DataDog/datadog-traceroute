@@ -92,9 +92,19 @@ func ClassifyError(err error) *TracerouteError {
 		return nil
 	}
 
-	// Check for our own typed errors first
+	// Check for our own typed errors first. A DNSError caused by the resolver call
+	// itself being canceled or hitting its deadline (e.g. the overall TotalTimeout
+	// context expiring mid-lookup) is a timeout, not a genuine resolution failure,
+	// so unwrap and check that case before defaulting to DNS.
 	var dnsErr *DNSError
 	if errors.As(err, &dnsErr) {
+		if errors.Is(dnsErr.Err, context.DeadlineExceeded) || errors.Is(dnsErr.Err, context.Canceled) {
+			return &TracerouteError{Code: ErrCodeTimeout, Message: err.Error(), Err: err}
+		}
+		var wrappedNetDNSErr *net.DNSError
+		if errors.As(dnsErr.Err, &wrappedNetDNSErr) && wrappedNetDNSErr.IsTimeout {
+			return &TracerouteError{Code: ErrCodeTimeout, Message: err.Error(), Err: err}
+		}
 		return &TracerouteError{Code: ErrCodeDNS, Message: err.Error(), Err: err}
 	}
 

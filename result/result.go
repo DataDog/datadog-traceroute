@@ -1,6 +1,7 @@
 package result
 
 import (
+	"context"
 	"math"
 	"net"
 
@@ -96,8 +97,17 @@ type (
 	}
 )
 
-// EnrichWithReverseDns enrich results with reverse dns
+// EnrichWithReverseDns enrich results with reverse dns, with no deadline of its own.
+// Prefer EnrichWithReverseDnsContext when the caller wants the lookups covered by an
+// overall run deadline.
 func (r *Results) EnrichWithReverseDns() {
+	r.EnrichWithReverseDnsContext(context.Background())
+}
+
+// EnrichWithReverseDnsContext is the context-aware variant of EnrichWithReverseDns.
+// The lookups are bounded by ctx, so callers that want reverse DNS enrichment covered
+// by an overall run deadline should pass that deadline's context through.
+func (r *Results) EnrichWithReverseDnsContext(ctx context.Context) {
 	var ips []net.IP
 	for _, run := range r.Traceroute.Runs {
 		ips = append(ips, run.Destination.IPAddress)
@@ -106,7 +116,7 @@ func (r *Results) EnrichWithReverseDns() {
 		}
 	}
 
-	ipToDnsMap, err := reversedns.GetReverseDnsForIPs(ips)
+	ipToDnsMap, err := reversedns.GetReverseDnsForIPsContext(ctx, ips)
 	if err != nil {
 		return
 	}

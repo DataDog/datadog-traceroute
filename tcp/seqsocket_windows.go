@@ -7,6 +7,7 @@
 package tcp
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -18,9 +19,16 @@ import (
 )
 
 // TracerouteSequentialSocket runs a traceroute sequentially where a packet is
-// sent and we wait for a response before sending the next packet
-// This method uses socket options to set the TTL and get the hop IP
+// sent and we wait for a response before sending the next packet. This method
+// uses socket options to set the TTL and get the hop IP. It has no deadline of
+// its own; prefer TracerouteSequentialSocketContext when the caller wants the
+// run bounded by a context deadline.
 func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
+	return t.TracerouteSequentialSocketContext(context.Background())
+}
+
+// TracerouteSequentialSocketContext is the context-aware variant of TracerouteSequentialSocket.
+func (t *TCPv4) TracerouteSequentialSocketContext(ctx context.Context) (*result.TracerouteRun, error) {
 	log.Debugf("Running traceroute to %+v", t)
 	// Get local address for the interface that connects to this
 	// host and store in the probe
@@ -35,11 +43,15 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
 	hops := make([]*result.TracerouteHop, 0, int(t.MaxTTL-t.MinTTL)+1)
 
 	for i := int(t.MinTTL); i <= int(t.MaxTTL); i++ {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		s, err := winconn.NewConn()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create raw socket: %w", err)
 		}
-		hop, err := t.sendAndReceiveSocket(s, i, t.Timeout)
+		hop, err := t.sendAndReceiveSocket(ctx, s, i, t.Timeout)
 		s.Close()
 		if err != nil {
 			return nil, fmt.Errorf("failed to run traceroute: %w", err)
@@ -66,7 +78,7 @@ func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
 	}, nil
 }
 
-func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
+func (t *TCPv4) sendAndReceiveSocket(ctx context.Context, s winconn.ConnWrapper, ttl int, timeout time.Duration) (*result.TracerouteHop, error) {
 	// set the TTL
 	err := s.SetTTL(ttl)
 	if err != nil {
@@ -74,7 +86,7 @@ func (t *TCPv4) sendAndReceiveSocket(s winconn.ConnWrapper, ttl int, timeout tim
 	}
 
 	start := time.Now() // TODO: is this the best place to start?
-	hopIP, end, icmpType, icmpCode, err := s.GetHop(timeout, t.Target, t.DestPort)
+	hopIP, end, icmpType, icmpCode, err := s.GetHop(ctx, timeout, t.Target, t.DestPort)
 	if err != nil {
 		log.Errorf("failed to get hop: %s", err.Error())
 		return nil, fmt.Errorf("failed to get hop: %w", err)

@@ -28,9 +28,12 @@ const (
 	publicPort   = 443
 
 	fakeNetworkTarget = "198.51.100.2"
+	// fakeNetworkTimeoutTarget is routed through the fake router but has no endpoint,
+	// so traceroute probes cannot complete before an intentionally short total timeout.
+	fakeNetworkTimeoutTarget = "198.51.100.99"
 
 	numTraceroutes = 3
-	numE2eProbes = 10
+	numE2eProbes   = 10
 )
 
 var (
@@ -374,9 +377,11 @@ func validateResults(t *testing.T, buf []byte, config testConfig) {
 			// If we expect intermediate hops, we need at least 2 reachable hops (1 intermediate + destination)
 			// Otherwise, we just need at least 1 reachable hop (the destination)
 
-			// Count reachable hops and hops with reverse DNS
+			// Count reachable hops. Reverse DNS is intentionally not asserted here:
+			// public PTR records and the runner's resolver availability are external,
+			// and enrichment is best-effort by contract. Deterministic unit tests cover
+			// successful enrichment and context cancellation.
 			reachableCount := 0
-			hopsWithReverseDnsCount := 0
 			for j, hop := range run.Hops {
 				assert.NotZero(t, hop.TTL, "run %d, hop %d should have a TTL", i, j)
 
@@ -389,10 +394,6 @@ func validateResults(t *testing.T, buf []byte, config testConfig) {
 					}
 				}
 
-				// Count hops with valid reverse DNS strings
-				if len(hop.ReverseDns) > 0 {
-					hopsWithReverseDnsCount++
-				}
 			}
 
 			minReachableHops := 1
@@ -401,12 +402,6 @@ func validateResults(t *testing.T, buf []byte, config testConfig) {
 			}
 			assert.GreaterOrEqual(t, reachableCount, minReachableHops, "run %d should have at least %d reachable hop(s)", i, minReachableHops)
 
-			// For public targets, at least one hop should have reverse DNS data in successful runs
-			if isPublicTarget {
-				assert.GreaterOrEqual(t, hopsWithReverseDnsCount, 1,
-					"run %d (public target with reachable destination) should have at least one hop with reverse DNS, got %d",
-					i, hopsWithReverseDnsCount)
-			}
 		}
 	}
 

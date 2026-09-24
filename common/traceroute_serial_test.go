@@ -204,6 +204,56 @@ func TestTracerouteSerialSendErr(t *testing.T) {
 	require.ErrorIs(t, err, errMock)
 }
 
+func TestTracerouteSerialSendDelayRespectsContextDeadline(t *testing.T) {
+	// this test checks that a SendDelay longer than the remaining context budget
+	// does not make TracerouteSerial block past that budget
+	params := serialParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.SendDelay = 1 * time.Second
+	m := initMockDriver(t, params.TracerouteParams, serialInfo)
+	t.Parallel()
+
+	m.sendHandler = func(_ uint8) error {
+		return nil
+	}
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteSerial(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, elapsed, params.SendDelay)
+}
+
+func TestTracerouteSerialZeroTimeoutUsesParentContext(t *testing.T) {
+	params := serialParams
+	params.MinTTL = 1
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 0
+	m := initMockDriver(t, params.TracerouteParams, serialInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteSerial(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.GreaterOrEqual(t, elapsed, 30*time.Millisecond,
+		"zero Timeout must not create an immediate per-probe deadline")
+}
+
 func TestTracerouteSerialReceiveErr(t *testing.T) {
 	// this test checks that TracerouteSerial returns an error if ReceiveProbe() fails
 	m := initMockDriver(t, serialParams.TracerouteParams, serialInfo)

@@ -9,12 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -184,6 +186,55 @@ func TestParallelTracerouteTimeout(t *testing.T) {
 	for _, res := range results {
 		require.Nil(t, res)
 	}
+}
+
+func TestParallelTraceroutePreservesResponseAfterExplicitTimeoutWithinRunWindow(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.TracerouteTimeout = 20 * time.Millisecond
+	params.SendDelay = 30 * time.Millisecond
+
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	var receiveCalls atomic.Int32
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		if receiveCalls.Add(1) == 1 {
+			probe := mockResult(1)
+			probe.RTT = params.TracerouteTimeout + time.Millisecond
+			return probe, nil
+		}
+		return pollData(nil, params.PollFrequency)
+	}
+
+	results, err := TracerouteParallel(context.Background(), m, params)
+
+	require.NoError(t, err)
+	require.Len(t, results, int(params.MaxTTL))
+	require.NotNil(t, results[0],
+		"an explicit Timeout must preserve the established parallel response behavior")
+}
+
+func TestParallelTracerouteIgnoresResponseForUnsentTTL(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.TracerouteTimeout = 20 * time.Millisecond
+	params.SendDelay = 30 * time.Millisecond
+
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	var receiveCalls atomic.Int32
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		if receiveCalls.Add(1) == 1 {
+			return mockResult(2), nil
+		}
+		return pollData(nil, params.PollFrequency)
+	}
+
+	results, err := TracerouteParallel(context.Background(), m, params)
+
+	require.NoError(t, err)
+	require.Len(t, results, int(params.MaxTTL))
+	require.Nil(t, results[1], "a response for TTL 2 received before TTL 2 was sent must be ignored")
 }
 
 func TestParallelTracerouteMinTTL(t *testing.T) {
@@ -467,6 +518,123 @@ func TestParallelSupport(t *testing.T) {
 
 	_, err := TracerouteParallel(context.Background(), m, parallelParams)
 	require.ErrorContains(t, err, "doesn't support parallel")
+}
+
+func TestParallelTracerouteSendDelayRespectsContextDeadline(t *testing.T) {
+	// this test checks that a SendDelay longer than the remaining context budget
+	// does not make TracerouteParallel block past that budget
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 2
+	params.SendDelay = 1 * time.Second
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	t.Parallel()
+
+	m.sendHandler = func(_ uint8) error {
+		return nil
+	}
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, elapsed, params.SendDelay)
+}
+
+func TestParallelTracerouteZeroTimeoutUsesParentContext(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 0
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.GreaterOrEqual(t, elapsed, 30*time.Millisecond,
+		"zero Timeout must not create an immediate shared deadline")
+}
+
+func TestParallelTracerouteDeadlineObservedWithinOnePollInterval(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = 1
+	params.TracerouteTimeout = 0
+	params.PollFrequency = DefaultProbePollFrequency
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return pollData(nil, params.PollFrequency)
+	}
+
+	const totalTimeout = 20 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), totalTimeout)
+	defer cancel()
+
+	start := time.Now()
+	_, err := TracerouteParallel(ctx, m, params)
+	elapsed := time.Since(start)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.GreaterOrEqual(t, elapsed, params.PollFrequency,
+		"an in-progress blocking poll is allowed to finish after TotalTimeout")
+	assert.Less(t, elapsed, totalTimeout+params.PollFrequency+50*time.Millisecond,
+		"deadline observation must remain bounded by one poll interval")
+}
+
+func TestParallelTracerouteMaxTimeoutSaturates(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 1
+	params.MaxTTL = DefaultMaxTTL
+	params.TracerouteTimeout = time.Duration(math.MaxInt64/time.Millisecond) * time.Millisecond
+	params.SendDelay = 50 * time.Millisecond
+
+	maxTimeout := params.MaxTimeout()
+	assert.Equal(t, time.Duration(math.MaxInt64), maxTimeout)
+	assert.Positive(t, maxTimeout, "composed timeout must not wrap and disable its deadline")
+
+	ctx, cancel := contextWithOptionalTimeout(context.Background(), maxTimeout)
+	defer cancel()
+	_, hasDeadline := ctx.Deadline()
+	assert.True(t, hasDeadline, "the saturated timeout must still create a finite deadline")
+}
+
+func TestParallelTracerouteSingleProbeReturnsOnDestination(t *testing.T) {
+	params := parallelParams
+	params.MinTTL = 30
+	params.MaxTTL = 30
+	params.TracerouteTimeout = time.Second
+	params.PollFrequency = 5 * time.Millisecond
+	params.SendDelay = 50 * time.Millisecond
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		return &ProbeResponse{TTL: 30, IsDest: true}, nil
+	}
+
+	start := time.Now()
+	results, err := TracerouteParallel(context.Background(), m, params)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0])
+	assert.True(t, results[0].IsDest)
+	assert.Less(t, elapsed, params.TracerouteTimeout,
+		"a completed one-packet E2E query must not wait for its timeout")
 }
 
 func TestParallelSendFirst(t *testing.T) {

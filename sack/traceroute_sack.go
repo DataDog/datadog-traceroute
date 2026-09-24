@@ -73,11 +73,6 @@ func setSockopts(_network, _address string, _c syscall.RawConn) error {
 }
 
 func dialSackTCP(ctx context.Context, p Params) (net.Conn, error) {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		return nil, fmt.Errorf("dialTcp: expected a deadline")
-	}
-
 	d := net.Dialer{
 		Timeout: p.HandshakeTimeout,
 		Control: setSockopts,
@@ -88,10 +83,12 @@ func dialSackTCP(ctx context.Context, p Params) (net.Conn, error) {
 		return nil, fmt.Errorf("failed to dial %s: %w", target, err)
 	}
 
-	err = conn.SetDeadline(deadline)
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to set deadline: %w", err)
+	if deadline, ok := ctx.Deadline(); ok {
+		err = conn.SetDeadline(deadline)
+		if err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("failed to set deadline: %w", err)
+		}
 	}
 	return conn, err
 }
@@ -100,6 +97,8 @@ type sackResult struct {
 	LocalAddr netip.AddrPort
 	Hops      []*common.ProbeResponse
 }
+
+var newSourceSink = packets.NewSourceSink
 
 func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 	err := p.validate()
@@ -112,12 +111,24 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 		return nil, fmt.Errorf("failed to get local addr: %w", err)
 	}
 	udpConn.Close()
-	deadline := time.Now().Add(p.MaxTimeout())
-	ctx, cancel := context.WithDeadline(ctx, deadline)
+	var cancel context.CancelFunc
+	_, parentHasDeadline := ctx.Deadline()
+	switch {
+	case p.HandshakeTimeout > 0 || p.ParallelParams.TracerouteTimeout > 0:
+		deadline := time.Now().Add(p.MaxTimeout())
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+	case !parentHasDeadline:
+		// Neither local timeout is set and the parent context has no deadline of its
+		// own either: dialSackTCP's net.Dialer has Timeout=0 in that case, which means
+		// unbounded. Apply a last-resort safety net so a blackholed SYN can't hang forever.
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(common.DefaultNetworkPathTimeout)*time.Millisecond)
+	default:
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 
 	// create the raw packet connection which watches for TCP/ICMP responses
-	handle, err := packets.NewSourceSink(p.Target.Addr(), p.UseWindowsDriver)
+	handle, err := newSourceSink(p.Target.Addr(), p.UseWindowsDriver)
 	if err != nil {
 		return nil, fmt.Errorf("SACK traceroute failed to make NewSourceSink: %w", err)
 	}
@@ -175,7 +186,7 @@ func runSackTraceroute(ctx context.Context, p Params) (*sackResult, error) {
 
 	log.Debugf("sack traceroute reading handshake %s", p.Target)
 
-	err = driver.ReadHandshake(tcpAddr.AddrPort().Port())
+	err = driver.ReadHandshake(ctx, tcpAddr.AddrPort().Port())
 	if err != nil {
 		return nil, fmt.Errorf("sack traceroute failed to read handshake: %w", err)
 	}
