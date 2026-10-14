@@ -138,8 +138,10 @@ Each test performs validation of the results returned by the CLI or HTTP server.
   - Max RTT is positive
   - Statistical consistency (max >= min)
 
-### 8. Reverse DNS (for public targets)
-- For the public target, at least one hop in successful runs has reverse DNS data populated
+### 8. Reverse DNS
+- Public-target E2E tests request reverse-DNS enrichment but treat it as best-effort,
+  because PTR records and runner DNS availability are external dependencies.
+- Deterministic unit tests validate successful enrichment and context cancellation.
 
 ## Test Matrix
 
@@ -231,4 +233,3 @@ providing maximum coverage of cross-platform functionality across all supported 
 - **`utils_test.go`**: Shared utilities and test configurations
 - **`doc.go`**: Package-level documentation
 - **`README.md`**: This file
-

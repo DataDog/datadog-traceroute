@@ -6,18 +6,24 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 )
 
 // Server is the HTTP server for the traceroute API
 type Server struct {
-	tr        *traceroute.Traceroute
+	tr        tracerouteRunner
 	startTime time.Time
+}
+
+type tracerouteRunner interface {
+	RunTraceroute(context.Context, traceroute.TracerouteParams) (*result.Results, error)
 }
 
 // HealthResponse represents the health check response
@@ -59,6 +65,8 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 		status := http.StatusInternalServerError
 		if classified.Code == traceroute.ErrCodeInvalidRequest {
 			status = http.StatusBadRequest
+		} else if classified.Code == traceroute.ErrCodeTimeout {
+			status = http.StatusGatewayTimeout
 		}
 		writeErrorResponse(w, traceroute.ErrorResponse{
 			Code:    classified.Code,
@@ -117,8 +125,18 @@ func writeErrorResponse(w http.ResponseWriter, resp traceroute.ErrorResponse, st
 
 // Start starts the HTTP server on the specified address
 func (s *Server) Start(addr string) error {
-	http.HandleFunc("/traceroute", s.TracerouteHandler)
-	http.HandleFunc("/health", s.HealthHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/traceroute", s.TracerouteHandler)
+	mux.HandleFunc("/health", s.HealthHandler)
 	log.Debugf("Starting HTTP server on %s", addr)
-	return http.ListenAndServe(addr, nil)
+	// ReadHeaderTimeout/IdleTimeout guard against slow-header and idle-connection
+	// resource exhaustion without bounding the handler itself: a /traceroute request
+	// can legitimately run as long as its own total_timeout_ms allows.
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return httpServer.ListenAndServe()
 }

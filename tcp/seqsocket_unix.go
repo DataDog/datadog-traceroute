@@ -9,6 +9,7 @@
 package tcp
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/DataDog/datadog-traceroute/result"
@@ -16,6 +17,11 @@ import (
 
 // TracerouteSequentialSocket is not supported on unix
 func (t *TCPv4) TracerouteSequentialSocket() (*result.TracerouteRun, error) {
+	return t.TracerouteSequentialSocketContext(context.Background())
+}
+
+// TracerouteSequentialSocketContext is not supported on unix
+func (t *TCPv4) TracerouteSequentialSocketContext(_ context.Context) (*result.TracerouteRun, error) {
 	// not implemented or supported on unix
 	return nil, fmt.Errorf("not implemented or supported on unix")
 }

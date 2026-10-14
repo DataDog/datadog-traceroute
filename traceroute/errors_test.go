@@ -34,6 +34,33 @@ func TestClassifyError(t *testing.T) {
 			expectedCode: ErrCodeDNS,
 		},
 		{
+			name:         "DNSError wrapping a canceled resolver context is a timeout, not a DNS failure",
+			err:          &DNSError{Host: "slow.host", Err: context.DeadlineExceeded},
+			expectedCode: ErrCodeTimeout,
+		},
+		{
+			name:         "DNSError wrapping context.Canceled is a timeout",
+			err:          &DNSError{Host: "slow.host", Err: context.Canceled},
+			expectedCode: ErrCodeTimeout,
+		},
+		{
+			name: "DNSError wrapping a net.DNSError timeout is a timeout",
+			err: &DNSError{Host: "slow.host", Err: &net.DNSError{
+				Err:       "i/o timeout",
+				Name:      "slow.host",
+				IsTimeout: true,
+			}},
+			expectedCode: ErrCodeTimeout,
+		},
+		{
+			name: "DNSError wrapping a genuine non-timeout net.DNSError stays classified as DNS",
+			err: &DNSError{Host: "bad.host", Err: &net.DNSError{
+				Err:  "no such host",
+				Name: "bad.host",
+			}},
+			expectedCode: ErrCodeDNS,
+		},
+		{
 			name:         "InvalidTargetError",
 			err:          &InvalidTargetError{Err: fmt.Errorf("invalid port: abc")},
 			expectedCode: ErrCodeInvalidRequest,
@@ -172,14 +199,14 @@ func TestInvalidTargetError(t *testing.T) {
 
 func TestParseTargetErrorTypes(t *testing.T) {
 	t.Run("DNS failure returns DNSError", func(t *testing.T) {
-		_, err := parseTarget("nonexistent.invalid.host.example", 80, false)
+		_, err := parseTarget(context.Background(), "nonexistent.invalid.host.example", 80, false)
 		require.Error(t, err)
 		var dnsErr *DNSError
 		assert.True(t, errors.As(err, &dnsErr), "expected DNSError, got %T: %v", err, err)
 	})
 
 	t.Run("invalid port returns InvalidTargetError", func(t *testing.T) {
-		_, err := parseTarget("127.0.0.1:99999", 80, false)
+		_, err := parseTarget(context.Background(), "127.0.0.1:99999", 80, false)
 		require.Error(t, err)
 		var targetErr *InvalidTargetError
 		assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
@@ -191,5 +218,20 @@ func TestParseTargetErrorTypes(t *testing.T) {
 		require.Error(t, err)
 		var targetErr *InvalidTargetError
 		assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
+	})
+
+	t.Run("resolver deadline during DNS lookup classifies as TIMEOUT, not DNS", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // already expired before the lookup even starts
+
+		_, err := parseTarget(ctx, "example.com", 80, false)
+		require.Error(t, err)
+
+		var dnsErr *DNSError
+		require.True(t, errors.As(err, &dnsErr), "expected DNSError, got %T: %v", err, err)
+
+		classified := ClassifyError(err)
+		require.NotNil(t, classified)
+		assert.Equal(t, ErrCodeTimeout, classified.Code, "a resolver cancellation should be classified as a timeout, not a DNS failure")
 	})
 }

@@ -19,7 +19,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -211,4 +213,108 @@ func TestFakeNetworkCLI(t *testing.T) {
 			testCLI(t, config)
 		})
 	}
+}
+
+func TestFakeNetworkCLITotalTimeout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the controlled fake network is configured only in Linux CI")
+	}
+
+	tests := []struct {
+		name     string
+		protocol string
+		timeout  *int
+	}{
+		{
+			name:     "UDP_total_timeout_derives_probe_timeout",
+			protocol: "udp",
+		},
+		{
+			name:     "UDP_zero_probe_timeout_still_obeys_total_timeout",
+			protocol: "udp",
+			timeout:  intPtr(0),
+		},
+		{
+			name:     "ICMP_total_timeout_derives_probe_timeout",
+			protocol: "icmp",
+		},
+		{
+			name:     "TCP_probe_timeout_longer_than_total_timeout",
+			protocol: "tcp",
+			timeout:  intPtr(10_000),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []string{
+				"--proto", tt.protocol,
+				"--traceroute-queries", "1",
+				"--e2e-queries", "0",
+				"--total-timeout-ms", "100",
+			}
+			if tt.timeout != nil {
+				args = append(args, "--timeout", strconv.Itoa(*tt.timeout))
+			}
+			args = append(args, fakeNetworkTimeoutTarget)
+
+			binaryPath := getCLIBinaryPath(t)
+			cmd := exec.Command("sudo", append([]string{binaryPath}, args...)...)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			start := time.Now()
+			err := cmd.Run()
+			elapsed := time.Since(start)
+
+			require.Error(t, err, "a deadline with no completed traceroute run must fail")
+			assert.Empty(t, stdout.String(), "timeout errors must not emit partial JSON")
+			assert.Contains(t, stderr.String(), "context deadline exceeded")
+			assert.GreaterOrEqual(t, elapsed, 80*time.Millisecond)
+			assert.Less(t, elapsed, 2*time.Second, "the total timeout must cap the real driver path")
+		})
+	}
+}
+
+func TestFakeNetworkCLIAgentShapedTotalTimeout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the controlled fake network is configured only in Linux CI")
+	}
+
+	// Exercise the real CLI and UDP driver with the Agent-shaped defaults. The
+	// deterministic silent-final behavior is tested at the library boundary because
+	// selecting only the last concurrently scheduled packet in this network fixture
+	// would require order-dependent firewall rules and make this E2E test flaky.
+	const totalTimeout = 10 * time.Second
+	args := []string{
+		"--proto", "udp",
+		"--max-ttl", strconv.Itoa(common.DefaultMaxTTL),
+		"--traceroute-queries", strconv.Itoa(common.DefaultTracerouteQueries),
+		"--e2e-queries", strconv.Itoa(common.DefaultNumE2eProbes),
+		"--total-timeout-ms", strconv.FormatInt(totalTimeout.Milliseconds(), 10),
+		fakeNetworkTarget,
+	}
+
+	binaryPath := getCLIBinaryPath(t)
+	cmd := exec.Command("sudo", append([]string{binaryPath}, args...)...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	start := time.Now()
+	err := cmd.Run()
+	elapsed := time.Since(start)
+
+	require.NoError(t, err, "Agent-shaped run failed: %s", stderr.String())
+	var results result.Results
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &results))
+	assert.Len(t, results.Traceroute.Runs, common.DefaultTracerouteQueries)
+	assert.Equal(t, common.DefaultNumE2eProbes, results.E2eProbe.PacketsSent)
+	assert.Less(t, elapsed, totalTimeout+common.DefaultProbePollFrequency+2*time.Second,
+		"the process should finish within TotalTimeout plus polling and startup tolerance")
+}
+
+func intPtr(value int) *int {
+	return &value
 }
