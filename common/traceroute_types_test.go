@@ -101,6 +101,20 @@ func TestClipResultsDest(t *testing.T) {
 	require.Equal(t, results[1:4], clipped)
 }
 
+func TestClipResultsTerminal(t *testing.T) {
+	results := []*ProbeResponse{
+		nil,
+		{TTL: 1},
+		{TTL: 2},
+		{TTL: 3, IsTerminal: true},
+		{TTL: 4, IsDest: true},
+		nil,
+	}
+
+	clipped := clipResults(2, results)
+	require.Equal(t, results[2:4], clipped)
+}
+
 func TestClipResultsNoDest(t *testing.T) {
 	results := []*ProbeResponse{
 		nil,

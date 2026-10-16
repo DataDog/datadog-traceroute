@@ -58,9 +58,9 @@ func TracerouteSerial(ctx context.Context, t TracerouteDriver, p TracerouteSeria
 
 		if probe != nil {
 			log.Tracef("found probe %+v", probe)
-			// if we found the destination, no need to keep going
+			// Stop at the destination or a terminal response from an intermediate hop.
 			results[probe.TTL] = probe
-			if probe.IsDest {
+			if probe.IsDest || probe.IsTerminal {
 				break
 			}
 		}
