@@ -54,6 +54,11 @@ type ProbeResponse struct {
 	RTT time.Duration
 	// IsDest is true if the responding host is the destination
 	IsDest bool
+	// IsTerminal is true if the response ends the path without reaching the destination.
+	IsTerminal bool
+	// ICMPType and ICMPCode identify ICMP responses; both are zero for non-ICMP replies.
+	ICMPType uint8
+	ICMPCode uint8
 }
 
 // TracerouteDriverInfo is metadata about a TracerouteDriver
@@ -113,14 +118,14 @@ func (p TracerouteParams) ProbeCount() int {
 	return int(p.MaxTTL) - int(p.MinTTL) + 1
 }
 
-// clipResults removes probes before the minTTL and after the destination
+// clipResults removes probes before minTTL and after the destination or a terminal response.
 func clipResults(minTTL uint8, results []*ProbeResponse) []*ProbeResponse {
-	destIdx := slices.IndexFunc(results, func(pr *ProbeResponse) bool {
-		return pr != nil && pr.IsDest
+	endIdx := slices.IndexFunc(results, func(pr *ProbeResponse) bool {
+		return pr != nil && (pr.IsDest || pr.IsTerminal)
 	})
-	// trim off anything after the destination
-	if destIdx != -1 {
-		results = slices.Clip(results[:destIdx+1])
+	// trim off anything after the end of the path
+	if endIdx != -1 {
+		results = slices.Clip(results[:endIdx+1])
 	}
 
 	return results[minTTL:]
@@ -142,6 +147,8 @@ func ToHops(p TracerouteParams, probes []*ProbeResponse) ([]*result.TracerouteHo
 				IPAddress: probe.IP.AsSlice(),
 				RTT:       ConvertDurationToMs(probe.RTT),
 				IsDest:    probe.IsDest,
+				ICMPType:  probe.ICMPType,
+				ICMPCode:  probe.ICMPCode,
 			}
 		} else {
 			hops[i] = &result.TracerouteHop{
