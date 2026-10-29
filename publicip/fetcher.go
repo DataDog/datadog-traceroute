@@ -15,13 +15,11 @@ import (
 
 const ipCheckerCallTimeout = 2 * time.Second
 
-// ipCheckers list of reliable public IP checkers
+// ipCheckers are public IP checkers run by well-known providers, tried in order.
 var ipCheckers = []string{
-	"https://icanhazip.com/",         // owned by cloudflare
-	"https://ipinfo.io/ip",           // same as our GeoIP info provider
 	"https://checkip.amazonaws.com/", // Amazon
-	"https://api.ipify.org/",         // Dedicated Public IP info and GeoIP info provider
-	"https://whatismyip.akamai.com/", // Akamai is a CDN Provider
+	"https://whatismyip.akamai.com/", // Akamai
+	"https://icanhazip.com/",         // Cloudflare
 }
 
 func GetPublicIP(ctx context.Context, client *http.Client, backoffPolicy *backoff.ExponentialBackOff) (net.IP, error) {
