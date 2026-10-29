@@ -401,6 +401,14 @@ func TestGetPublicIPUsingIPChecker(t *testing.T) {
 	}
 }
 
+func TestIPCheckers(t *testing.T) {
+	assert.Equal(t, []string{
+		"https://checkip.amazonaws.com/",
+		"https://whatismyip.akamai.com/",
+		"https://icanhazip.com/",
+	}, ipCheckers)
+}
+
 func TestGetPublicIP(t *testing.T) {
 	// Save original ipCheckers and restore after tests
 	originalIPCheckers := ipCheckers
