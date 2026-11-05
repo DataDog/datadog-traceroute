@@ -8,7 +8,9 @@ package common
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -21,9 +23,18 @@ type TracerouteParallelParams struct {
 	TracerouteParams
 }
 
-// MaxTimeout combines the timeout+probe delays into a total timeout for the traceroute
+// MaxTimeout combines the timeout and probe delays into a total timeout for the
+// traceroute. Saturating preserves a finite deadline when a valid public timeout near
+// time.Duration's limit would otherwise wrap negative and be interpreted as disabled.
 func (p TracerouteParallelParams) MaxTimeout() time.Duration {
-	delaySum := p.SendDelay * time.Duration(p.ProbeCount())
+	probeCount := time.Duration(p.ProbeCount())
+	if p.SendDelay > 0 && probeCount > time.Duration(math.MaxInt64)/p.SendDelay {
+		return time.Duration(math.MaxInt64)
+	}
+	delaySum := p.SendDelay * probeCount
+	if delaySum > 0 && p.TracerouteTimeout > time.Duration(math.MaxInt64)-delaySum {
+		return time.Duration(math.MaxInt64)
+	}
 	return p.TracerouteTimeout + delaySum
 }
 
@@ -39,11 +50,11 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 	}
 
 	results := make([]*ProbeResponse, int(p.MaxTTL)+1)
-	resultsMu := sync.Mutex{}
+	// The sender publishes which TTLs belong to this run before sending them so the
+	// receiver can reject stale responses for probes this run has not sent.
+	probeSent := make([]atomic.Bool, int(p.MaxTTL)+1)
 	writeProbe := func(probe *ProbeResponse) {
 		log.Tracef("found probe %+v", probe)
-		resultsMu.Lock()
-		defer resultsMu.Unlock()
 		previous := results[probe.TTL]
 
 		// packets can get delivered twice - only use the first received probe to avoid overestimating RTT.
@@ -59,7 +70,11 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 		}
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, p.MaxTimeout())
+	var timeout time.Duration
+	if p.TracerouteTimeout > 0 {
+		timeout = p.MaxTimeout()
+	}
+	timeoutCtx, cancel := contextWithOptionalTimeout(ctx, timeout)
 	defer cancel()
 
 	g, groupCtx := errgroup.WithContext(timeoutCtx)
@@ -79,13 +94,23 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return nil
 			}
 
+			// Publish before SendProbe so even a driver that receives a response
+			// immediately cannot race ahead of the active-probe bookkeeping.
+			probeSent[i].Store(true)
+
 			err := t.SendProbe(uint8(i))
 			if err != nil {
 				return fmt.Errorf("SendProbe() failed: %w", err)
 			}
 			sentOnce.Do(func() { close(hasSent) })
 
-			time.Sleep(p.SendDelay)
+			// wait for at least SendDelay to pass, but don't block past writerCtx being canceled/expired
+			timer := time.NewTimer(p.SendDelay)
+			select {
+			case <-timer.C:
+			case <-writerCtx.Done():
+				timer.Stop()
+			}
 		}
 		return nil
 	})
@@ -110,10 +135,21 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 				return err
 			}
 
+			if !probeSent[probe.TTL].Load() {
+				// A response for a TTL that has not been sent by this run cannot belong
+				// to one of its active probes.
+				continue
+			}
 			writeProbe(probe)
 			// no need to send more probes if we found the destination
 			if probe.IsDest {
 				writerCancel()
+				// A one-probe run has no lower-TTL responses left to collect. This is
+				// the E2E query shape, so return its successful response immediately
+				// instead of waiting for the per-probe context to expire.
+				if p.ProbeCount() == 1 {
+					return nil
+				}
 			}
 		}
 	})

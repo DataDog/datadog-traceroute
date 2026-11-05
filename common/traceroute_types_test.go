@@ -29,6 +29,39 @@ type MockDriver struct {
 	receiveHandler func() (*ProbeResponse, error)
 }
 
+func TestTracerouteParamsRejectNegativeDurations(t *testing.T) {
+	tests := []struct {
+		name   string
+		params TracerouteParams
+		err    string
+	}{
+		{
+			name: "probe timeout",
+			params: TracerouteParams{
+				MinTTL:            1,
+				MaxTTL:            1,
+				TracerouteTimeout: -time.Nanosecond,
+			},
+			err: "traceroute timeout must not be negative",
+		},
+		{
+			name: "send delay",
+			params: TracerouteParams{
+				MinTTL:    1,
+				MaxTTL:    1,
+				SendDelay: -time.Nanosecond,
+			},
+			err: "send delay must not be negative",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.EqualError(t, tt.params.validate(), tt.err)
+		})
+	}
+}
+
 var parallelInfo = TracerouteDriverInfo{
 	SupportsParallel: true,
 }

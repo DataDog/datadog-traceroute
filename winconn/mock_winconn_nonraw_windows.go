@@ -5,6 +5,7 @@
 package winconn
 
 import (
+	context "context"
 	net "net"
 	reflect "reflect"
 	time "time"
@@ -48,9 +49,9 @@ func (mr *MockConnWrapperMockRecorder) Close() *gomock.Call {
 }
 
 // GetHop mocks base method.
-func (m *MockConnWrapper) GetHop(timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error) {
+func (m *MockConnWrapper) GetHop(ctx context.Context, timeout time.Duration, destIP net.IP, destPort uint16) (net.IP, time.Time, uint8, uint8, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHop", timeout, destIP, destPort)
+	ret := m.ctrl.Call(m, "GetHop", ctx, timeout, destIP, destPort)
 	ret0, _ := ret[0].(net.IP)
 	ret1, _ := ret[1].(time.Time)
 	ret2, _ := ret[2].(uint8)
@@ -60,9 +61,9 @@ func (m *MockConnWrapper) GetHop(timeout time.Duration, destIP net.IP, destPort 
 }
 
 // GetHop indicates an expected call of GetHop.
-func (mr *MockConnWrapperMockRecorder) GetHop(timeout, destIP, destPort interface{}) *gomock.Call {
+func (mr *MockConnWrapperMockRecorder) GetHop(ctx, timeout, destIP, destPort interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHop", reflect.TypeOf((*MockConnWrapper)(nil).GetHop), timeout, destIP, destPort)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHop", reflect.TypeOf((*MockConnWrapper)(nil).GetHop), ctx, timeout, destIP, destPort)
 }
 
 // SetTTL mocks base method.

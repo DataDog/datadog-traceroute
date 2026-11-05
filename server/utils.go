@@ -28,11 +28,44 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 	// Parse optional parameters with defaults
 	protocol := getStringParam(query, "protocol", common.DefaultProtocol)
 	port := getIntParam(query, "port", common.DefaultPort)
-	tracerouteQueries := getIntParam(query, "traceroute-queries", common.DefaultTracerouteQueries)
-	maxTTL := getIntParam(query, "max-ttl", common.DefaultMaxTTL)
-	timeoutMs := getIntParam(query, "timeout", int(common.DefaultNetworkPathTimeout))
+	if err := common.ValidatePort("port", port); err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
+	tracerouteQueries, err := parseValidatedQueryCountParam(
+		query,
+		"traceroute-queries",
+		common.DefaultTracerouteQueries,
+	)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
+	maxTTL, err := parseValidatedMaxTTLParam(query, "max-ttl", common.DefaultMaxTTL)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
+	timeoutMs, err := parseValidatedTimeoutParam(query, "timeout", common.DefaultNetworkPathTimeout, common.MaxTimeoutMs)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
+	totalTimeoutMs, err := parseValidatedTimeoutParam(query, "total_timeout_ms", common.DefaultTotalTimeoutMs, common.MaxTimeoutMs)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
+	timeout := common.ResolveProbeTimeout(
+		time.Duration(timeoutMs)*time.Millisecond,
+		time.Duration(totalTimeoutMs)*time.Millisecond,
+		maxTTL,
+		query.Has("timeout"),
+	)
 	tcpMethod := getStringParam(query, "tcp-method", common.DefaultTcpMethod)
-	e2eQueries := getIntParam(query, "e2e-queries", common.DefaultNumE2eProbes)
+	e2eQueries, err := parseValidatedQueryCountParam(
+		query,
+		"e2e-queries",
+		common.DefaultNumE2eProbes,
+	)
+	if err != nil {
+		return traceroute.TracerouteParams{}, err
+	}
 
 	// Parse boolean flags
 	wantV6 := getBoolParam(query, "ipv6", common.DefaultWantV6)
@@ -49,7 +82,8 @@ func parseTracerouteParams(url *url.URL) (traceroute.TracerouteParams, error) {
 		MinTTL:                common.DefaultMinTTL,
 		MaxTTL:                maxTTL,
 		Delay:                 common.DefaultDelay,
-		Timeout:               time.Duration(timeoutMs) * time.Millisecond,
+		Timeout:               timeout,
+		TotalTimeout:          time.Duration(totalTimeoutMs) * time.Millisecond,
 		TCPMethod:             traceroute.TCPMethod(tcpMethod),
 		WantV6:                wantV6,
 		ReverseDns:            reverseDns,
@@ -79,6 +113,60 @@ func getIntParam(query map[string][]string, key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// parseValidatedMaxTTLParam parses and validates the maximum TTL before it reaches the
+// uint8-based packet drivers. Only an absent key gets the default; malformed and
+// out-of-range explicit values are rejected.
+func parseValidatedMaxTTLParam(query map[string][]string, key string, defaultValue int) (int, error) {
+	values, ok := query[key]
+	if !ok || len(values) == 0 {
+		return defaultValue, nil
+	}
+	val, err := strconv.Atoi(values[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
+	}
+	if err := common.ValidateMaxTTL(key, val); err != nil {
+		return 0, err
+	}
+	return val, nil
+}
+
+func parseValidatedQueryCountParam(query map[string][]string, key string, defaultValue int) (int, error) {
+	values, ok := query[key]
+	if !ok || len(values) == 0 {
+		return defaultValue, nil
+	}
+	val, err := strconv.Atoi(values[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
+	}
+	if err := common.ValidateQueryCount(key, val); err != nil {
+		return 0, err
+	}
+	return val, nil
+}
+
+// parseValidatedTimeoutParam parses a millisecond timeout query parameter, returning
+// defaultValue only when the key is entirely absent from the query string, and an error if
+// the value is malformed (including an explicitly empty value, e.g. "?total_timeout_ms="),
+// negative, or exceeds max. Unlike getIntParam, malformed input is rejected rather than
+// silently replaced with the default, since a silent fallback to zero here would disable a
+// deadline the documentation says only an explicit zero disables.
+func parseValidatedTimeoutParam(query map[string][]string, key string, defaultValue int, max int64) (int, error) {
+	values, ok := query[key]
+	if !ok || len(values) == 0 {
+		return defaultValue, nil
+	}
+	val, err := strconv.Atoi(values[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %q: %q is not a valid integer", key, values[0])
+	}
+	if err := common.ValidateTimeoutMs(key, val, max); err != nil {
+		return 0, err
+	}
+	return val, nil
 }
 
 func getBoolParam(query map[string][]string, key string, defaultValue bool) bool {

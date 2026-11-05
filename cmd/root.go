@@ -6,6 +6,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/spf13/cobra"
 
@@ -25,6 +27,7 @@ type args struct {
 	e2eQueries            int
 	maxTTL                int
 	timeout               int
+	totalTimeoutMs        int
 	tcpmethod             string
 	port                  int
 	wantV6                bool
@@ -35,75 +38,112 @@ type args struct {
 	skipPrivateHops       bool
 }
 
+type tracerouteRunner interface {
+	RunTraceroute(context.Context, traceroute.TracerouteParams) (*result.Results, error)
+}
+
 var Args args
 
-var rootCmd = &cobra.Command{
-	Use:   "datadog-traceroute [target]",
-	Short: "Multi-protocol datadog traceroute CLI",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if Args.verbose {
-			log.SetLogLevel(log.LevelTrace)
-		}
+var rootCmd = newRootCmd(&Args, func() tracerouteRunner {
+	return traceroute.NewTraceroute()
+})
 
-		params := traceroute.TracerouteParams{
-			Hostname:              args[0],
-			Port:                  Args.port,
-			Protocol:              Args.protocol,
-			MinTTL:                common.DefaultMinTTL,
-			MaxTTL:                Args.maxTTL,
-			Delay:                 common.DefaultDelay,
-			Timeout:               time.Duration(Args.timeout) * time.Millisecond,
-			TCPMethod:             traceroute.TCPMethod(Args.tcpmethod),
-			WantV6:                Args.wantV6,
-			ReverseDns:            Args.reverseDns,
-			CollectSourcePublicIP: Args.collectSourcePublicIP,
-			TracerouteQueries:     Args.tracerouteQueries,
-			E2eQueries:            Args.e2eQueries,
-			UseWindowsDriver:      Args.useWindowsDriver,
-			SkipPrivateHops:       Args.skipPrivateHops,
-		}
-
-		// Start the driver if it's configured to be used.
-		if params.UseWindowsDriver {
-			err := packets.StartDriver()
-			if err != nil {
-				return fmt.Errorf("failed to start driver: %w", err)
+func newRootCmd(cfg *args, newRunner func() tracerouteRunner) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "datadog-traceroute [target]",
+		Short: "Multi-protocol datadog traceroute CLI",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, positionalArgs []string) error {
+			if cfg.verbose {
+				log.SetLogLevel(log.LevelTrace)
 			}
-		}
 
-		tr := traceroute.NewTraceroute()
-		results, err := tr.RunTraceroute(cmd.Context(), params)
-		if err != nil {
-			return fmt.Errorf("failed to run traceroute: %w", err)
-		}
-		jsonStr, err := json.MarshalIndent(results, "", "  ")
-		if err != nil {
-			return fmt.Errorf("JSON marshalling failed: %w", err)
-		}
-		fmt.Println(string(jsonStr))
-		return nil
-	},
+			if err := common.ValidatePort("--port", cfg.port); err != nil {
+				return err
+			}
+			if err := common.ValidateMaxTTL("--max-ttl", cfg.maxTTL); err != nil {
+				return err
+			}
+			if err := common.ValidateTimeoutMs("--timeout", cfg.timeout, common.MaxTimeoutMs); err != nil {
+				return err
+			}
+			if err := common.ValidateTimeoutMs("--total-timeout-ms", cfg.totalTimeoutMs, common.MaxTimeoutMs); err != nil {
+				return err
+			}
+			if err := common.ValidateQueryCount("--traceroute-queries", cfg.tracerouteQueries); err != nil {
+				return err
+			}
+			if err := common.ValidateQueryCount("--e2e-queries", cfg.e2eQueries); err != nil {
+				return err
+			}
+
+			totalTimeout := time.Duration(cfg.totalTimeoutMs) * time.Millisecond
+			probeTimeout := common.ResolveProbeTimeout(
+				time.Duration(cfg.timeout)*time.Millisecond,
+				totalTimeout,
+				cfg.maxTTL,
+				cmd.Flags().Changed("timeout"),
+			)
+			params := traceroute.TracerouteParams{
+				Hostname:              positionalArgs[0],
+				Port:                  cfg.port,
+				Protocol:              cfg.protocol,
+				MinTTL:                common.DefaultMinTTL,
+				MaxTTL:                cfg.maxTTL,
+				Delay:                 common.DefaultDelay,
+				Timeout:               probeTimeout,
+				TotalTimeout:          totalTimeout,
+				TCPMethod:             traceroute.TCPMethod(cfg.tcpmethod),
+				WantV6:                cfg.wantV6,
+				ReverseDns:            cfg.reverseDns,
+				CollectSourcePublicIP: cfg.collectSourcePublicIP,
+				TracerouteQueries:     cfg.tracerouteQueries,
+				E2eQueries:            cfg.e2eQueries,
+				UseWindowsDriver:      cfg.useWindowsDriver,
+				SkipPrivateHops:       cfg.skipPrivateHops,
+			}
+
+			// Start the driver if it's configured to be used.
+			if params.UseWindowsDriver {
+				err := packets.StartDriver()
+				if err != nil {
+					return fmt.Errorf("failed to start driver: %w", err)
+				}
+			}
+
+			results, err := newRunner().RunTraceroute(cmd.Context(), params)
+			if err != nil {
+				return fmt.Errorf("failed to run traceroute: %w", err)
+			}
+			jsonStr, err := json.MarshalIndent(results, "", "  ")
+			if err != nil {
+				return fmt.Errorf("JSON marshalling failed: %w", err)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(jsonStr))
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVarP(&cfg.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
+	cmd.Flags().IntVarP(&cfg.port, "port", "p", common.DefaultPort, "Destination port")
+	cmd.Flags().IntVarP(&cfg.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries (must not be negative)")
+	cmd.Flags().IntVarP(&cfg.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, fmt.Sprintf("Maximum TTL (%d-%d)", common.DefaultMinTTL, common.MaxAllowedTTL))
+	cmd.Flags().BoolVarP(&cfg.verbose, "verbose", "v", false, "verbose")
+	cmd.Flags().StringVarP(&cfg.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
+	cmd.Flags().BoolVarP(&cfg.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
+	cmd.Flags().IntVarP(&cfg.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Per-probe timeout (ms); when omitted or zero with a total timeout, derived from 90% of its per-hop budget")
+	cmd.Flags().IntVarP(&cfg.totalTimeoutMs, "total-timeout-ms", "", common.DefaultTotalTimeoutMs, "Total timeout for the whole traceroute run (ms). 0 disables the overall deadline")
+	cmd.Flags().BoolVarP(&cfg.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
+	cmd.Flags().BoolVarP(&cfg.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
+	cmd.Flags().IntVarP(&cfg.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probe queries (must not be negative)")
+	cmd.Flags().BoolVarP(&cfg.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
+	cmd.Flags().BoolVarP(&cfg.skipPrivateHops, "skip-private-hops", "", common.DefaultSkipPrivateHops, "Skip private hops")
+
+	return cmd
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
-}
-
-func init() {
-	rootCmd.Flags().StringVarP(&Args.protocol, "proto", "P", common.DefaultProtocol, "Protocol to use (udp, tcp, icmp)")
-	rootCmd.Flags().IntVarP(&Args.port, "port", "p", common.DefaultPort, "Destination port")
-	rootCmd.Flags().IntVarP(&Args.tracerouteQueries, "traceroute-queries", "q", common.DefaultTracerouteQueries, "Number of traceroute queries")
-	rootCmd.Flags().IntVarP(&Args.maxTTL, "max-ttl", "m", common.DefaultMaxTTL, "Maximum TTL")
-	rootCmd.Flags().BoolVarP(&Args.verbose, "verbose", "v", false, "verbose")
-	rootCmd.Flags().StringVarP(&Args.tcpmethod, "tcp-method", "", common.DefaultTcpMethod, "Method used to run TCP (syn, sack, prefer_sack)")
-	rootCmd.Flags().BoolVarP(&Args.wantV6, "ipv6", "", common.DefaultWantV6, "IPv6")
-	rootCmd.Flags().IntVarP(&Args.timeout, "timeout", "", common.DefaultNetworkPathTimeout, "Timeout (ms)")
-	rootCmd.Flags().BoolVarP(&Args.reverseDns, "reverse-dns", "", common.DefaultReverseDns, "Enrich IPs with Reverse DNS names")
-	rootCmd.Flags().BoolVarP(&Args.collectSourcePublicIP, "source-public-ip", "", common.DefaultCollectSourcePublicIP, "Enrich with Source Public IP")
-	rootCmd.Flags().IntVarP(&Args.e2eQueries, "e2e-queries", "Q", common.DefaultNumE2eProbes, "Number of e2e probes queries")
-	rootCmd.Flags().BoolVarP(&Args.useWindowsDriver, "windows-driver", "", common.DefaultUseWindowsDriver, "Use Windows driver for traceroute (Windows only)")
-	rootCmd.Flags().BoolVarP(&Args.skipPrivateHops, "skip-private-hops", "", common.DefaultSkipPrivateHops, "Skip private hops")
 }

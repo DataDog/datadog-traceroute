@@ -18,16 +18,30 @@ const reverseDnsCacheTLL = 1 * time.Hour
 // LookupAddrFn is defined as variable to ease testing
 var LookupAddrFn = net.DefaultResolver.LookupAddr
 
-// GetReverseDnsForIP returns the reverse DNS for the given IP address as a net.IP.
+// GetReverseDnsForIP returns the reverse DNS for the given IP address as a net.IP,
+// with no deadline of its own. Prefer GetReverseDnsForIPContext when the caller
+// wants the lookup bounded by a context deadline.
 func GetReverseDnsForIP(ipAddress net.IP) ([]string, error) {
+	return GetReverseDnsForIPContext(context.Background(), ipAddress)
+}
+
+// GetReverseDnsForIPContext is the context-aware variant of GetReverseDnsForIP.
+func GetReverseDnsForIPContext(ctx context.Context, ipAddress net.IP) ([]string, error) {
 	if len(ipAddress) == 0 {
 		return nil, errors.New("invalid nil IP address")
 	}
-	return GetReverseDns(ipAddress.String())
+	return GetReverseDnsContext(ctx, ipAddress.String())
 }
 
-// GetReverseDnsForIPs returns the reverse DNS for the given IPs addresses.
+// GetReverseDnsForIPs returns the reverse DNS for the given IPs addresses, with no
+// deadline of its own. Prefer GetReverseDnsForIPsContext when the caller wants the
+// lookups bounded by a context deadline.
 func GetReverseDnsForIPs(ips []net.IP) (map[string][]string, error) {
+	return GetReverseDnsForIPsContext(context.Background(), ips)
+}
+
+// GetReverseDnsForIPsContext is the context-aware variant of GetReverseDnsForIPs.
+func GetReverseDnsForIPsContext(ctx context.Context, ips []net.IP) (map[string][]string, error) {
 	var outputIPs = make(map[string][]string)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -36,7 +50,7 @@ func GetReverseDnsForIPs(ips []net.IP) (map[string][]string, error) {
 		wg.Add(1)
 		go func(ip net.IP) {
 			defer wg.Done()
-			destRDns, err := GetReverseDnsForIP(ip)
+			destRDns, err := GetReverseDnsForIPContext(ctx, ip)
 			if err != nil {
 				log.Debugf("failed to get reverse dns for IP %s: %s", ip, err)
 			} else {
@@ -51,12 +65,24 @@ func GetReverseDnsForIPs(ips []net.IP) (map[string][]string, error) {
 	return outputIPs, nil
 }
 
-// GetReverseDns returns the hostname for the given IP address as a string.
+// GetReverseDns returns the hostname for the given IP address as a string, with no
+// deadline of its own beyond the fixed per-lookup safety timeout. Prefer
+// GetReverseDnsContext when the caller wants the lookup bounded by a context deadline.
 func GetReverseDns(ipAddr string) ([]string, error) {
+	return GetReverseDnsContext(context.Background(), ipAddr)
+}
+
+// GetReverseDnsContext returns the hostname for the given IP address as a string.
+// The lookup is bounded by both ctx and a fixed per-lookup safety timeout,
+// whichever elapses first. Note this bound relies on the stdlib resolver honoring
+// ctx promptly: on platforms where Go falls back to the cgo resolver, cancellation
+// of an in-flight getaddrinfo/res_search call is not always immediate, so ctx and
+// TotalTimeout are a best-effort bound here rather than a hard guarantee.
+func GetReverseDnsContext(ctx context.Context, ipAddr string) ([]string, error) {
 	resultDns, err := cache.GetWithExpiration("reverse-dns-"+ipAddr, func() ([]string, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), reverseDnsDefaultTimeout)
+		lookupCtx, cancel := context.WithTimeout(ctx, reverseDnsDefaultTimeout)
 		defer cancel()
-		rawReverseDnsNames, err := LookupAddrFn(ctx, ipAddr)
+		rawReverseDnsNames, err := LookupAddrFn(lookupCtx, ipAddr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get reverse dns: %w", err)
 		}

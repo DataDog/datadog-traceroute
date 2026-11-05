@@ -9,6 +9,7 @@ package e2etests
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -331,6 +333,60 @@ func TestFakeNetworkHTTPServer(t *testing.T) {
 	for _, config := range fakeNetworkTestConfigs {
 		t.Run(config.testName(), func(t *testing.T) {
 			testHTTPServer(t, config)
+		})
+	}
+}
+
+func TestFakeNetworkHTTPServerTotalTimeout(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the controlled fake network is configured only in Linux CI")
+	}
+
+	tests := []struct {
+		name     string
+		protocol string
+		timeout  string
+	}{
+		{
+			name:     "UDP_total_timeout_derives_probe_timeout",
+			protocol: "udp",
+		},
+		{
+			name:     "UDP_zero_probe_timeout_still_obeys_total_timeout",
+			protocol: "udp",
+			timeout:  "&timeout=0",
+		},
+		{
+			name:     "TCP_probe_timeout_longer_than_total_timeout",
+			protocol: "tcp",
+			timeout:  "&timeout=10000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serverAddr := ensureServerRunning(t)
+			url := fmt.Sprintf(
+				"http://%s/traceroute?target=%s&protocol=%s&traceroute-queries=1&e2e-queries=0&total_timeout_ms=100%s",
+				serverAddr,
+				fakeNetworkTimeoutTarget,
+				tt.protocol,
+				tt.timeout,
+			)
+
+			start := time.Now()
+			resp, err := http.Get(url)
+			elapsed := time.Since(start)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			assert.Equal(t, http.StatusGatewayTimeout, resp.StatusCode)
+			var errResp traceroute.ErrorResponse
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&errResp))
+			assert.Equal(t, traceroute.ErrCodeTimeout, errResp.Code)
+			assert.GreaterOrEqual(t, elapsed, 80*time.Millisecond)
+			assert.LessOrEqual(t, elapsed, 350*time.Millisecond,
+				"the real driver should stop within TotalTimeout plus the agreed tolerance")
 		})
 	}
 }

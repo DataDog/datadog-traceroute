@@ -9,15 +9,20 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"time"
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
 	"github.com/DataDog/datadog-traceroute/result"
 )
 
-// Traceroute runs a TCP traceroute
+// Traceroute runs a TCP traceroute with no deadline of its own. Prefer TracerouteContext
+// when the caller wants the run bounded by a context deadline.
 func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
+	return t.TracerouteContext(context.Background())
+}
+
+// TracerouteContext runs a TCP traceroute bounded by ctx.
+func (t *TCPv4) TracerouteContext(ctx context.Context) (*result.TracerouteRun, error) {
 	addr, conn, err := common.LocalAddrForHost(t.Target, t.DestPort)
 	if err != nil {
 		return nil, fmt.Errorf("TCP Traceroute failed to get local address for target: %w", err)
@@ -73,11 +78,11 @@ func (t *TCPv4) Traceroute() (*result.TracerouteRun, error) {
 			MinTTL:            t.MinTTL,
 			MaxTTL:            t.MaxTTL,
 			TracerouteTimeout: t.Timeout,
-			PollFrequency:     100 * time.Millisecond,
+			PollFrequency:     common.DefaultProbePollFrequency,
 			SendDelay:         t.Delay,
 		},
 	}
-	resp, err := common.TracerouteSerial(context.Background(), driver, params)
+	resp, err := common.TracerouteSerial(ctx, driver, params)
 	if err != nil {
 		return nil, err
 	}

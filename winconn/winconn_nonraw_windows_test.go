@@ -8,6 +8,7 @@
 package winconn
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -164,7 +165,7 @@ func TestGetHop(t *testing.T) {
 			}
 
 			conn := &Conn{Socket: windows.Handle(123)}
-			ip, timestamp, _, _, err := conn.GetHop(tt.timeout, tt.destIP, tt.destPort)
+			ip, timestamp, _, _, err := conn.GetHop(context.Background(), tt.timeout, tt.destIP, tt.destPort)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -181,6 +182,70 @@ func TestGetHop(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetHopPropagatesCallerCancellation(t *testing.T) {
+	originalConnect := connect
+	originalWSAPollFunc := wsaPollFunc
+	t.Cleanup(func() {
+		connect = originalConnect
+		wsaPollFunc = originalWSAPollFunc
+	})
+
+	connect = func(_ windows.Handle, _ windows.Sockaddr) error {
+		return windows.WSAEWOULDBLOCK
+	}
+	pollStarted := make(chan struct{})
+	releasePoll := make(chan struct{})
+	pollCalls := 0
+	wsaPollFunc = func(_ []WSAPOLLFD, _ int) (int32, error) {
+		pollCalls++
+		if pollCalls > 1 {
+			return 0, errors.New("poll called again after cancellation")
+		}
+		close(pollStarted)
+		<-releasePoll
+		return 0, nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	conn := &Conn{Socket: windows.Handle(123)}
+	result := make(chan error, 1)
+	go func() {
+		_, _, _, _, err := conn.GetHop(ctx, 0, net.ParseIP("8.8.8.8"), 443)
+		result <- err
+	}()
+
+	<-pollStarted
+	cancel()
+	close(releasePoll)
+
+	require.ErrorIs(t, <-result, context.Canceled)
+	require.Equal(t, 1, pollCalls)
+}
+
+func TestGetHopPropagatesCallerDeadline(t *testing.T) {
+	originalConnect := connect
+	originalWSAPollFunc := wsaPollFunc
+	t.Cleanup(func() {
+		connect = originalConnect
+		wsaPollFunc = originalWSAPollFunc
+	})
+
+	connect = func(_ windows.Handle, _ windows.Sockaddr) error {
+		return windows.WSAEWOULDBLOCK
+	}
+	wsaPollFunc = func(_ []WSAPOLLFD, _ int) (int32, error) {
+		t.Fatal("poll syscall should not run for an expired context")
+		return 0, nil
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	conn := &Conn{Socket: windows.Handle(123)}
+	_, _, _, _, err := conn.GetHop(ctx, time.Hour, net.ParseIP("8.8.8.8"), 443)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestClose(t *testing.T) {

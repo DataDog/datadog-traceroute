@@ -77,9 +77,12 @@ type TracerouteParams struct {
 	MinTTL uint8
 	// MaxTTL is the TTL to end the traceroute at
 	MaxTTL uint8
-	// TracerouteTimeout is the maximum time to wait for a response
+	// TracerouteTimeout controls each serial probe's response window and contributes
+	// to the composed parallel run deadline. For backward compatibility, parallel
+	// traceroutes do not discard a captured response based solely on its RTT.
 	TracerouteTimeout time.Duration
-	// PollFrequency is how often to poll for a response
+	// PollFrequency is how often to poll for a response. Because ReceiveProbe blocks for
+	// this duration, a context deadline may be observed up to one PollFrequency late.
 	PollFrequency time.Duration
 	// SendDelay is the delay between sending probes (typically small)
 	SendDelay time.Duration
@@ -91,6 +94,15 @@ func (p TracerouteParams) validate() error {
 	}
 	if p.MinTTL < 1 {
 		return fmt.Errorf("min TTL must be at least 1")
+	}
+	// Zero intentionally disables the local deadline/delay, but negative values
+	// are invalid. In particular, treating a negative composed parallel timeout
+	// as disabled could otherwise leave a silent run unbounded.
+	if p.TracerouteTimeout < 0 {
+		return fmt.Errorf("traceroute timeout must not be negative")
+	}
+	if p.SendDelay < 0 {
+		return fmt.Errorf("send delay must not be negative")
 	}
 	return nil
 }

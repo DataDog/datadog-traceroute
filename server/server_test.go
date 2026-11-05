@@ -6,15 +6,26 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/DataDog/datadog-traceroute/result"
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type stubTracerouteRunner struct {
+	results *result.Results
+	err     error
+}
+
+func (s stubTracerouteRunner) RunTraceroute(context.Context, traceroute.TracerouteParams) (*result.Results, error) {
+	return s.results, s.err
+}
 
 func TestNewServer(t *testing.T) {
 	srv := NewServer()
@@ -80,6 +91,20 @@ func TestTracerouteHandlerInvalidProtocol(t *testing.T) {
 	err := json.NewDecoder(w.Body).Decode(&errResp)
 	require.NoError(t, err)
 	assert.Equal(t, traceroute.ErrCodeInvalidRequest, errResp.Code)
+}
+
+func TestTracerouteHandlerTimeoutWithoutCompletedRunReturnsGatewayTimeout(t *testing.T) {
+	srv := NewServer()
+	srv.tr = stubTracerouteRunner{err: context.DeadlineExceeded}
+	req := httptest.NewRequest(http.MethodGet, "/traceroute?target=example.com&total_timeout_ms=10", nil)
+	w := httptest.NewRecorder()
+
+	srv.TracerouteHandler(w, req)
+
+	assert.Equal(t, http.StatusGatewayTimeout, w.Code)
+	var errResp traceroute.ErrorResponse
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&errResp))
+	assert.Equal(t, traceroute.ErrCodeTimeout, errResp.Code)
 }
 
 func TestHealthHandler(t *testing.T) {
