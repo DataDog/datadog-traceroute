@@ -155,7 +155,7 @@ func resolveTarget(params TracerouteParams, defaultPort int) (netip.AddrPort, er
 	if err != nil {
 		return netip.AddrPort{}, err
 	}
-	addr := target.Addr().Unmap()
+	addr := target.Addr().WithZone("").Unmap()
 	for _, prefix := range params.BlockedPrefixes {
 		if prefix.Contains(addr) {
 			return netip.AddrPort{}, &BlockedTargetError{Addr: addr}

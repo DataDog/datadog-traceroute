@@ -196,14 +196,31 @@ func TestParseTargetErrorTypes(t *testing.T) {
 }
 
 func TestBlockedTargetErrorIsDenied(t *testing.T) {
-	params := TracerouteParams{
-		Hostname:        "10.1.2.3",
-		Protocol:        "icmp",
-		BlockedPrefixes: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+	blocked := []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("127.0.0.0/8"),
+		netip.MustParsePrefix("fd00:ec2::254/128"),
 	}
-	_, err := runTracerouteOnce(context.Background(), params, 80)
+	for _, protocol := range []string{"icmp", "tcp", "udp"} {
+		// localhost is blocked only after DNS resolution; the zone on the IPv6 literal must not hide the address.
+		for _, host := range []string{"10.1.2.3", "localhost", "fd00:ec2::254%eth0"} {
+			t.Run(protocol+"/"+host, func(t *testing.T) {
+				params := TracerouteParams{Hostname: host, Protocol: protocol, BlockedPrefixes: blocked}
+				_, err := runTracerouteOnce(context.Background(), params, 80)
 
-	var blockedErr *BlockedTargetError
-	require.True(t, errors.As(err, &blockedErr), "expected BlockedTargetError, got %T: %v", err, err)
+				var blockedErr *BlockedTargetError
+				require.True(t, errors.As(err, &blockedErr), "expected BlockedTargetError, got %T: %v", err, err)
+				assert.Equal(t, ErrCodeDenied, ClassifyError(err).Code)
+			})
+		}
+	}
+}
+
+func TestClassifyErrorPrefersBlockedTarget(t *testing.T) {
+	err := errors.Join(
+		&DNSError{Host: "example.com", Err: errors.New("no such host")},
+		&BlockedTargetError{Addr: netip.MustParseAddr("10.1.2.3")},
+	)
+
 	assert.Equal(t, ErrCodeDenied, ClassifyError(err).Code)
 }

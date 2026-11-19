@@ -10,14 +10,18 @@ The server has no access control by default. Two options restrict it:
   `Authorization: Bearer <token>` and answers `401` otherwise. `/health` stays open. The token is
   read from the environment, not from a flag, because command lines are readable by every local user.
 - `--blocked-cidrs`: comma-separated target ranges the server refuses to trace, for example
-  `--blocked-cidrs 127.0.0.0/8,169.254.0.0/16,::1/128,fd00:ec2::254/128`. The target is checked after
-  each DNS resolution. A blocked target gets `403` with code `DENIED`.
+  `--blocked-cidrs 0.0.0.0/8,127.0.0.0/8,169.254.0.0/16,::/128,::1/128,fd00:ec2::254/128`. The target is
+  checked after each DNS resolution. A blocked target gets `403` with code `DENIED`. Block `0.0.0.0/8` and
+  `::/128` along with loopback, because traffic to those addresses reaches the local host. Write IPv4 ranges
+  in their IPv4 form: IPv4-mapped IPv6 ranges such as `::ffff:169.254.0.0/112` are rejected.
+- A token variable that is set but empty stops the server at startup.
 
 Bind to loopback (`--addr 127.0.0.1:3765`) unless other hosts must reach the server.
 
 ```bash
-DATADOG_TRACEROUTE_AUTH_TOKEN="$(openssl rand -hex 32)" \
-  datadog-traceroute-server --addr 127.0.0.1:3765 --blocked-cidrs 169.254.0.0/16
+export DATADOG_TRACEROUTE_AUTH_TOKEN="$(openssl rand -hex 32)"
+datadog-traceroute-server --addr 127.0.0.1:3765 \
+  --blocked-cidrs 0.0.0.0/8,127.0.0.0/8,169.254.0.0/16,::/128,::1/128,fd00:ec2::254/128 &
 curl -H "Authorization: Bearer $DATADOG_TRACEROUTE_AUTH_TOKEN" 'http://127.0.0.1:3765/traceroute?target=example.com'
 ```
 

@@ -99,6 +99,10 @@ func ParseBlockedPrefixes(cidrs []string) ([]netip.Prefix, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid blocked CIDR %q: %w", cidr, err)
 		}
+		// Targets are unmapped to IPv4 before matching, so an IPv4-mapped prefix would never match.
+		if prefix.Addr().Is4In6() {
+			return nil, fmt.Errorf("invalid blocked CIDR %q: use the IPv4 form, such as 169.254.0.0/16", cidr)
+		}
 		prefixes = append(prefixes, prefix.Masked())
 	}
 	return prefixes, nil

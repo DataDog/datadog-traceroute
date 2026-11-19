@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	ddlog "github.com/DataDog/datadog-traceroute/log"
 	"github.com/DataDog/datadog-traceroute/packets"
@@ -54,7 +55,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		authToken := os.Getenv(authTokenEnv)
+		authToken, authTokenSet := os.LookupEnv(authTokenEnv)
+		authToken = strings.TrimSpace(authToken)
+		if authTokenSet && authToken == "" {
+			return fmt.Errorf("%s is set but empty", authTokenEnv)
+		}
 
 		srv := server.NewServerWithOptions(server.Options{
 			AuthToken:       authToken,
@@ -64,6 +69,8 @@ var rootCmd = &cobra.Command{
 		log.Printf("Starting traceroute HTTP server on %s", addr)
 		if authToken != "" {
 			log.Printf("Bearer token from %s required on /traceroute", authTokenEnv)
+		} else {
+			log.Printf("Warning: %s is not set, so anyone who can reach %s can run traceroutes", authTokenEnv, addr)
 		}
 		if len(blockedPrefixes) > 0 {
 			log.Printf("Blocked target ranges: %v", blockedPrefixes)

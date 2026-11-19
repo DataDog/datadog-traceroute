@@ -60,8 +60,9 @@ func (s *Server) isAuthorized(r *http.Request) bool {
 	if len(s.authToken) == 0 {
 		return true
 	}
-	token, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	return found && subtle.ConstantTimeCompare([]byte(token), s.authToken) == 1
+	scheme, token, found := strings.Cut(r.Header.Get("Authorization"), " ")
+	return found && strings.EqualFold(scheme, "Bearer") &&
+		subtle.ConstantTimeCompare([]byte(strings.TrimLeft(token, " ")), s.authToken) == 1
 }
 
 // TracerouteHandler handles GET /traceroute requests

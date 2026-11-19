@@ -133,6 +133,8 @@ func TestTracerouteHandlerAuthentication(t *testing.T) {
 		{name: "wrong token", authorization: "Bearer other-token", wantStatus: http.StatusUnauthorized},
 		{name: "token prefix only", authorization: "Bearer test-token", wantStatus: http.StatusUnauthorized},
 		{name: "wrong scheme", authorization: "Basic test-token-placeholder", wantStatus: http.StatusUnauthorized},
+		{name: "lowercase scheme", authorization: "bearer test-token-placeholder", wantStatus: http.StatusBadRequest},
+		{name: "several spaces", authorization: "Bearer   test-token-placeholder", wantStatus: http.StatusBadRequest},
 		// A missing target fails validation, which shows the request got past authentication without sending packets.
 		{name: "valid token", authorization: "Bearer test-token-placeholder", wantStatus: http.StatusBadRequest},
 	}
@@ -177,6 +179,8 @@ func TestTracerouteHandlerBlockedTarget(t *testing.T) {
 		"target=169.254.169.254&protocol=udp",
 		"target=%3A%3Affff%3A169.254.169.254&protocol=icmp",
 		"target=%5Bfd00%3Aec2%3A%3A254%5D&protocol=icmp&ipv6=true",
+		"target=fd00%3Aec2%3A%3A254%25eth0&protocol=icmp",
+		"target=169.254.169.254&protocol=icmp&port=-1&traceroute-queries=0&e2e-queries=1",
 	} {
 		t.Run(query, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/traceroute?"+query, nil)
