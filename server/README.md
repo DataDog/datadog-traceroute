@@ -2,6 +2,25 @@
 
 This package provides an HTTP server with a REST API for running traceroutes.
 
+## Access control
+
+The server has no access control by default. Two options restrict it:
+
+- `DATADOG_TRACEROUTE_AUTH_TOKEN` (environment variable): when set, `/traceroute` requires
+  `Authorization: Bearer <token>` and answers `401` otherwise. `/health` stays open. The token is
+  read from the environment, not from a flag, because command lines are readable by every local user.
+- `--blocked-cidrs`: comma-separated target ranges the server refuses to trace, for example
+  `--blocked-cidrs 127.0.0.0/8,169.254.0.0/16,::1/128,fd00:ec2::254/128`. The target is checked after
+  each DNS resolution. A blocked target gets `403` with code `DENIED`.
+
+Bind to loopback (`--addr 127.0.0.1:3765`) unless other hosts must reach the server.
+
+```bash
+DATADOG_TRACEROUTE_AUTH_TOKEN="$(openssl rand -hex 32)" \
+  datadog-traceroute-server --addr 127.0.0.1:3765 --blocked-cidrs 169.254.0.0/16
+curl -H "Authorization: Bearer $DATADOG_TRACEROUTE_AUTH_TOKEN" 'http://127.0.0.1:3765/traceroute?target=example.com'
+```
+
 ## API Endpoint
 
 ### GET /traceroute

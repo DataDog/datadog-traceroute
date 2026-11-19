@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 )
 
@@ -86,6 +87,15 @@ func (e *InvalidTargetError) Unwrap() error {
 	return e.Err
 }
 
+// BlockedTargetError reports a target address inside one of TracerouteParams.BlockedPrefixes.
+type BlockedTargetError struct {
+	Addr netip.Addr
+}
+
+func (e *BlockedTargetError) Error() string {
+	return fmt.Sprintf("target %s is in a blocked range", e.Addr)
+}
+
 // ClassifyError inspects an error chain and returns a TracerouteError with the appropriate code.
 func ClassifyError(err error) *TracerouteError {
 	if err == nil {
@@ -96,6 +106,11 @@ func ClassifyError(err error) *TracerouteError {
 	var dnsErr *DNSError
 	if errors.As(err, &dnsErr) {
 		return &TracerouteError{Code: ErrCodeDNS, Message: err.Error(), Err: err}
+	}
+
+	var blockedTargetErr *BlockedTargetError
+	if errors.As(err, &blockedTargetErr) {
+		return &TracerouteError{Code: ErrCodeDenied, Message: err.Error(), Err: err}
 	}
 
 	var invalidTargetErr *InvalidTargetError

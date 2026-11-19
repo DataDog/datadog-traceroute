@@ -21,10 +21,14 @@ import (
 // https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=3765
 const defaultServerPort = 3765
 
+// The token is read from the environment, never from a flag: command lines are readable by every local user.
+const authTokenEnv = "DATADOG_TRACEROUTE_AUTH_TOKEN"
+
 var (
 	addr             string
 	logLevel         string
 	useWindowsDriver bool
+	blockedCIDRs     []string
 )
 
 var rootCmd = &cobra.Command{
@@ -46,9 +50,24 @@ var rootCmd = &cobra.Command{
 			log.Printf("Windows driver initialized")
 		}
 
-		srv := server.NewServer()
+		blockedPrefixes, err := server.ParseBlockedPrefixes(blockedCIDRs)
+		if err != nil {
+			return err
+		}
+		authToken := os.Getenv(authTokenEnv)
+
+		srv := server.NewServerWithOptions(server.Options{
+			AuthToken:       authToken,
+			BlockedPrefixes: blockedPrefixes,
+		})
 
 		log.Printf("Starting traceroute HTTP server on %s", addr)
+		if authToken != "" {
+			log.Printf("Bearer token from %s required on /traceroute", authTokenEnv)
+		}
+		if len(blockedPrefixes) > 0 {
+			log.Printf("Blocked target ranges: %v", blockedPrefixes)
+		}
 		log.Printf("Log level set to: %s", logLevel)
 		log.Printf("Example usage: curl http://localhost:%d/traceroute?target=google.com&protocol=tcp&port=443", defaultServerPort)
 
@@ -62,6 +81,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Flags().StringVarP(&addr, "addr", "a", fmt.Sprintf(":%d", defaultServerPort), "HTTP server address to listen on")
 	rootCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (error, warn, info, debug, trace)")
+	rootCmd.Flags().StringSliceVar(&blockedCIDRs, "blocked-cidrs", nil, "Comma-separated target CIDRs to refuse, e.g. 169.254.0.0/16,::1/128")
 	rootCmd.Flags().BoolVar(&useWindowsDriver, "windows-driver", false, "Use Windows driver for traceroute (Windows only)")
 }
 

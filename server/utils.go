@@ -7,6 +7,7 @@ package server
 
 import (
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"time"
@@ -88,4 +89,17 @@ func getBoolParam(query map[string][]string, key string, defaultValue bool) bool
 		}
 	}
 	return defaultValue
+}
+
+// ParseBlockedPrefixes parses CIDRs such as "169.254.0.0/16" or "fd00:ec2::254/128"
+func ParseBlockedPrefixes(cidrs []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		prefix, err := netip.ParsePrefix(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid blocked CIDR %q: %w", cidr, err)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }

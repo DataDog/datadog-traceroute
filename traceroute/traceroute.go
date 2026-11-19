@@ -31,6 +31,13 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		destinationPort = common.DefaultPort
 	}
 
+	if len(params.BlockedPrefixes) > 0 {
+		var blockedTargetErr *BlockedTargetError
+		if _, err := resolveTarget(params, destinationPort); errors.As(err, &blockedTargetErr) {
+			return nil, err
+		}
+	}
+
 	results, err := t.runTracerouteMulti(ctx, params, destinationPort)
 	if err != nil {
 		return nil, err

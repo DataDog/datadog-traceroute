@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"syscall"
 	"testing"
 
@@ -192,4 +193,17 @@ func TestParseTargetErrorTypes(t *testing.T) {
 		var targetErr *InvalidTargetError
 		assert.True(t, errors.As(err, &targetErr), "expected InvalidTargetError, got %T: %v", err, err)
 	})
+}
+
+func TestBlockedTargetErrorIsDenied(t *testing.T) {
+	params := TracerouteParams{
+		Hostname:        "10.1.2.3",
+		Protocol:        "icmp",
+		BlockedPrefixes: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+	}
+	_, err := runTracerouteOnce(context.Background(), params, 80)
+
+	var blockedErr *BlockedTargetError
+	require.True(t, errors.As(err, &blockedErr), "expected BlockedTargetError, got %T: %v", err, err)
+	assert.Equal(t, ErrCodeDenied, ClassifyError(err).Code)
 }

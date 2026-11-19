@@ -6,8 +6,12 @@
 package server
 
 import (
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -16,8 +20,18 @@ import (
 
 // Server is the HTTP server for the traceroute API
 type Server struct {
-	tr        *traceroute.Traceroute
-	startTime time.Time
+	tr              *traceroute.Traceroute
+	startTime       time.Time
+	authToken       []byte
+	blockedPrefixes []netip.Prefix
+}
+
+// Options configures access control for a Server.
+type Options struct {
+	// AuthToken, when not empty, must be sent as "Authorization: Bearer <AuthToken>" on /traceroute.
+	AuthToken string
+	// BlockedPrefixes lists destination ranges /traceroute refuses to trace.
+	BlockedPrefixes []netip.Prefix
 }
 
 // HealthResponse represents the health check response
@@ -29,14 +43,38 @@ type HealthResponse struct {
 
 // NewServer creates a new HTTP server with an initialized Traceroute instance
 func NewServer() *Server {
+	return NewServerWithOptions(Options{})
+}
+
+// NewServerWithOptions creates a new HTTP server that applies opts to every /traceroute request
+func NewServerWithOptions(opts Options) *Server {
 	return &Server{
-		tr:        traceroute.NewTraceroute(),
-		startTime: time.Now(),
+		tr:              traceroute.NewTraceroute(),
+		startTime:       time.Now(),
+		authToken:       []byte(opts.AuthToken),
+		blockedPrefixes: opts.BlockedPrefixes,
 	}
+}
+
+func (s *Server) isAuthorized(r *http.Request) bool {
+	if len(s.authToken) == 0 {
+		return true
+	}
+	token, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	return found && subtle.ConstantTimeCompare([]byte(token), s.authToken) == 1
 }
 
 // TracerouteHandler handles GET /traceroute requests
 func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.isAuthorized(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    traceroute.ErrCodeDenied,
+			Message: "missing or invalid bearer token",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -51,13 +89,17 @@ func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
+	params.BlockedPrefixes = s.blockedPrefixes
 
 	// Run traceroute
 	results, err := s.tr.RunTraceroute(r.Context(), params)
 	if err != nil {
 		classified := traceroute.ClassifyError(err)
 		status := http.StatusInternalServerError
-		if classified.Code == traceroute.ErrCodeInvalidRequest {
+		var blockedTargetErr *traceroute.BlockedTargetError
+		if errors.As(err, &blockedTargetErr) {
+			status = http.StatusForbidden
+		} else if classified.Code == traceroute.ErrCodeInvalidRequest {
 			status = http.StatusBadRequest
 		}
 		writeErrorResponse(w, traceroute.ErrorResponse{
