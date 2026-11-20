@@ -27,7 +27,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 	var trRun *result.TracerouteRun
 	switch params.Protocol {
 	case "udp":
-		target, err := resolveTarget(params, destinationPort)
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 		}
 
 	case "tcp":
-		target, err := resolveTarget(params, destinationPort)
+		target, err := parseTarget(params.Hostname, destinationPort, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +72,7 @@ func runTracerouteOnce(ctx context.Context, params TracerouteParams, destination
 			return nil, err
 		}
 	case "icmp":
-		target, err := resolveTarget(params, 80)
+		target, err := parseTarget(params.Hostname, 80, params.WantV6)
 		if err != nil {
 			return nil, err
 		}
@@ -147,21 +147,6 @@ func makeSackParams(target net.IP, targetPort uint16, minTTL uint8, maxTTL uint8
 		UseWindowsDriver: useWindowsDriver,
 	}
 	return params, nil
-}
-
-// resolveTarget resolves the target on every call, so a name that changes address between runs is checked again.
-func resolveTarget(params TracerouteParams, defaultPort int) (netip.AddrPort, error) {
-	target, err := parseTarget(params.Hostname, defaultPort, params.WantV6)
-	if err != nil {
-		return netip.AddrPort{}, err
-	}
-	addr := target.Addr().WithZone("").Unmap()
-	for _, prefix := range params.BlockedPrefixes {
-		if prefix.Contains(addr) {
-			return netip.AddrPort{}, &BlockedTargetError{Addr: addr}
-		}
-	}
-	return target, nil
 }
 
 func parseTarget(raw string, defaultPort int, wantIPv6 bool) (netip.AddrPort, error) {

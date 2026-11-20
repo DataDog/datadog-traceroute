@@ -1,7 +1,6 @@
 package traceroute
 
 import (
-	"net/netip"
 	"time"
 )
 
@@ -22,5 +21,4 @@ type TracerouteParams struct {
 	E2eQueries                int
 	UseWindowsDriver          bool
 	SkipPrivateHops           bool
-	BlockedPrefixes           []netip.Prefix
 }

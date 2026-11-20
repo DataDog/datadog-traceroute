@@ -29,7 +29,6 @@ var (
 	addr             string
 	logLevel         string
 	useWindowsDriver bool
-	blockedCIDRs     []string
 )
 
 var rootCmd = &cobra.Command{
@@ -51,20 +50,13 @@ var rootCmd = &cobra.Command{
 			log.Printf("Windows driver initialized")
 		}
 
-		blockedPrefixes, err := server.ParseBlockedPrefixes(blockedCIDRs)
-		if err != nil {
-			return err
-		}
 		authToken, authTokenSet := os.LookupEnv(authTokenEnv)
 		authToken = strings.TrimSpace(authToken)
 		if authTokenSet && authToken == "" {
 			return fmt.Errorf("%s is set but empty", authTokenEnv)
 		}
 
-		srv := server.NewServerWithOptions(server.Options{
-			AuthToken:       authToken,
-			BlockedPrefixes: blockedPrefixes,
-		})
+		srv := server.NewServerWithOptions(server.Options{AuthToken: authToken})
 
 		log.Printf("Starting traceroute HTTP server on %s", addr)
 		if authToken != "" {
@@ -72,11 +64,8 @@ var rootCmd = &cobra.Command{
 		} else {
 			log.Printf("Warning: %s is not set, so anyone who can reach %s can run traceroutes", authTokenEnv, addr)
 		}
-		if len(blockedPrefixes) > 0 {
-			log.Printf("Blocked target ranges: %v", blockedPrefixes)
-		}
 		log.Printf("Log level set to: %s", logLevel)
-		log.Printf("Example usage: curl http://localhost:%d/traceroute?target=google.com&protocol=tcp&port=443", defaultServerPort)
+		log.Printf("Example usage: curl http://127.0.0.1:%d/traceroute?target=google.com&protocol=tcp&port=443", defaultServerPort)
 
 		if err := srv.Start(addr); err != nil {
 			return err
@@ -86,9 +75,8 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&addr, "addr", "a", fmt.Sprintf(":%d", defaultServerPort), "HTTP server address to listen on")
+	rootCmd.Flags().StringVarP(&addr, "addr", "a", fmt.Sprintf("127.0.0.1:%d", defaultServerPort), "HTTP server address to listen on, loopback by default")
 	rootCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (error, warn, info, debug, trace)")
-	rootCmd.Flags().StringSliceVar(&blockedCIDRs, "blocked-cidrs", nil, "Comma-separated target CIDRs to refuse, e.g. 169.254.0.0/16,::1/128")
 	rootCmd.Flags().BoolVar(&useWindowsDriver, "windows-driver", false, "Use Windows driver for traceroute (Windows only)")
 }
 

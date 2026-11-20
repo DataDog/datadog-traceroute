@@ -31,14 +31,6 @@ func (t Traceroute) RunTraceroute(ctx context.Context, params TracerouteParams) 
 		destinationPort = common.DefaultPort
 	}
 
-	if len(params.BlockedPrefixes) > 0 {
-		// The port is fixed because an invalid one fails resolution before the address is checked, and ICMP ignores it.
-		var blockedTargetErr *BlockedTargetError
-		if _, err := resolveTarget(params, 80); errors.As(err, &blockedTargetErr) {
-			return nil, err
-		}
-	}
-
 	results, err := t.runTracerouteMulti(ctx, params, destinationPort)
 	if err != nil {
 		return nil, err

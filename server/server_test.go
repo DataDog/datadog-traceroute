@@ -168,31 +168,3 @@ func TestHealthHandlerDoesNotRequireToken(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
-func TestTracerouteHandlerBlockedTarget(t *testing.T) {
-	blocked, err := ParseBlockedPrefixes([]string{"169.254.0.0/16", "fd00:ec2::254/128"})
-	require.NoError(t, err)
-	srv := NewServerWithOptions(Options{BlockedPrefixes: blocked})
-	for _, query := range []string{
-		"target=169.254.169.254&protocol=icmp",
-		"target=169.254.169.254&protocol=tcp&port=80",
-		"target=169.254.169.254&protocol=udp",
-		"target=%3A%3Affff%3A169.254.169.254&protocol=icmp",
-		"target=%5Bfd00%3Aec2%3A%3A254%5D&protocol=icmp&ipv6=true",
-		"target=fd00%3Aec2%3A%3A254%25eth0&protocol=icmp",
-		"target=169.254.169.254&protocol=icmp&port=-1&traceroute-queries=0&e2e-queries=1",
-	} {
-		t.Run(query, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/traceroute?"+query, nil)
-			w := httptest.NewRecorder()
-
-			srv.TracerouteHandler(w, req)
-
-			assert.Equal(t, http.StatusForbidden, w.Code)
-			var errResp traceroute.ErrorResponse
-			require.NoError(t, json.NewDecoder(w.Body).Decode(&errResp))
-			assert.Equal(t, traceroute.ErrCodeDenied, errResp.Code)
-			assert.Contains(t, errResp.Message, "blocked range")
-		})
-	}
-}

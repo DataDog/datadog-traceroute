@@ -6,7 +6,6 @@
 package server
 
 import (
-	"net/netip"
 	"net/url"
 	"testing"
 	"time"
@@ -132,19 +131,4 @@ func TestHelperFunctions(t *testing.T) {
 		assert.True(t, getBoolParam(query, "missing", true), "should return default for missing param")
 		assert.True(t, getBoolParam(query, "bad", true), "should return default for invalid bool")
 	})
-}
-
-func TestParseBlockedPrefixes(t *testing.T) {
-	t.Run("valid CIDRs are masked", func(t *testing.T) {
-		prefixes, err := ParseBlockedPrefixes([]string{"169.254.1.2/16", "::1/128"})
-		require.NoError(t, err)
-		assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("169.254.0.0/16"), netip.MustParsePrefix("::1/128")}, prefixes)
-	})
-
-	for _, invalid := range []string{"169.254.169.254", "10.0.0.0/33", "not-a-cidr", "::ffff:169.254.0.0/112"} {
-		t.Run("rejects "+invalid, func(t *testing.T) {
-			_, err := ParseBlockedPrefixes([]string{invalid})
-			assert.ErrorContains(t, err, invalid)
-		})
-	}
 }
