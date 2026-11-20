@@ -10,6 +10,10 @@ This package provides an HTTP server with a REST API for running traceroutes.
   requires `Authorization: Bearer <token>` and answers `401` otherwise. `/health` stays open. The token
   is read from the environment, not from a flag, because command lines are readable by every local user.
   A variable that is set but empty stops the server at startup.
+- **Token file:** `--auth-token-file <path>` reads the token from a file instead, for launchers that cannot
+  set a secret in the environment without a shell. A shell in between drops the capabilities the binary
+  needs when privilege escalation is disabled. An empty file stops the server, and setting both the
+  variable and the flag is an error.
 
 ```bash
 export DATADOG_TRACEROUTE_AUTH_TOKEN="$(openssl rand -hex 32)"
