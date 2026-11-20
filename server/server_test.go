@@ -121,3 +121,50 @@ func TestHealthHandlerMethodNotAllowed(t *testing.T) {
 
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
+
+func TestTracerouteHandlerAuthentication(t *testing.T) {
+	srv := NewServerWithOptions(Options{AuthToken: "test-token-placeholder"})
+	tests := []struct {
+		name          string
+		authorization string
+		wantStatus    int
+	}{
+		{name: "no header", authorization: "", wantStatus: http.StatusUnauthorized},
+		{name: "wrong token", authorization: "Bearer other-token", wantStatus: http.StatusUnauthorized},
+		{name: "token prefix only", authorization: "Bearer test-token", wantStatus: http.StatusUnauthorized},
+		{name: "wrong scheme", authorization: "Basic test-token-placeholder", wantStatus: http.StatusUnauthorized},
+		{name: "lowercase scheme", authorization: "bearer test-token-placeholder", wantStatus: http.StatusBadRequest},
+		{name: "several spaces", authorization: "Bearer   test-token-placeholder", wantStatus: http.StatusBadRequest},
+		// A missing target fails validation, which shows the request got past authentication without sending packets.
+		{name: "valid token", authorization: "Bearer test-token-placeholder", wantStatus: http.StatusBadRequest},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/traceroute", nil)
+			if tt.authorization != "" {
+				req.Header.Set("Authorization", tt.authorization)
+			}
+			w := httptest.NewRecorder()
+
+			srv.TracerouteHandler(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantStatus == http.StatusUnauthorized {
+				assert.Equal(t, "Bearer", w.Header().Get("WWW-Authenticate"))
+				var errResp traceroute.ErrorResponse
+				require.NoError(t, json.NewDecoder(w.Body).Decode(&errResp))
+				assert.Equal(t, traceroute.ErrCodeDenied, errResp.Code)
+			}
+		})
+	}
+}
+
+func TestHealthHandlerDoesNotRequireToken(t *testing.T) {
+	srv := NewServerWithOptions(Options{AuthToken: "test-token-placeholder"})
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.HealthHandler(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}

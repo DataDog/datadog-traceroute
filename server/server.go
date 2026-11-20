@@ -6,8 +6,10 @@
 package server
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-traceroute/log"
@@ -18,6 +20,13 @@ import (
 type Server struct {
 	tr        *traceroute.Traceroute
 	startTime time.Time
+	authToken []byte
+}
+
+// Options configures access control for a Server.
+type Options struct {
+	// AuthToken, when not empty, must be sent as "Authorization: Bearer <AuthToken>" on /traceroute.
+	AuthToken string
 }
 
 // HealthResponse represents the health check response
@@ -29,14 +38,38 @@ type HealthResponse struct {
 
 // NewServer creates a new HTTP server with an initialized Traceroute instance
 func NewServer() *Server {
+	return NewServerWithOptions(Options{})
+}
+
+// NewServerWithOptions creates a new HTTP server that applies opts to every /traceroute request
+func NewServerWithOptions(opts Options) *Server {
 	return &Server{
 		tr:        traceroute.NewTraceroute(),
 		startTime: time.Now(),
+		authToken: []byte(opts.AuthToken),
 	}
+}
+
+func (s *Server) isAuthorized(r *http.Request) bool {
+	if len(s.authToken) == 0 {
+		return true
+	}
+	scheme, token, found := strings.Cut(r.Header.Get("Authorization"), " ")
+	return found && strings.EqualFold(scheme, "Bearer") &&
+		subtle.ConstantTimeCompare([]byte(strings.TrimLeft(token, " ")), s.authToken) == 1
 }
 
 // TracerouteHandler handles GET /traceroute requests
 func (s *Server) TracerouteHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.isAuthorized(r) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		writeErrorResponse(w, traceroute.ErrorResponse{
+			Code:    traceroute.ErrCodeDenied,
+			Message: "missing or invalid bearer token",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -117,8 +150,11 @@ func writeErrorResponse(w http.ResponseWriter, resp traceroute.ErrorResponse, st
 
 // Start starts the HTTP server on the specified address
 func (s *Server) Start(addr string) error {
-	http.HandleFunc("/traceroute", s.TracerouteHandler)
-	http.HandleFunc("/health", s.HealthHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/traceroute", s.TracerouteHandler)
+	mux.HandleFunc("/health", s.HealthHandler)
 	log.Debugf("Starting HTTP server on %s", addr)
-	return http.ListenAndServe(addr, nil)
+	// No write timeout: a traceroute can run for minutes.
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	return srv.ListenAndServe()
 }
