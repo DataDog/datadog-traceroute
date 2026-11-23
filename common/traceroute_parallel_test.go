@@ -78,6 +78,49 @@ func TestParallelTraceroute(t *testing.T) {
 	require.Len(t, results, mockDestTTL)
 }
 
+func TestParallelTracerouteTerminalResponse(t *testing.T) {
+	params := parallelParams
+	params.SendDelay = 0
+	m := initMockDriver(t, params.TracerouteParams, parallelInfo)
+	receiveProbes := make(chan *ProbeResponse, 1)
+	terminalHandled := make(chan struct{})
+	firstHop := mockResult(1)
+	terminal := mockResult(2)
+	terminal.IsTerminal = true
+
+	m.sendHandler = func(ttl uint8) error {
+		if ttl == 2 {
+			// Wait for the terminal response to be handled before attempting the next send.
+			receiveProbes <- terminal
+			select {
+			case <-terminalHandled:
+			case <-time.After(time.Second):
+				return fmt.Errorf("terminal response was not handled")
+			}
+		}
+		return nil
+	}
+	receivedTerminal := false
+	m.receiveHandler = func() (*ProbeResponse, error) {
+		if receivedTerminal {
+			receivedTerminal = false
+			close(terminalHandled)
+			// Earlier hops may still arrive after the terminal response.
+			receiveProbes <- firstHop
+		}
+		probe, err := pollData(receiveProbes, params.PollFrequency)
+		if probe == terminal {
+			receivedTerminal = true
+		}
+		return probe, err
+	}
+
+	results, err := TracerouteParallel(context.Background(), m, params)
+	require.NoError(t, err)
+	require.Equal(t, []*ProbeResponse{firstHop, terminal}, results)
+	require.Equal(t, map[uint8]struct{}{1: {}, 2: {}}, m.sentTTLs)
+}
+
 func testParallelTracerouteShuffled(t *testing.T, seed int64) {
 	// similar to TestParallelTraceroute, except it shuffles the received probes
 	// and expects them to come back in the correct order

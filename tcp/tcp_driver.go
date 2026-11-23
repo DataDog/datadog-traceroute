@@ -177,6 +177,8 @@ func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeRespon
 
 	var probe probeData
 	var isDest bool
+	var isTerminal bool
+	var icmpType, icmpCode uint8
 
 	switch t.parser.GetTransportLayer() {
 	case layers.LayerTypeTCP:
@@ -221,7 +223,7 @@ func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeRespon
 		probe = lastProbe
 		isDest = true
 	case layers.LayerTypeICMPv4:
-		if !t.parser.IsTTLExceeded() {
+		if !t.parser.IsTTLExceeded() && !t.parser.IsDestinationUnreachable() {
 			return nil, common.ErrPacketDidNotMatchTraceroute
 		}
 
@@ -255,6 +257,9 @@ func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeRespon
 		if probe == (probeData{}) {
 			log.Warnf("couldn't find probe matching packetID=%d and seqNum=%d", icmpInfo.WrappedPacketID, tcpInfo.Seq)
 		}
+		isTerminal = t.parser.IsDestinationUnreachable()
+		icmpType = t.parser.ICMP4.TypeCode.Type()
+		icmpCode = t.parser.ICMP4.TypeCode.Code()
 	default:
 		return nil, common.ErrPacketDidNotMatchTraceroute
 	}
@@ -265,10 +270,13 @@ func (t *tcpDriver) handleProbeLayers(receivedAt time.Time) (*common.ProbeRespon
 	rtt := packets.RTT(receivedAt, probe.sendTime)
 
 	return &common.ProbeResponse{
-		TTL:    probe.ttl,
-		IP:     ipPair.SrcAddr,
-		RTT:    rtt,
-		IsDest: isDest,
+		TTL:        probe.ttl,
+		IP:         ipPair.SrcAddr,
+		RTT:        rtt,
+		IsDest:     isDest,
+		IsTerminal: isTerminal,
+		ICMPType:   icmpType,
+		ICMPCode:   icmpCode,
 	}, nil
 }
 

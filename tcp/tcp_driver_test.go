@@ -6,6 +6,7 @@
 package tcp
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"testing"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-traceroute/common"
 	"github.com/DataDog/datadog-traceroute/packets"
+	"github.com/DataDog/datadog-traceroute/result"
 )
 
 func initTest(t *testing.T) (*TCPv4, *tcpDriver, *packets.MockSink, *packets.MockSource) {
@@ -68,6 +70,11 @@ func parseSynAndExpectIDs(t *testing.T, config *TCPv4, packetID uint16, seqNum u
 }
 
 func mockICMPResp(t *testing.T, config *TCPv4, hopIP net.IP, basePacketID uint16, ttl uint8, tcpInfo packets.TCPInfo) []byte {
+	return mockICMPRespWithTypeCode(t, config, hopIP, basePacketID, ttl, tcpInfo,
+		layers.CreateICMPv4TypeCode(layers.ICMPv4TypeTimeExceeded, layers.ICMPv4CodeTTLExceeded))
+}
+
+func mockICMPRespWithTypeCode(t *testing.T, config *TCPv4, hopIP net.IP, basePacketID uint16, ttl uint8, tcpInfo packets.TCPInfo, typeCode layers.ICMPv4TypeCode) []byte {
 	ipLayer := &layers.IPv4{
 		Version:  4,
 		Length:   20,
@@ -79,7 +86,7 @@ func mockICMPResp(t *testing.T, config *TCPv4, hopIP net.IP, basePacketID uint16
 	}
 
 	icmpLayer := &layers.ICMPv4{
-		TypeCode: layers.CreateICMPv4TypeCode(layers.ICMPv4TypeTimeExceeded, layers.ICMPv4CodeTTLExceeded),
+		TypeCode: typeCode,
 	}
 	innerIPLayer := &layers.IPv4{
 		Version:  4,
@@ -91,16 +98,24 @@ func mockICMPResp(t *testing.T, config *TCPv4, hopIP net.IP, basePacketID uint16
 		DstIP:    config.Target,
 	}
 
-	payload := packets.SerializeTCPFirstBytes(tcpInfo)
-
-	// clear the gopacket.SerializeBuffer
-	buf := gopacket.NewSerializeBuffer()
-
 	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
+	innerTCP := &layers.TCP{
+		SrcPort: layers.TCPPort(tcpInfo.SrcPort),
+		DstPort: layers.TCPPort(tcpInfo.DstPort),
+		Seq:     tcpInfo.Seq,
+		SYN:     true,
+	}
+	require.NoError(t, innerTCP.SetNetworkLayerForChecksum(innerIPLayer))
+	innerBuf := gopacket.NewSerializeBuffer()
+	require.NoError(t, gopacket.SerializeLayers(innerBuf, opts, innerIPLayer, innerTCP))
+	// RFC 792 quotes the original IP header (including its full packet length)
+	// and only the first 8 transport bytes.
+	payload := innerBuf.Bytes()[:28]
+
+	buf := gopacket.NewSerializeBuffer()
 	err := gopacket.SerializeLayers(buf, opts,
 		ipLayer,
 		icmpLayer,
-		innerIPLayer,
 		gopacket.Payload(payload),
 	)
 	require.NoError(t, err)
@@ -216,6 +231,195 @@ func TestTCPDriverTwoHops(t *testing.T) {
 	require.Equal(t, uint8(2), probeResp.TTL)
 	require.True(t, config.Target.Equal(probeResp.IP.AsSlice()))
 	require.True(t, probeResp.IsDest)
+	require.False(t, probeResp.IsTerminal)
+	require.Zero(t, probeResp.ICMPType)
+	require.Zero(t, probeResp.ICMPCode)
+}
+
+func TestTCPDriverICMPResponses(t *testing.T) {
+	for _, mode := range []struct {
+		name  string
+		paris bool
+	}{
+		{name: "regular"},
+		{name: "paris", paris: true},
+	} {
+		t.Run(mode.name, func(t *testing.T) {
+			for _, tt := range []struct {
+				name     string
+				icmpType uint8
+				icmpCode uint8
+				terminal bool
+			}{
+				{name: "time_exceeded", icmpType: 11},
+				{name: "net_unreachable", icmpType: 3, icmpCode: 0, terminal: true},
+				{name: "host_unreachable", icmpType: 3, icmpCode: 1, terminal: true},
+				{name: "port_unreachable", icmpType: 3, icmpCode: 3, terminal: true},
+				{name: "fragmentation_needed", icmpType: 3, icmpCode: 4, terminal: true},
+				{name: "admin_prohibited", icmpType: 3, icmpCode: 13, terminal: true},
+			} {
+				t.Run(tt.name, func(t *testing.T) {
+					config, driver, mockSink, mockSource := initTest(t)
+					config.ParisTracerouteMode = mode.paris
+					mockSink.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
+					require.NoError(t, driver.SendProbe(2))
+					probe, err := driver.getLastSentProbe()
+					require.NoError(t, err)
+
+					hopIP := net.ParseIP("42.42.42.42")
+					// The reply contains only the quoted IP header and first 8 TCP bytes.
+					packet := mockICMPRespWithTypeCode(t, config, hopIP, probe.packetID-2, 2, packets.TCPInfo{
+						SrcPort: config.srcPort,
+						DstPort: config.DestPort,
+						Seq:     probe.seqNum,
+					}, layers.CreateICMPv4TypeCode(tt.icmpType, tt.icmpCode))
+					mockSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
+					mockRead(mockSource, packet)
+
+					response, err := driver.ReceiveProbe(time.Second)
+					require.NoError(t, err)
+					require.Equal(t, uint8(2), response.TTL)
+					require.Equal(t, netip.MustParseAddr("42.42.42.42"), response.IP)
+					require.Positive(t, response.RTT)
+					require.False(t, response.IsDest)
+					require.Equal(t, tt.terminal, response.IsTerminal)
+					require.Equal(t, tt.icmpType, response.ICMPType)
+					require.Equal(t, tt.icmpCode, response.ICMPCode)
+					hops, err := common.ToHops(common.TracerouteParams{MinTTL: 2}, []*common.ProbeResponse{response})
+					require.NoError(t, err)
+					require.Equal(t, tt.icmpType, hops[0].ICMPType)
+					require.Equal(t, tt.icmpCode, hops[0].ICMPCode)
+				})
+			}
+		})
+	}
+}
+
+func TestTCPDriverICMPDestinationUnreachableMismatch(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		loosenSrc bool
+		wantMatch bool
+	}{
+		{name: "source_ip"},
+		{name: "destination_ip"},
+		{name: "packet_id"},
+		{name: "source_port"},
+		{name: "destination_port"},
+		{name: "sequence"},
+		{name: "no_probe"},
+		{name: "short_tcp"},
+		{name: "short_ip"},
+		{name: "other_icmp_type"},
+		{name: "other_time_exceeded_code"},
+		{name: "loose_source_ip", loosenSrc: true, wantMatch: true},
+		{name: "loose_source_port", loosenSrc: true, wantMatch: true},
+		{name: "loose_destination_ip", loosenSrc: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config, driver, mockSink, mockSource := initTest(t)
+			config.LoosenICMPSrc = tt.loosenSrc
+			if tt.name != "no_probe" {
+				mockSink.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
+				require.NoError(t, driver.SendProbe(1))
+			}
+			replyConfig := *config
+			packetID := driver.basePacketID
+			tcpInfo := packets.TCPInfo{SrcPort: config.srcPort, DstPort: config.DestPort, Seq: driver.seqNum}
+			typeCode := layers.CreateICMPv4TypeCode(layers.ICMPv4TypeDestinationUnreachable, 0)
+			switch tt.name {
+			case "source_ip", "loose_source_ip":
+				replyConfig.srcIP = net.ParseIP("8.8.8.8")
+			case "destination_ip", "loose_destination_ip":
+				replyConfig.Target = net.ParseIP("8.8.8.8")
+			case "packet_id":
+				packetID++
+			case "source_port", "loose_source_port":
+				tcpInfo.SrcPort++
+			case "destination_port":
+				tcpInfo.DstPort++
+			case "sequence":
+				tcpInfo.Seq++
+			case "other_icmp_type":
+				typeCode = layers.CreateICMPv4TypeCode(layers.ICMPv4TypeRedirect, 0)
+			case "other_time_exceeded_code":
+				typeCode = layers.CreateICMPv4TypeCode(layers.ICMPv4TypeTimeExceeded, layers.ICMPv4CodeFragmentReassemblyTimeExceeded)
+			}
+			packet := mockICMPRespWithTypeCode(t, &replyConfig, net.ParseIP("42.42.42.42"), packetID, 1, tcpInfo, typeCode)
+			if tt.name == "short_tcp" || tt.name == "short_ip" {
+				parser := packets.NewFrameParser()
+				require.NoError(t, parser.Parse(packet))
+				payload := parser.ICMP4.Payload
+				if tt.name == "short_tcp" {
+					payload = payload[:27] // IP header and only 7 TCP bytes
+				} else {
+					payload = payload[:19] // incomplete IP header
+				}
+				buf := gopacket.NewSerializeBuffer()
+				require.NoError(t, gopacket.SerializeLayers(buf, gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true},
+					&parser.IP4, &parser.ICMP4, gopacket.Payload(payload)))
+				packet = buf.Bytes()
+			}
+			mockSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
+			mockRead(mockSource, packet)
+
+			response, err := driver.ReceiveProbe(time.Second)
+			if tt.wantMatch {
+				require.NoError(t, err)
+				require.True(t, response.IsTerminal)
+				return
+			}
+			require.Nil(t, response)
+			if tt.name == "short_tcp" || tt.name == "short_ip" {
+				var badPacket *common.BadPacketError
+				require.ErrorAs(t, err, &badPacket)
+			} else {
+				require.ErrorIs(t, err, common.ErrPacketDidNotMatchTraceroute)
+			}
+		})
+	}
+}
+
+func TestTCPTracerouteStopsAtUnreachableHop(t *testing.T) {
+	config, driver, mockSink, mockSource := initTest(t)
+	hopIPs := []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("10.0.0.2")}
+	for i, hopIP := range hopIPs {
+		ttl := uint8(i + 1)
+		mockSink.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(func(buf []byte, _ netip.AddrPort) error {
+			parseSynAndExpectIDs(t, config, driver.basePacketID+uint16(ttl), driver.seqNum, buf)
+			return nil
+		})
+		typeCode := layers.CreateICMPv4TypeCode(layers.ICMPv4TypeTimeExceeded, 0)
+		if ttl == 2 {
+			typeCode = layers.CreateICMPv4TypeCode(layers.ICMPv4TypeDestinationUnreachable, 0)
+		}
+		packet := mockICMPRespWithTypeCode(t, config, hopIP, driver.basePacketID, ttl, packets.TCPInfo{
+			SrcPort: config.srcPort, DstPort: config.DestPort, Seq: driver.seqNum,
+		}, typeCode)
+		mockSource.EXPECT().SetReadDeadline(gomock.Any()).Return(nil)
+		mockRead(mockSource, packet)
+	}
+	// Any attempt to send a third probe fails the mock expectations.
+	params := common.TracerouteSerialParams{TracerouteParams: common.TracerouteParams{
+		MinTTL: 1, MaxTTL: 5, TracerouteTimeout: time.Second, PollFrequency: time.Millisecond,
+	}}
+	responses, err := common.TracerouteSerial(context.Background(), driver, params)
+	require.NoError(t, err)
+	hops, err := common.ToHops(params.TracerouteParams, responses)
+	require.NoError(t, err)
+	require.Len(t, hops, 2)
+	for i, hop := range hops {
+		require.Equal(t, i+1, hop.TTL)
+		require.True(t, hopIPs[i].Equal(hop.IPAddress))
+		require.False(t, hop.IsDest)
+	}
+	require.Equal(t, uint8(3), hops[1].ICMPType)
+	require.Equal(t, uint8(0), hops[1].ICMPCode)
+	run := result.TracerouteRun{Hops: hops}
+	require.Nil(t, run.GetDestinationHop())
+	results := result.Results{Traceroute: result.Traceroute{Runs: []result.TracerouteRun{run}}}
+	results.Normalize()
+	require.True(t, hops[1].Reachable)
 }
 
 // timestampedMockSource wraps a MockSource with a fixed kernel capture timestamp,

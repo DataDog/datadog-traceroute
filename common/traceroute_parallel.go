@@ -111,8 +111,8 @@ func TracerouteParallel(ctx context.Context, t TracerouteDriver, p TraceroutePar
 			}
 
 			writeProbe(probe)
-			// no need to send more probes if we found the destination
-			if probe.IsDest {
+			// Stop sending at the destination or a terminal response from an intermediate hop.
+			if probe.IsDest || probe.IsTerminal {
 				writerCancel()
 			}
 		}

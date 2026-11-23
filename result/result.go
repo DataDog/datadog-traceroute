@@ -68,10 +68,12 @@ type (
 		// Internal use
 		IsDest bool `json:"-"`
 
-		// DEPRECATED: In separate PR, remove fields below and its usage
-		Port     uint16 `json:"-"`
-		ICMPType uint8  `json:"-"`
-		ICMPCode uint8  `json:"-"`
+		// DEPRECATED: In separate PR, remove Port and its usage
+		Port uint16 `json:"-"`
+
+		// ICMPType and ICMPCode identify ICMP responses; both are zero for non-ICMP replies.
+		ICMPType uint8 `json:"-"`
+		ICMPCode uint8 `json:"-"`
 	}
 	// TracerouteSource contains result source info
 	TracerouteSource struct {
