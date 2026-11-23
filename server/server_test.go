@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-traceroute/traceroute"
 	"github.com/stretchr/testify/assert"
@@ -166,5 +167,17 @@ func TestHealthHandlerDoesNotRequireToken(t *testing.T) {
 
 	srv.HealthHandler(w, req)
 
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHTTPServerSettings(t *testing.T) {
+	httpSrv := NewServer().httpServer("127.0.0.1:0")
+
+	assert.Equal(t, 10*time.Second, httpSrv.ReadHeaderTimeout)
+	require.NotNil(t, httpSrv.Handler, "a nil handler serves http.DefaultServeMux")
+	assert.NotEqual(t, http.DefaultServeMux, httpSrv.Handler)
+
+	w := httptest.NewRecorder()
+	httpSrv.Handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/health", nil))
 	assert.Equal(t, http.StatusOK, w.Code)
 }

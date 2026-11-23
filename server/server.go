@@ -150,11 +150,15 @@ func writeErrorResponse(w http.ResponseWriter, resp traceroute.ErrorResponse, st
 
 // Start starts the HTTP server on the specified address
 func (s *Server) Start(addr string) error {
+	log.Debugf("Starting HTTP server on %s", addr)
+	return s.httpServer(addr).ListenAndServe()
+}
+
+// httpServer builds the HTTP server, with its own mux and a header timeout.
+func (s *Server) httpServer(addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/traceroute", s.TracerouteHandler)
 	mux.HandleFunc("/health", s.HealthHandler)
-	log.Debugf("Starting HTTP server on %s", addr)
 	// No write timeout: a traceroute can run for minutes.
-	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return srv.ListenAndServe()
+	return &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 }

@@ -77,3 +77,7 @@ func TestLoadAuthTokenMissingFile(t *testing.T) {
 }
 
 func ptr(s string) *string { return &s }
+
+func TestAddrDefaultsToLoopback(t *testing.T) {
+	assert.Equal(t, "127.0.0.1:3765", rootCmd.Flags().Lookup("addr").DefValue)
+}
