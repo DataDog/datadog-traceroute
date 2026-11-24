@@ -169,17 +169,19 @@ func (d *SourceDriver) Close() error {
 	if e := d.handle.CancelIoEx(nil); e != nil {
 		return fmt.Errorf("error cancelling DNS io completion: %w", e)
 	}
-	// CancelIoEx only requests cancellation, and closing the handles doesn't wait for
+	// a driver may complete pending reads only when its handle closes, so close it before waiting:
+	// their completions still reach iocp, which stays open until the wait ends
+	if e := d.handle.Close(); e != nil {
+		return fmt.Errorf("error closing driver DNS h: %w", e)
+	}
+	d.handle = nil
+	// CancelIoEx only requests cancellation, and closing the handle doesn't wait for
 	// pending reads either: wait until each read reports its completion before freeing its buffer.
 	drained := d.waitForPendingReads(closeDrainTimeout)
 	if e := windows.CloseHandle(d.iocp); e != nil {
 		return fmt.Errorf("error closing DNS io completion handle: %w", e)
 	}
 	d.iocp = windows.InvalidHandle
-	if e := d.handle.Close(); e != nil {
-		return fmt.Errorf("error closing driver DNS h: %w", e)
-	}
-	d.handle = nil
 	if drained {
 		for _, buf := range d.readBuffers {
 			C.free(unsafe.Pointer(buf))

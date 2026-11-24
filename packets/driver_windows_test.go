@@ -23,14 +23,24 @@ import (
 type pipeHandle struct {
 	driver.Handle
 	h windows.Handle
+	// ignoreCancel makes CancelIoEx a no-op, like a driver that completes its pending reads
+	// only when its handle closes
+	ignoreCancel bool
 }
 
-func (p *pipeHandle) CancelIoEx(ol *windows.Overlapped) error { return windows.CancelIoEx(p.h, ol) }
-func (p *pipeHandle) Close() error                            { return windows.CloseHandle(p.h) }
+func (p *pipeHandle) CancelIoEx(ol *windows.Overlapped) error {
+	if p.ignoreCancel {
+		return nil
+	}
+	return windows.CancelIoEx(p.h, ol)
+}
+func (p *pipeHandle) Close() error { return windows.CloseHandle(p.h) }
 
-// TestCloseWaitsForCancelledReads uses a named pipe in place of the driver, so the reads,
-// their cancellation and the completion port behave as they do with the driver.
-func TestCloseWaitsForCancelledReads(t *testing.T) {
+// newPipeSource uses a named pipe in place of the driver, so the reads, their cancellation and
+// the completion port behave as they do with the driver. It returns a SourceDriver with count
+// reads pending on the pipe's server end, and the client end, which writes the packets.
+func newPipeSource(t *testing.T, count int, ignoreCancel bool) (*SourceDriver, windows.Handle) {
+	t.Helper()
 	name, err := windows.UTF16PtrFromString(fmt.Sprintf(`\\.\pipe\datadog-traceroute-test-%d-%d`, os.Getpid(), time.Now().UnixNano()))
 	require.NoError(t, err)
 	server, err := windows.CreateNamedPipe(name,
@@ -40,12 +50,17 @@ func TestCloseWaitsForCancelledReads(t *testing.T) {
 	require.NoError(t, err)
 	client, err := windows.CreateFile(name, windows.GENERIC_WRITE, 0, nil, windows.OPEN_EXISTING, 0, 0)
 	require.NoError(t, err)
-	defer windows.CloseHandle(client)
+	t.Cleanup(func() { _ = windows.CloseHandle(client) })
 
-	const count, written = 8, 3
 	iocp, buffers, err := prepareCompletionBuffers(server, count)
 	require.NoError(t, err)
-	d := &SourceDriver{handle: &pipeHandle{h: server}, iocp: iocp, readBuffers: buffers, pendingReads: count}
+	d := &SourceDriver{handle: &pipeHandle{h: server, ignoreCancel: ignoreCancel}, iocp: iocp, readBuffers: buffers, pendingReads: count}
+	return d, client
+}
+
+func TestCloseWaitsForCancelledReads(t *testing.T) {
+	const count, written = 8, 3
+	d, client := newPipeSource(t, count, false)
 
 	// complete some reads with data, as packets arriving before Close would
 	for i := 0; i < written; i++ {
@@ -58,6 +73,17 @@ func TestCloseWaitsForCancelledReads(t *testing.T) {
 	require.Equal(t, count-written, d.pendingReads)
 
 	// Close cancels them, and must dequeue each completion before freeing the buffers
+	require.NoError(t, d.Close())
+	require.Zero(t, d.pendingReads)
+	require.Nil(t, d.readBuffers)
+}
+
+func TestCloseWaitsForReadsCompletedOnHandleClose(t *testing.T) {
+	const count = 8
+	d, _ := newPipeSource(t, count, true)
+
+	// CancelIoEx completes nothing here: only closing the handle does, so Close must close it
+	// before it waits, and still dequeue each completion before freeing the buffers
 	require.NoError(t, d.Close())
 	require.Zero(t, d.pendingReads)
 	require.Nil(t, d.readBuffers)
