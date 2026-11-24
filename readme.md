@@ -57,7 +57,7 @@ Note: Windows driver is needed for all protocol-variant for IPv6s on server vers
 
 ## Prerequisites
 
-- Go 1.25.6+
+- Go 1.26.11+
 - Root/administrator privileges (required for raw sockets)
 
 ## Building
