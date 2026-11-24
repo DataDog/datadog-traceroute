@@ -21,12 +21,15 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/driver"
 	"github.com/DataDog/datadog-traceroute/common"
+	"github.com/DataDog/datadog-traceroute/log"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
 const (
 	readBufferCount = 800
+	// closeDrainTimeout bounds how long Close waits for cancelled reads to complete
+	closeDrainTimeout = 2 * time.Second
 )
 
 type readbuffer struct {
@@ -39,6 +42,9 @@ type SourceDriver struct {
 	handle      driver.Handle
 	iocp        windows.Handle
 	readBuffers []*readbuffer
+	// pendingReads counts the reads whose completion hasn't been dequeued from iocp:
+	// the kernel may still write to their buffers.
+	pendingReads int
 }
 
 var _ Source = &SourceDriver{}
@@ -73,6 +79,7 @@ func (d *SourceDriver) setupSourceDriver() error {
 
 	d.iocp = iocp
 	d.readBuffers = buffers
+	d.pendingReads = len(buffers)
 
 	return nil
 }
@@ -151,7 +158,7 @@ func (d *SourceDriver) SetPacketFilter(filter PacketFilterSpec) error {
 	return d.SetDataFilters(filterDefs)
 }
 
-// Close closes the driver.
+// Close closes the driver. It must not run concurrently with Read.
 func (d *SourceDriver) Close() error {
 	// if the driver is already closed, return nil
 	if d.handle == nil {
@@ -162,6 +169,9 @@ func (d *SourceDriver) Close() error {
 	if e := d.handle.CancelIoEx(nil); e != nil {
 		return fmt.Errorf("error cancelling DNS io completion: %w", e)
 	}
+	// CancelIoEx only requests cancellation, and closing the handles doesn't wait for
+	// pending reads either: wait until each read reports its completion before freeing its buffer.
+	drained := d.waitForPendingReads(closeDrainTimeout)
 	if e := windows.CloseHandle(d.iocp); e != nil {
 		return fmt.Errorf("error closing DNS io completion handle: %w", e)
 	}
@@ -169,14 +179,41 @@ func (d *SourceDriver) Close() error {
 	if e := d.handle.Close(); e != nil {
 		return fmt.Errorf("error closing driver DNS h: %w", e)
 	}
-	// freee buffer post handle close to make sure kenrel does not use them anymore
 	d.handle = nil
-	for _, buf := range d.readBuffers {
-		C.free(unsafe.Pointer(buf))
+	if drained {
+		for _, buf := range d.readBuffers {
+			C.free(unsafe.Pointer(buf))
+		}
+	} else {
+		// the kernel may still write to these buffers: leaking them is safer than freeing them
+		log.Warnf("driver source: %d reads still pending after %s, leaking %d read buffers", d.pendingReads, closeDrainTimeout, len(d.readBuffers))
 	}
 	d.readBuffers = nil
 
 	return nil
+}
+
+// waitForPendingReads dequeues completions from iocp until every pending read has
+// reported one, or timeout elapses. It returns whether all pending reads completed.
+func (d *SourceDriver) waitForPendingReads(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for d.pendingReads > 0 {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return false
+		}
+		var bytesRead uint32
+		var key uintptr
+		var ol *windows.Overlapped
+		// a cancelled read completes with ERROR_OPERATION_ABORTED, so ignore the error and
+		// count every dequeued completion; a nil ol means nothing was dequeued (timeout)
+		_ = windows.GetQueuedCompletionStatus(d.iocp, &bytesRead, &key, &ol, uint32(remaining.Milliseconds()))
+		if ol == nil {
+			return false
+		}
+		d.pendingReads--
+	}
+	return true
 }
 
 // prepare N read buffers
@@ -216,6 +253,10 @@ func (d *SourceDriver) Read(buf []byte) (int, error) {
 	// NOTE: ideally we would pass a timeout of INFINITY to the GetQueuedCompletionStatus, but are using a
 	// timeout of 0 and letting userspace do a busy loop to align better with the Linux code.
 	err := windows.GetQueuedCompletionStatus(d.iocp, &bytesRead, &key, &ol, timeoutMs)
+	if ol != nil {
+		// a read completed, even if it failed: the kernel is done with its buffer
+		d.pendingReads--
+	}
 	if err != nil {
 		if err == syscall.Errno(syscall.WAIT_TIMEOUT) {
 			// this means that there was no queued completion status
@@ -236,6 +277,7 @@ func (d *SourceDriver) Read(buf []byte) (int, error) {
 	if err := windows.ReadFile(d.handle.GetWindowsHandle(), b.data[:], nil, &(b.ol)); err != nil && err != windows.ERROR_IO_PENDING {
 		return 0, err
 	}
+	d.pendingReads++
 
 	return length, nil
 }
