@@ -8,12 +8,86 @@
 package packets
 
 import (
+	"fmt"
 	"net/netip"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/network/driver"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"
 )
+
+// pipeHandle stands in for the driver handle: only the methods Close uses are implemented.
+type pipeHandle struct {
+	driver.Handle
+	h windows.Handle
+	// ignoreCancel makes CancelIoEx a no-op, like a driver that completes its pending reads
+	// only when its handle closes
+	ignoreCancel bool
+}
+
+func (p *pipeHandle) CancelIoEx(ol *windows.Overlapped) error {
+	if p.ignoreCancel {
+		return nil
+	}
+	return windows.CancelIoEx(p.h, ol)
+}
+func (p *pipeHandle) Close() error { return windows.CloseHandle(p.h) }
+
+// newPipeSource uses a named pipe in place of the driver, so the reads, their cancellation and
+// the completion port behave as they do with the driver. It returns a SourceDriver with count
+// reads pending on the pipe's server end, and the client end, which writes the packets.
+func newPipeSource(t *testing.T, count int, ignoreCancel bool) (*SourceDriver, windows.Handle) {
+	t.Helper()
+	name, err := windows.UTF16PtrFromString(fmt.Sprintf(`\\.\pipe\datadog-traceroute-test-%d-%d`, os.Getpid(), time.Now().UnixNano()))
+	require.NoError(t, err)
+	server, err := windows.CreateNamedPipe(name,
+		windows.PIPE_ACCESS_INBOUND|windows.FILE_FLAG_OVERLAPPED|windows.FILE_FLAG_FIRST_PIPE_INSTANCE,
+		windows.PIPE_TYPE_MESSAGE|windows.PIPE_READMODE_MESSAGE|windows.PIPE_WAIT,
+		1, 0, 4096, 0, nil)
+	require.NoError(t, err)
+	client, err := windows.CreateFile(name, windows.GENERIC_WRITE, 0, nil, windows.OPEN_EXISTING, 0, 0)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = windows.CloseHandle(client) })
+
+	iocp, buffers, err := prepareCompletionBuffers(server, count)
+	require.NoError(t, err)
+	d := &SourceDriver{handle: &pipeHandle{h: server, ignoreCancel: ignoreCancel}, iocp: iocp, readBuffers: buffers, pendingReads: count}
+	return d, client
+}
+
+func TestCloseWaitsForCancelledReads(t *testing.T) {
+	const count, written = 8, 3
+	d, client := newPipeSource(t, count, false)
+
+	// complete some reads with data, as packets arriving before Close would
+	for i := 0; i < written; i++ {
+		var n uint32
+		require.NoError(t, windows.WriteFile(client, []byte("packet"), &n, nil))
+	}
+
+	// the other reads are still pending, so they must not count as done
+	require.False(t, d.waitForPendingReads(100*time.Millisecond))
+	require.Equal(t, count-written, d.pendingReads)
+
+	// Close cancels them, and must dequeue each completion before freeing the buffers
+	require.NoError(t, d.Close())
+	require.Zero(t, d.pendingReads)
+	require.Nil(t, d.readBuffers)
+}
+
+func TestCloseWaitsForReadsCompletedOnHandleClose(t *testing.T) {
+	const count = 8
+	d, _ := newPipeSource(t, count, true)
+
+	// CancelIoEx completes nothing here: only closing the handle does, so Close must close it
+	// before it waits, and still dequeue each completion before freeing the buffers
+	require.NoError(t, d.Close())
+	require.Zero(t, d.pendingReads)
+	require.Nil(t, d.readBuffers)
+}
 
 func TestCreatePacketFilters(t *testing.T) {
 	driver := &SourceDriver{}
